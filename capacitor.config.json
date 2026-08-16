@@ -1,0 +1,18 @@
+{
+  "appId": "de.beewise.app",
+  "appName": "BeeWise",
+  "webDir": ".",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 600,
+      "backgroundColor": "#FAF7F1",
+      "showSpinner": false
+    }
+  }
+}

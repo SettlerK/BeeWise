@@ -1,0 +1,22 @@
+{
+  "name": "BeeWise – Digitale Imkerei",
+  "short_name": "BeeWise",
+  "description": "Bienenvölker führen, Durchsichten protokollieren, Aufgaben automatisch nach Tracht und Wetter terminieren.",
+  "lang": "de",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FAF7F1",
+  "theme_color": "#E0A02C",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Heute", "url": "./index.html#heute" },
+    { "name": "Völker", "url": "./index.html#voelker" }
+  ]
+}
