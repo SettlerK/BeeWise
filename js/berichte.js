@@ -1,6 +1,7 @@
 // Berichte als PDF: Behandlungsprotokoll und Volkshistorie.
 import { PDF } from './pdf.js';
 import { fmtDatum, parseISO, iso, heute } from './util.js';
+import { t } from './i18n.js';
 import { regelNach } from './regeln.js';
 
 const BEHANDLUNGEN = ['sommerbehandlung1', 'sommerbehandlung2', 'restentmilbung'];
@@ -23,87 +24,88 @@ export function behandlungsprotokoll(S, { jahr = new Date().getFullYear(), imker
   const erl = S.erledigungen.filter(imJahr).sort((a, b) => (a.datum < b.datum ? -1 : 1));
 
   const p = new PDF({
-    titel: `Behandlungsprotokoll ${jahr}`,
-    untertitel: [imkerei, `${S.voelker.length} Völker an ${S.standorte.length} Standorten`,
-      `erstellt am ${dat(heute())}`].filter(Boolean).join(' · '),
-    fusszeile: 'BeeWise · Behandlungsprotokoll ' + jahr,
+    titel: t('Behandlungsprotokoll {jahr}', { jahr }),
+    untertitel: [imkerei,
+      t('{v} Völker an {s} Standorten', { v: S.voelker.length, s: S.standorte.length }),
+      t('erstellt am {d}', { d: dat(heute()) })].filter(Boolean).join(' · '),
+    fusszeile: 'BeeWise · ' + t('Behandlungsprotokoll {jahr}', { jahr }),
   });
 
-  p.text('Dokumentiert werden alle durchgeführten Varroabehandlungen, biotechnischen '
+  p.text(t('Dokumentiert werden alle durchgeführten Varroabehandlungen, biotechnischen '
     + 'Maßnahmen und Befallskontrollen. Angaben zu Präparat und Menge stammen aus den '
-    + 'Eintragungen des Imkers.', { groesse: 8.5, grau: true });
+    + 'Eintragungen des Imkers.'), { groesse: 8.5, grau: true });
 
   // ---- Behandlungen
   const behandlungen = erl.filter((e) => BEHANDLUNGEN.includes(e.regelId));
-  p.ueberschrift(`Varroabehandlungen (${behandlungen.length})`);
+  p.ueberschrift(t('Varroabehandlungen ({n})', { n: behandlungen.length }));
   if (behandlungen.length) {
     p.tabelle([
-      { titel: 'Datum', breite: 62, schluessel: 'datum' },
-      { titel: 'Volk', breite: 48, schluessel: 'volk' },
-      { titel: 'Standort', breite: 70, schluessel: 'standort' },
-      { titel: 'Maßnahme', breite: 92, schluessel: 'massnahme' },
-      { titel: 'Präparat', breite: 90, schluessel: 'mittel' },
-      { titel: 'Menge', breite: 46, schluessel: 'menge' },
-      { titel: 'Bemerkung', breite: 84, schluessel: 'notiz' },
+      { titel: t('Datum'), breite: 62, schluessel: 'datum' },
+      { titel: t('Volk'), breite: 48, schluessel: 'volk' },
+      { titel: t('Standort'), breite: 70, schluessel: 'standort' },
+      { titel: t('Maßnahme'), breite: 92, schluessel: 'massnahme' },
+      { titel: t('Präparat'), breite: 90, schluessel: 'mittel' },
+      { titel: t('Menge'), breite: 46, schluessel: 'menge' },
+      { titel: t('Bemerkung'), breite: 84, schluessel: 'notiz' },
     ], behandlungen.map((e) => ({
       datum: dat(e.datum),
       volk: volkName(S, e.zielId),
       standort: stand(S, e.zielId),
-      massnahme: (regelNach(e.regelId)?.titel || e.regelId).replace(' – Ameisensäure', ''),
+      massnahme: t((regelNach(e.regelId)?.titel || e.regelId).replace(' – Ameisensäure', '')),
       mittel: e.daten?.praeparat || '–',
       menge: e.daten?.menge ? `${e.daten.menge} ml` : '–',
       notiz: [e.daten?.anwendung, e.daten?.gassen ? `${e.daten.gassen} Gassen` : '', e.daten?.notiz]
         .filter(Boolean).join(', '),
     })));
   } else {
-    p.text('Keine Einträge in diesem Jahr.', { groesse: 9, grau: true });
+    p.text(t('Keine Einträge in diesem Jahr.'), { groesse: 9, grau: true });
   }
 
   // ---- Befallskontrollen
   const kontrollen = erl.filter((e) => KONTROLLEN.includes(e.regelId));
-  p.ueberschrift(`Befallskontrollen (${kontrollen.length})`);
+  p.ueberschrift(t('Befallskontrollen ({n})', { n: kontrollen.length }));
   if (kontrollen.length) {
     p.tabelle([
-      { titel: 'Datum', breite: 70, schluessel: 'datum' },
-      { titel: 'Volk', breite: 55, schluessel: 'volk' },
-      { titel: 'Standort', breite: 80, schluessel: 'standort' },
-      { titel: 'Art', breite: 105, schluessel: 'art' },
-      { titel: 'Milben/Tag', breite: 60, schluessel: 'wert' },
-      { titel: 'Bemerkung', breite: 90, schluessel: 'notiz' },
+      { titel: t('Datum'), breite: 70, schluessel: 'datum' },
+      { titel: t('Volk'), breite: 55, schluessel: 'volk' },
+      { titel: t('Standort'), breite: 80, schluessel: 'standort' },
+      { titel: t('Art'), breite: 105, schluessel: 'art' },
+      { titel: t('Milben/Tag'), breite: 60, schluessel: 'wert' },
+      { titel: t('Bemerkung'), breite: 90, schluessel: 'notiz' },
     ], kontrollen.map((e) => ({
       datum: dat(e.datum),
       volk: volkName(S, e.zielId),
       standort: stand(S, e.zielId),
-      art: e.regelId === 'befallskontrolle' ? 'Gemülldiagnose' : 'Erfolgskontrolle',
+      art: t(e.regelId === 'befallskontrolle' ? 'Gemülldiagnose' : 'Erfolgskontrolle'),
       wert: e.daten?.milbenProTag != null ? String(e.daten.milbenProTag) : '–',
       notiz: e.daten?.notiz || '',
     })));
   } else {
-    p.text('Keine Einträge in diesem Jahr.', { groesse: 9, grau: true });
+    p.text(t('Keine Einträge in diesem Jahr.'), { groesse: 9, grau: true });
   }
 
   // ---- Biotechnik
   const bio = erl.filter((e) => BIOTECHNIK.includes(e.regelId));
   if (bio.length) {
-    p.ueberschrift(`Biotechnische Maßnahmen (${bio.length})`);
+    p.ueberschrift(t('Biotechnische Maßnahmen ({n})', { n: bio.length }));
     p.tabelle([
-      { titel: 'Datum', breite: 70, schluessel: 'datum' },
-      { titel: 'Volk', breite: 60, schluessel: 'volk' },
-      { titel: 'Standort', breite: 85, schluessel: 'standort' },
-      { titel: 'Maßnahme', breite: 145, schluessel: 'massnahme' },
-      { titel: 'Bemerkung', breite: 100, schluessel: 'notiz' },
+      { titel: t('Datum'), breite: 70, schluessel: 'datum' },
+      { titel: t('Volk'), breite: 60, schluessel: 'volk' },
+      { titel: t('Standort'), breite: 85, schluessel: 'standort' },
+      { titel: t('Maßnahme'), breite: 145, schluessel: 'massnahme' },
+      { titel: t('Bemerkung'), breite: 100, schluessel: 'notiz' },
     ], bio.map((e) => ({
       datum: dat(e.datum),
       volk: volkName(S, e.zielId),
       standort: stand(S, e.zielId),
-      massnahme: regelNach(e.regelId)?.titel || e.regelId,
+      massnahme: t(regelNach(e.regelId)?.titel || e.regelId),
       notiz: e.daten?.notiz || '',
     })));
   }
 
   p.abstand(14);
-  p.text('Die Angaben beruhen auf den Eintragungen in BeeWise. Für Zulassung, Dosierung und '
-    + 'Wartezeiten der eingesetzten Mittel gilt die jeweilige Packungsbeilage.',
+  p.text(t('Die Angaben beruhen auf den Eintragungen in BeeWise. Für Zulassung, Dosierung und '
+    + 'Wartezeiten der eingesetzten Mittel gilt die jeweilige Packungsbeilage.'),
   { groesse: 7.5, grau: true });
 
   return p;
@@ -116,22 +118,22 @@ export function volkHistorie(S, volkId) {
   const st = S.standorte.find((s) => s.id === v.standortId);
 
   const p = new PDF({
-    titel: `Stockkarte – Volk ${v.name}`,
-    untertitel: [st?.name, v.beute, v.koeniginJahr ? `Königin ${v.koeniginJahr}` : '',
-      `erstellt am ${dat(heute())}`].filter(Boolean).join(' · '),
-    fusszeile: `BeeWise · Volk ${v.name}`,
+    titel: t('Stockkarte – Volk {name}', { name: v.name }),
+    untertitel: [st?.name, v.beute, v.koeniginJahr ? t('Königin {jahr}', { jahr: v.koeniginJahr }) : '',
+      t('erstellt am {d}', { d: dat(heute()) })].filter(Boolean).join(' · '),
+    fusszeile: `BeeWise · ${t('Volk {name}', { name: v.name })}`,
   });
 
   // ---- Stammdaten
-  p.ueberschrift('Stammdaten');
+  p.ueberschrift(t('Stammdaten'));
   const zeilen = [
-    ['Bezeichnung', v.name],
-    ['Standort', st?.name || '–'],
-    ['Beute / Rähmchenmaß', v.beute || '–'],
-    ['Zargen', v.zargen ? String(v.zargen) : '–'],
-    ['Königin Jahrgang', v.koeniginJahr || '–'],
-    ['Herkunft', v.herkunft || '–'],
-    ['Notiz', v.notiz || '–'],
+    [t('Bezeichnung'), v.name],
+    [t('Standort'), st?.name || '–'],
+    [t('Beute / Rähmchenmaß'), v.beute || '–'],
+    [t('Zargen'), v.zargen ? String(v.zargen) : '–'],
+    [t('Königin Jahrgang'), v.koeniginJahr || '–'],
+    [t('Herkunft'), v.herkunft || '–'],
+    [t('Notiz'), v.notiz || '–'],
   ];
   for (const [k, w] of zeilen) {
     p.zelle(k, 45, { groesse: 9, grau: true, maxBreite: 130 });
@@ -157,13 +159,13 @@ export function volkHistorie(S, volkId) {
     if (d.wabengassen) b.gassen.push(Number(d.wabengassen));
   }
   if (jahre.size) {
-    p.ueberschrift('Saisonbilanz');
+    p.ueberschrift(t('Saisonbilanz'));
     p.tabelle([
-      { titel: 'Saison', breite: 60, schluessel: 'jahr' },
-      { titel: 'Ernte', breite: 70, schluessel: 'ernte' },
-      { titel: 'Behandlungen', breite: 80, schluessel: 'beh' },
-      { titel: 'Durchsichten', breite: 80, schluessel: 'dur' },
-      { titel: 'max. besetzte Wabengassen', breite: 120, schluessel: 'gassen' },
+      { titel: t('Saison'), breite: 60, schluessel: 'jahr' },
+      { titel: t('Ernte'), breite: 70, schluessel: 'ernte' },
+      { titel: t('Behandlungen'), breite: 80, schluessel: 'beh' },
+      { titel: t('Durchsichten'), breite: 80, schluessel: 'dur' },
+      { titel: t('max. besetzte Wabengassen'), breite: 120, schluessel: 'gassen' },
     ], [...jahre.entries()].sort((a, b) => b[0] - a[0]).map(([j, b]) => ({
       jahr: String(j),
       ernte: b.ernte ? `${b.ernte.toFixed(1).replace('.', ',')} kg` : '–',
@@ -176,9 +178,9 @@ export function volkHistorie(S, volkId) {
   // ---- Chronologie
   const ereignisse = [
     ...S.durchsichten.filter((d) => d.volkId === volkId).map((d) => ({
-      datum: d.datum, art: 'Durchsicht',
+      datum: d.datum, art: t('Durchsicht'),
       text: [
-        d.wabengassen ? `${d.wabengassen} besetzte Wabengassen` : '',
+        d.wabengassen ? t('{n} besetzte Wabengassen', { n: d.wabengassen }) : '',
         d.brut, d.koenigin,
         d.zellen ? `${d.zellen} Weiselzellen` : '',
         d.stimmung ? `Schwarmstimmung: ${d.stimmung}` : '',
@@ -189,28 +191,28 @@ export function volkHistorie(S, volkId) {
     })),
     ...S.erledigungen.filter((e) => e.zielId === volkId).map((e) => ({
       datum: e.datum,
-      art: regelNach(e.regelId)?.titel || e.regelId,
+      art: t(regelNach(e.regelId)?.titel || e.regelId),
       text: Object.entries(e.daten || {}).filter(([k]) => k !== 'notiz')
         .map(([k, w]) => `${k}: ${w}`).concat(e.daten?.notiz ? [e.daten.notiz] : [])
         .join(' · ') + (e.status === 'uebersprungen' ? '  (übersprungen)' : ''),
     })),
     ...(S.wanderungen || []).filter((w) => w.volkId === volkId).map((w) => ({
-      datum: w.datum, art: 'Umzug / Wanderung',
+      datum: w.datum, art: t('Umzug / Wanderung'),
       text: `${S.standorte.find((s) => s.id === w.vonStandortId)?.name || w.vonName || '?'}`
         + ` -> ${S.standorte.find((s) => s.id === w.nachStandortId)?.name || w.nachName || '?'}`
         + (w.notiz ? ` · ${w.notiz}` : ''),
     })),
   ].sort((a, b) => (a.datum < b.datum ? 1 : -1));
 
-  p.ueberschrift(`Chronologie (${ereignisse.length} Einträge)`);
+  p.ueberschrift(t('Chronologie ({n} Einträge)', { n: ereignisse.length }));
   if (ereignisse.length) {
     p.tabelle([
-      { titel: 'Datum', breite: 70, schluessel: 'datum' },
-      { titel: 'Vorgang', breite: 150, schluessel: 'art' },
-      { titel: 'Angaben', breite: 240, schluessel: 'text' },
+      { titel: t('Datum'), breite: 70, schluessel: 'datum' },
+      { titel: t('Vorgang'), breite: 150, schluessel: 'art' },
+      { titel: t('Angaben'), breite: 240, schluessel: 'text' },
     ], ereignisse.map((e) => ({ datum: dat(e.datum), art: e.art, text: e.text })));
   } else {
-    p.text('Noch nichts erfasst.', { groesse: 9, grau: true });
+    p.text(t('Noch nichts erfasst.'), { groesse: 9, grau: true });
   }
 
   return p;

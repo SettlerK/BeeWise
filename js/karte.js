@@ -47,6 +47,8 @@ export const KACHEL_URL = (z, x, y) => QUELLE.url(z, x, y);
 export const MAX_ZOOM = QUELLE.maxZoom;
 export const ATTRIBUTION = `${QUELLE.attribution} · Suche: OpenStreetMap`;
 
+import { t } from './i18n.js';
+
 const K = 256;
 
 export function weltPixel(lat, lon, z) {
@@ -103,8 +105,8 @@ export function MiniKarte(wurzel, opt = {}) {
       <button type="button" data-zoom="1" aria-label="näher">+</button>
       <button type="button" data-zoom="-1" aria-label="weiter">−</button>
     </div>
-    <div class="mk-hinweis">Karte schieben · lange tippen oder doppelklicken setzt den Standort</div>
-    <div class="mk-quelle">${ATTRIBUTION}</div>`;
+    <div class="mk-hinweis">${t('Karte schieben · lange tippen oder doppelklicken setzt den Standort')}</div>
+    <div class="mk-quelle">${t(ATTRIBUTION)}</div>`;
   const flaeche = wurzel.querySelector('.mk-flaeche');
   const nadel = wurzel.querySelector('.mk-nadel');
 

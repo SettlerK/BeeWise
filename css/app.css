@@ -342,3 +342,37 @@ label.feld > span em{font-style:normal;opacity:.65;font-weight:400}
 }
 .bildtext{font-size:12.5px;line-height:1.5;color:var(--text-schwach)}
 .trachtdetail .feld{margin-bottom:8px}
+
+/* ------------------------------------------------------- Sprache & Schalter */
+.sprachstart{
+  position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;
+  align-items:center;justify-content:center;padding:24px;
+}
+.sprachkarte{
+  background:var(--karte);border:1px solid var(--rand);border-radius:20px;padding:28px 24px;
+  max-width:340px;width:100%;text-align:center;box-shadow:var(--schatten);
+}
+.sprachkarte img{border-radius:16px;margin-bottom:10px}
+.sprachkarte h1{font-size:24px;margin:0 0 4px}
+.sprachkarte p{font-size:14.5px;color:var(--text-schwach);margin:0 0 18px;line-height:1.5}
+.sprachkarte p span{color:var(--text-zart);font-size:13px}
+.sprachkarte .knopf{margin-bottom:9px}
+.sprachkarte small{display:block;font-size:11px;color:var(--text-zart);margin-top:10px;line-height:1.5}
+
+.schalter{
+  display:flex;align-items:flex-start;gap:12px;padding:10px 0;cursor:pointer;
+  border-top:1px solid var(--rand);
+}
+.schalter:first-of-type{border-top:none}
+.schalter span{flex:1;font-size:13.5px;line-height:1.3}
+.schalter small{display:block;font-size:11.5px;color:var(--text-schwach);margin-top:2px;line-height:1.4}
+.schalter input[type=checkbox]{
+  appearance:none;width:44px;height:26px;border-radius:99px;background:var(--rand-stark);
+  position:relative;flex:none;margin-top:2px;transition:background .15s;
+}
+.schalter input[type=checkbox]::after{
+  content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:99px;
+  background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.3);
+}
+.schalter input[type=checkbox]:checked{background:var(--honig)}
+.schalter input[type=checkbox]:checked::after{transform:translateX(18px)}

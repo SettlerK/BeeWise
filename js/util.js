@@ -1,4 +1,5 @@
-// Kleine Helfer – bewusst ohne Abhängigkeiten.
+// Kleine Helfer. Einzige Abhängigkeit: die Sprachwahl für Datumsformate.
+import { t, gebietsschema } from './i18n.js';
 
 export const uid = () =>
   (crypto.randomUUID ? crypto.randomUUID()
@@ -55,18 +56,20 @@ export { MON, MON_LANG };
 export function fmtDatum(d, lang = false) {
   if (!d) return '–';
   const x = d instanceof Date ? d : parseISO(d);
-  return `${x.getDate()}. ${(lang ? MON_LANG : MON)[x.getMonth()]}${lang ? ' ' + x.getFullYear() : ''}`;
+  return x.toLocaleDateString(gebietsschema(), lang
+    ? { day: 'numeric', month: 'long', year: 'numeric' }
+    : { day: 'numeric', month: 'short' });
 }
 
 export function fmtRelativ(d) {
   const n = diffTage(d, heute());
-  if (n === 0) return 'heute';
-  if (n === 1) return 'morgen';
-  if (n === -1) return 'gestern';
-  if (n > 0 && n < 14) return `in ${n} Tagen`;
-  if (n < 0 && n > -14) return `vor ${-n} Tagen`;
-  if (n > 0) return `in ${Math.round(n / 7)} Wochen`;
-  return `vor ${Math.round(-n / 7)} Wochen`;
+  if (n === 0) return t('heute');
+  if (n === 1) return t('morgen');
+  if (n === -1) return t('gestern');
+  if (n > 0 && n < 14) return t('in {n} Tagen', { n });
+  if (n < 0 && n > -14) return t('vor {n} Tagen', { n: -n });
+  if (n > 0) return t('in {n} Wochen', { n: Math.round(n / 7) });
+  return t('vor {n} Wochen', { n: Math.round(-n / 7) });
 }
 
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g,

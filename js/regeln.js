@@ -14,6 +14,8 @@
 // `wiederholung` = Abstand zur eigenen letzten Erledigung (nicht zum Kalender).
 // `hilfe`        = Suchbegriff für die Videohilfe (siehe js/hilfe.js).
 
+import { t } from './i18n.js';
+
 export const KATEGORIEN = {
   fruehjahr: { name: 'Frühjahr', farbe: '#5E9455' },
   schwarm: { name: 'Schwarm', farbe: '#6D74B8' },
@@ -430,9 +432,10 @@ export const AUSLOESER = [
         ? 'Varroa: Behandlungserfolg zu gering – nachbehandeln'
         : 'Varroa: Befall über der Schwelle – jetzt behandeln',
       kategorie: 'varroa', wichtig: true, fenster: [0, 10],
-      info: `Gemessen wurden ${daten.milbenProTag} Milben pro Tag. Die Schwelle für diesen `
-        + `Monat liegt bei ${varroaSchwelle(monat)}. Behandlungsverfahren nach Jahreszeit wählen `
-        + `(im Sommer Ameisensäure, im brutfreien Volk Oxalsäure) und danach erneut messen.`,
+      info: t('Gemessen wurden {ist} Milben pro Tag. Die Schwelle für diesen Monat liegt bei '
+        + '{soll}. Behandlungsverfahren nach Jahreszeit wählen (im Sommer Ameisensäure, im '
+        + 'brutfreien Volk Oxalsäure) und danach erneut messen.',
+      { ist: daten.milbenProTag, soll: varroaSchwelle(monat) }),
       hilfe: 'Varroabehandlung Notfall Befall zu hoch',
     }),
   },
@@ -455,8 +458,10 @@ export const AUSLOESER = [
     aufgabe: ({ daten }) => ({
       titel: 'Schwarmstimmung – in wenigen Tagen nachschauen',
       kategorie: 'schwarm', wichtig: true, fenster: [4, 7],
-      info: `Bei der letzten Kontrolle: ${daten.stimmung || ''}${daten.zellen ? `, ${daten.zellen} Weiselzellen` : ''}. `
-        + 'Jetzt engmaschiger kontrollieren oder das Volk durch einen Ableger entlasten.',
+      info: t('Bei der letzten Kontrolle: {befund}. Jetzt engmaschiger kontrollieren oder das '
+        + 'Volk durch einen Ableger entlasten.',
+      { befund: [daten.stimmung ? t(daten.stimmung) : '',
+        daten.zellen ? t('{n} Weiselzellen', { n: daten.zellen }) : ''].filter(Boolean).join(', ') }),
       hilfe: 'Schwarmverhinderung Ableger bilden',
     }),
   },
@@ -467,8 +472,9 @@ export const AUSLOESER = [
     aufgabe: ({ daten }) => ({
       titel: 'Futter knapp – nachfüttern',
       kategorie: 'winter', wichtig: true, fenster: [0, 7],
-      info: `Geschätzter Vorrat: ${daten.futter} kg. Im Winterhalbjahr Futterteig direkt über den Sitz legen, `
-        + 'im Sommerhalbjahr Futtersirup geben. Ein verhungertes Volk ist der häufigste vermeidbare Verlust.',
+      info: t('Geschätzter Vorrat: {kg} kg. Im Winterhalbjahr Futterteig direkt über den Sitz '
+        + 'legen, im Sommerhalbjahr Futtersirup geben. Ein verhungertes Volk ist der häufigste '
+        + 'vermeidbare Verlust.', { kg: daten.futter }),
       hilfe: 'Notfütterung Futterteig auflegen',
     }),
   },

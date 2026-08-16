@@ -6,6 +6,7 @@
 // dynamische Abhängigkeit.
 
 import { addDays, diffTage, heute, iso, parseISO } from './util.js';
+import { t } from './i18n.js';
 import { REGELN, regelNach } from './regeln.js';
 
 export const ZUSTAND_RANG = {
@@ -100,17 +101,18 @@ export function planBerechnen(ctx) {
       res = { von: f.von, bis: f.bis, quelle: 'kalender' };
 
     } else if (a.typ === 'bluete') {
-      const t = ctx.tracht?.[ziel.standortId];
-      const art = t?.arten?.find((x) => x.art === a.art);
+      const tr = ctx.tracht?.[ziel.standortId];
+      const art = tr?.arten?.find((x) => x.art === a.art);
       const basis = art ? (a.ereignis === 'ende' ? art.ende : art.start) : null;
       if (!basis) {
-        res = { wartetAuf: `Trachtdaten für ${a.art}`, quelle: 'unbekannt' };
+        res = { wartetAuf: t('Trachtdaten für {art}', { art: a.art }), quelle: 'unbekannt' };
       } else {
         res = {
           von: addDays(basis, regel.fenster?.[0] ?? 0),
           bis: addDays(basis, regel.fenster?.[1] ?? 14),
           quelle: art.bestaetigt ? 'bluete-bestaetigt' : (art.prognose ? 'bluete-prognose' : 'bluete'),
-          bezug: `${art.name} ${a.ereignis === 'ende' ? 'Blühende' : 'Blühbeginn'}`,
+          bezug: a.ereignis === 'ende' ? t('{art} Blühende', { art: t(art.name) })
+            : t('{art} Blühbeginn', { art: t(art.name) }),
           bezugDatum: basis,
         };
       }
@@ -123,7 +125,7 @@ export function planBerechnen(ctx) {
         von: addDays(basis, regel.fenster?.[0] ?? 0),
         bis: addDays(basis, regel.fenster?.[1] ?? 21),
         quelle: treffer ? 'wetter' : 'wetter-ersatz',
-        bezug: treffer ? WETTER_TEXT[a.ereignis] : 'Erfahrungswert (kein Wetterbezug verfügbar)',
+        bezug: treffer ? t(WETTER_TEXT[a.ereignis]) : t('Erfahrungswert (kein Wetterbezug verfügbar)'),
         bezugDatum: basis,
       };
 
@@ -144,7 +146,8 @@ export function planBerechnen(ctx) {
           von: addDays(basis, regel.fenster?.[0] ?? 0),
           bis: addDays(basis, regel.fenster?.[1] ?? 14),
           quelle: 'nachAufgabe',
-          bezug: `${genutzt.titel} am ${erl.datum.slice(8, 10)}.${erl.datum.slice(5, 7)}.`,
+          bezug: t('{regel} am {datum}', { regel: t(genutzt.titel),
+            datum: `${erl.datum.slice(8, 10)}.${erl.datum.slice(5, 7)}.` }),
           bezugDatum: basis,
         };
       } else {
@@ -156,7 +159,7 @@ export function planBerechnen(ctx) {
           bis: basis ? addDays(basis, regel.fenster?.[1] ?? 14) : null,
           quelle: 'nachAufgabe-prognose',
           wartetAuf: vorRegel.kurz || vorRegel.titel,
-          bezug: `hängt an: ${vorRegel.kurz || vorRegel.titel}`,
+          bezug: t('hängt an: {regel}', { regel: t(vorRegel.kurz || vorRegel.titel) }),
           bezugDatum: basis,
         };
       }
@@ -199,7 +202,7 @@ export function planBerechnen(ctx) {
           von = addDays(basis, regel.wiederholung.min);
           bis = addDays(basis, regel.wiederholung.max);
           quelle = 'wiederholung';
-          bezug = `zuletzt am ${letzte.datum.slice(8, 10)}.${letzte.datum.slice(5, 7)}.`;
+          bezug = t('zuletzt am {datum}', { datum: `${letzte.datum.slice(8, 10)}.${letzte.datum.slice(5, 7)}.` });
           wartetAuf = null;
           if (regel.saisonEnde) {
             const ende = datumImJahr(jahr, regel.saisonEnde);
@@ -347,7 +350,8 @@ export function trachtFragen(trachtProStandort, standorte, beobachtungen, datum 
         standortId, standortName: standortNach.get(standortId)?.name || '',
         art: a.art, name: a.name,
         modellStart: a.start,
-        text: `Blüht ${a.name} am Stand „${standortNach.get(standortId)?.name || ''}“ schon?`,
+        text: t('Blüht {art} am Stand „{ort}“ schon?',
+          { art: t(a.name), ort: standortNach.get(standortId)?.name || '' }),
       });
     }
   }

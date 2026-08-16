@@ -31,11 +31,33 @@ git push -u origin main
 
 ## 2. Pages einschalten
 
-1. Im Repository auf **Settings** → linke Spalte **Pages**.
-2. Unter *Build and deployment* → *Source*: **Deploy from a branch**.
-3. Branch: **main**, Ordner: **/ (root)** → **Save**.
-4. Ein bis zwei Minuten warten, Seite neu laden. Oben steht dann:
+> **Die häufigste Verwechslung:** GitHub hat *zwei* Seiten namens „Pages".
+>
+> * `github.com/settings/pages` → das sind die **Kontoeinstellungen**. Dort steht nur
+>   „Verified domains". **Falsch** – hier lässt sich Pages nicht einschalten.
+> * `github.com/<DEIN-NAME>/beewise/settings/pages` → die **Repository-Einstellungen**.
+>   **Richtig.**
+>
+> Der Unterschied im Bildschirm: das Zahnrad **Settings** oben rechts neben deinem
+> Profilbild führt zum Konto. Du brauchst den Reiter **Settings** *innerhalb des
+> Repositorys* – in der Zeile mit *Code · Issues · Pull requests · Actions · Projects ·
+> Wiki · Security · Insights · **Settings***.
+
+1. Repository öffnen: `github.com/<DEIN-NAME>/beewise`
+2. Ganz rechts in der Reiterzeile des Repositorys auf **Settings**.
+   (Der schnellste Weg: die Adresse direkt eintippen –
+   `github.com/<DEIN-NAME>/beewise/settings/pages`)
+3. Linke Spalte, Abschnitt *Code and automation* → **Pages**.
+4. Unter *Build and deployment* → *Source*: **Deploy from a branch**.
+5. Branch: **main**, Ordner: **/ (root)** → **Save**.
+6. Ein bis zwei Minuten warten, Seite neu laden. Oben steht dann:
    `Your site is live at https://<DEIN-NAME>.github.io/beewise/`
+
+**Wenn der Reiter Settings im Repository fehlt:** dann bist du nicht der Eigentümer des
+Repositorys oder in einer fremden Organisation.
+**Wenn unter Pages steht, das Feature sei nicht verfügbar:** das Repository ist privat.
+Entweder auf *Public* umstellen (Settings → ganz unten *Change repository visibility*)
+oder GitHub Pro nutzen.
 
 Diese Adresse ist ab jetzt deine App. Jeder weitere Upload aktualisiert sie automatisch.
 
@@ -68,6 +90,60 @@ solange sie zwischendurch geöffnet wird – siehe unten.
 
 Die App aktualisiert sich beim nächsten Start selbst. Falls nicht: App schließen und neu
 öffnen, oder im Browser einmal neu laden. Deine Daten bleiben dabei erhalten.
+
+---
+
+## 3b. Änderungen einspielen – die Routine
+
+Egal ob du selbst etwas änderst oder eine neue Fassung bekommst: es ist immer derselbe
+Dreischritt.
+
+### Weg A – über die Website (ohne zusätzliche Programme)
+
+1. Repository öffnen → **Add file** → **Upload files**.
+2. Die geänderten Dateien hineinziehen. Gleichnamige Dateien werden ersetzt.
+   Im Zweifel einfach *alle* Dateien nochmal hochladen – GitHub speichert nur, was sich
+   wirklich geändert hat.
+   **Achtung bei Unterordnern:** Ziehst du `js/app.js` einzeln hinein, landet sie im
+   Wurzelverzeichnis. Entweder den **ganzen Ordner** `js` hineinziehen oder unten im Feld
+   *„Name your file…"* den Pfad `js/app.js` von Hand angeben.
+3. Unten eine kurze Beschreibung eintippen (z. B. „Kartenfehler behoben") →
+   **Commit changes**.
+
+### Weg B – mit GitHub Desktop (angenehmer ab der zweiten Änderung)
+
+Einmalig: [desktop.github.com](https://desktop.github.com) installieren, anmelden,
+*File → Clone repository → beewise* auf die Festplatte holen.
+
+Danach bei jeder Änderung:
+
+1. Neue Dateien in den geklonten Ordner kopieren und Nachfrage mit *Ersetzen* bestätigen.
+2. In GitHub Desktop stehen links alle Änderungen. Unten links eine Beschreibung
+   eintippen → **Commit to main**.
+3. Oben **Push origin** drücken.
+
+Weg B hat zwei Vorteile: du siehst vor dem Übertragen genau, was sich geändert hat, und
+Unterordner können nicht verrutschen.
+
+### Was danach passiert
+
+* GitHub baut die Seite neu. Im Reiter **Actions** siehst du den Lauf
+  *„pages build and deployment"* – ist er grün, ist die Änderung live. Dauert ein bis
+  zwei Minuten.
+* **Am PC:** Seite neu laden. Kommt noch die alte Fassung, einmal Strg + Umschalt + R.
+* **Am Handy:** die installierte App vollständig schließen (aus der App-Übersicht wischen)
+  und neu öffnen. BeeWise liefert beim Start die gespeicherte Fassung aus und lädt die neue
+  im Hintergrund – beim übernächsten Start ist sie aktiv. Zweimal öffnen, dann ist alles da.
+* **Deine Daten bleiben.** Völker, Durchsichten und Erledigungen liegen in der Datenbank
+  des Browsers, nicht in den hochgeladenen Dateien. Ein Update rührt sie nicht an.
+
+### Zwei Regeln, die Ärger ersparen
+
+1. **Vor größeren Updates einmal sichern:** *Mehr → Sicherung exportieren*. Kostet zehn
+   Sekunden und rettet dich, falls etwas schiefgeht.
+2. **Nicht an zwei Stellen gleichzeitig bearbeiten.** Entweder im Browser auf github.com
+   oder lokal mit GitHub Desktop – sonst überschreibst du dir selbst etwas. Wenn du doch
+   beides nutzt: in GitHub Desktop vor dem Arbeiten **Fetch origin** / **Pull** drücken.
 
 ---
 

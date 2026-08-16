@@ -7,7 +7,7 @@ Die normale Version (index.html + js/) bleibt die Grundlage für Hosting und APK
 import re, base64, pathlib
 
 W = pathlib.Path(__file__).parent
-MODULE = ['util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
+MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
           'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'pdf.js', 'berichte.js',
           'sync.js', 'ui.js', 'app.js']
 
@@ -22,6 +22,8 @@ js = []
 for m in MODULE:
     js.append(f'\n// ===== {m} ' + '=' * (66 - len(m)) + '\n')
     js.append(entkerne((W / 'js' / m).read_text(encoding='utf-8')))
+    if m == 'lang/en.js':
+        js.append('\n')
     if m == 'db.js':
         # app.js spricht die Datenschicht als Namensraum `db` an
         js.append('\nconst db = { STORES, open, alle, hole, schreibe, loesche, entferne, leere,'

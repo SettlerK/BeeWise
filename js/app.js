@@ -16,6 +16,9 @@ import * as sync from './sync.js';
 import {
   uiInit, sheetAuf, sheetZu, toast, bestaetige, feldHTML, felderVerdrahten, werteLesen,
 } from './ui.js';
+import {
+  SPRACHEN, t, uebersetzeDom, spracheErmitteln, spracheSetzen, sprache, spracheName, gebietsschema,
+} from './i18n.js';
 
 const S = {
   ansicht: 'heute', volkId: null,
@@ -41,6 +44,13 @@ function fehlerZeigen(quelle, e) {
 window.addEventListener('error', (e) => fehlerZeigen('Programmfehler', e.error || e));
 window.addEventListener('unhandledrejection', (e) => fehlerZeigen('Nicht abgefangen', e));
 
+/** Was BeeWise melden darf. Wird unter „Mehr" eingestellt. */
+const MELDUNGEN_STANDARD = {
+  faellig: true, warnungen: true, tracht: true, vorwarnung: true, vorlaufTage: 3,
+};
+
+const t2 = (s, v) => (s == null ? s : t(s, v));
+
 const AN = document.getElementById('ansicht');
 const KOPF = document.getElementById('kopf-titel');
 
@@ -53,6 +63,7 @@ async function datenLaden() {
       db.alle('erledigungen'), db.alle('tracht'), db.alle('aufgaben'), db.alle('wanderungen'),
     ]);
   S.sync = await sync.einstellungen();
+  S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
   S.imkereiName = await db.metaLies('imkerei', '');
   S.standorte.sort((a, b) => a.name.localeCompare(b.name));
   S.voelker.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { numeric: true }));
@@ -94,9 +105,9 @@ const TITEL = {
 
 function render() {
   KOPF.textContent = S.ansicht === 'volk'
-    ? (S.voelker.find((v) => v.id === S.volkId)?.name || 'Volk') : TITEL[S.ansicht];
+    ? (S.voelker.find((v) => v.id === S.volkId)?.name || t('Volk')) : t(TITEL[S.ansicht]);
   document.getElementById('kopf-datum').textContent =
-    heute().toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long' });
+    heute().toLocaleDateString(gebietsschema(), { weekday: 'short', day: 'numeric', month: 'long' });
   document.querySelectorAll('#tabbar button').forEach((b) =>
     b.classList.toggle('an', b.dataset.tab === (S.ansicht === 'volk' ? 'voelker' : S.ansicht)));
   const warnung = db.nurFluechtig?.()
@@ -111,6 +122,7 @@ function render() {
     heute: ansichtHeute, kalender: ansichtKalender, voelker: ansichtVoelker,
     volk: ansichtVolk, tracht: ansichtTracht, mehr: ansichtMehr,
   }[S.ansicht])();
+  uebersetzeDom(document.body);
   verdrahten();
   nachladen();
 }
@@ -174,7 +186,7 @@ function ansichtHeute() {
     const liste = gefiltert(S.plan.filter((a) => a.zustand === zust));
     if (!liste.length) continue;
     etwas = true;
-    t.push(`<h2 class="abschnitt">${label} · ${liste.length}</h2><div class="karte">`);
+    t.push(`<h2 class="abschnitt">${t2(label)} · ${liste.length}</h2><div class="karte">`);
     t.push(gruppieren(liste).map(gruppeHTML).join(''));
     t.push('</div>');
   }
@@ -190,8 +202,7 @@ function ansichtHeute() {
 
   const verpasst = S.plan.filter((a) => a.zustand === 'verpasst').length;
   if (verpasst) {
-    t.push(`<div class="mini" style="padding:8px 6px">${verpasst} Aufgaben sind für dieses
-      Jahr durch – die App mahnt sie nicht weiter an.</div>`);
+    t.push(`<div class="mini" style="padding:8px 6px">${t2('{n} Aufgaben sind für dieses Jahr durch – die App mahnt sie nicht weiter an.', { n: verpasst })}</div>`);
   }
   if (S.ladeTracht) t.push('<div class="mini rechts">Trachtdaten werden geladen …</div>');
 
@@ -208,7 +219,7 @@ function filterLeiste() {
     <button class="${S.filter ? '' : 'an'}" data-filter="">Alle</button>
     ${kats.map(([k, kat]) => `<button class="${S.filter === k ? 'an' : ''}" data-filter="${k}"
       style="${S.filter === k ? `background:${kat.farbe};border-color:${kat.farbe};color:#fff` : ''}">
-      <i class="punkt" style="background:${S.filter === k ? '#fff' : kat.farbe}"></i>${esc(kat.name)} ${zaehl[k]}</button>`).join('')}
+      <i class="punkt" style="background:${S.filter === k ? '#fff' : kat.farbe}"></i>${esc(t2(kat.name))} ${zaehl[k]}</button>`).join('')}
   </div>`;
 }
 
@@ -217,15 +228,15 @@ function aufgabenkatalogHTML() {
   return `<h2 class="abschnitt">Aufgabenkatalog</h2>
   <div class="karte">
     <div class="klapper" data-klapp="katalog">
-      <span>Alle ${REGELN.length} Regeln und woran ihr Termin hängt</span>
+      <span>${t2('Alle {n} Regeln und woran ihr Termin hängt', { n: REGELN.length })}</span>
       <span class="pfeil">${auf ? '⌄' : '›'}</span></div>
     ${auf ? Object.entries(KATEGORIEN).map(([k, kat]) => {
       const rs = REGELN.filter((r) => r.kategorie === k);
       if (!rs.length) return '';
       return `<div class="karte-inhalt" style="border-top:1px solid var(--rand)">
-        <div style="font-weight:650;font-size:13px;color:${kat.farbe};margin-bottom:6px">${esc(kat.name)}</div>
+        <div style="font-weight:650;font-size:13px;color:${kat.farbe};margin-bottom:6px">${esc(t2(kat.name))}</div>
         ${rs.map((r) => `<div class="mini" style="padding:3px 0;color:var(--text-schwach)">
-          ${esc(r.titel)} <span style="color:var(--text-zart)">— ${esc(ankerText(r))}</span></div>`).join('')}
+          ${esc(t2(r.titel))} <span style="color:var(--text-zart)">— ${esc(ankerText(r))}</span></div>`).join('')}
       </div>`;
     }).join('') : ''}
   </div>`;
@@ -247,22 +258,23 @@ const streifen = (z) => (z === 'ueberfaellig' ? 'ueberfaellig'
 function aufgabeHTML(a, kompakt = false) {
   const kat = KATEGORIEN[a.kategorie] || KATEGORIEN.eigene;
   const zeit = a.zustand === 'wartet'
-    ? (a.von ? `voraussichtlich ${fmtDatum(a.von)}` : 'Termin offen')
-    : a.zustand === 'ueberfaellig' ? `${-diffTage(a.bis, heute())} Tage überfällig`
-      : a.zustand === 'faellig' ? `bis ${fmtDatum(a.bis)}`
-        : `ab ${fmtDatum(a.von)} · ${fmtRelativ(a.von)}`;
+    ? (a.von ? t2('voraussichtlich {d}', { d: fmtDatum(a.von) }) : t2('Termin offen'))
+    : a.zustand === 'ueberfaellig' ? t2('{n} Tage überfällig', { n: -diffTage(a.bis, heute()) })
+      : a.zustand === 'faellig' ? t2('bis {d}', { d: fmtDatum(a.bis) })
+        : t2('ab {d} · {rel}', { d: fmtDatum(a.von), rel: fmtRelativ(a.von) });
   return `<div class="aufgabe" data-auf="${esc(a.schluessel)}">
     <div class="streifen b-${streifen(a.zustand)}"></div>
     <div class="haken"><svg viewBox="0 0 24 24"><path d="m5 13 4 4 10-10"/></svg></div>
     <div class="mitte">
-      <div class="titel">${esc(a.titel)}${a.wichtig ? ' <span class="marke wichtig">wichtig</span>' : ''}${a.quelle === 'auto' ? ' <span class="marke auto">automatisch</span>' : ''}</div>
+      <div class="titel">${esc(t2(a.titel))}${a.wichtig ? ' <span class="marke wichtig">wichtig</span>' : ''}${a.quelle === 'auto' ? ' <span class="marke auto">automatisch</span>' : ''}</div>
       <div class="zeile2">
         <span class="marke" style="background:${kat.farbe}22;color:${kat.farbe}">
-          <i class="punkt" style="background:${kat.farbe}"></i>${esc(kat.name)}</span>
+          <i class="punkt" style="background:${kat.farbe}"></i>${esc(t2(kat.name))}</span>
         ${a.ziel.typ !== 'imkerei' ? `<span>${esc(a.ziel.name)}${a.ziel.typ === 'volk' && a.ziel.standortName ? ' · ' + esc(a.ziel.standortName) : ''}</span>` : ''}
         <span class="z-${a.zustand === 'ueberfaellig' ? 'ueberfaellig' : a.zustand === 'faellig' ? 'faellig' : ''}">${esc(zeit)}</span>
       </div>
-      ${a.bezug && !kompakt ? `<div class="warum">${esc(a.wartetAuf ? 'wartet auf: ' + a.wartetAuf : a.bezug)}</div>` : ''}
+      ${a.bezug && !kompakt ? `<div class="warum">${esc(a.wartetAuf
+        ? t2('wartet auf: {was}', { was: t2(a.wartetAuf) }) : t2(a.bezug))}</div>` : ''}
     </div>
   </div>`;
 }
@@ -273,19 +285,19 @@ function gruppeHTML(g) {
   const kat = KATEGORIEN[a.kategorie] || KATEGORIEN.eigene;
   const frueh = g.map((x) => x.von).filter(Boolean).sort((x, y) => x - y)[0];
   const spaet = g.map((x) => x.bis).filter(Boolean).sort((x, y) => x - y)[0];
-  const zeit = a.zustand === 'wartet' ? 'Termin hängt an einer Vorarbeit'
-    : a.zustand === 'ueberfaellig' ? `${-diffTage(spaet, heute())} Tage überfällig`
-      : a.zustand === 'faellig' ? `bis ${fmtDatum(spaet)}`
-        : `ab ${fmtDatum(frueh)} · ${fmtRelativ(frueh)}`;
+  const zeit = a.zustand === 'wartet' ? t2('Termin hängt an einer Vorarbeit')
+    : a.zustand === 'ueberfaellig' ? t2('{n} Tage überfällig', { n: -diffTage(spaet, heute()) })
+      : a.zustand === 'faellig' ? t2('bis {d}', { d: fmtDatum(spaet) })
+        : t2('ab {d} · {rel}', { d: fmtDatum(frueh), rel: fmtRelativ(frueh) });
   return `<div class="aufgabe" data-gruppe="${esc((a.gruppierung || a.regelId) + '|' + a.zustand)}">
     <div class="streifen b-${streifen(a.zustand)}"></div>
     <div class="haken mehrfach"></div>
     <div class="mitte">
-      <div class="titel">${esc(a.titel)}${a.wichtig ? ' <span class="marke wichtig">wichtig</span>' : ''}</div>
+      <div class="titel">${esc(t2(a.titel))}${a.wichtig ? ' <span class="marke wichtig">wichtig</span>' : ''}</div>
       <div class="zeile2">
         <span class="marke" style="background:${kat.farbe}22;color:${kat.farbe}">
-          <i class="punkt" style="background:${kat.farbe}"></i>${esc(kat.name)}</span>
-        <span><b>${g.length} ${a.ziel.typ === 'stand' ? 'Stände' : 'Völker'}</b></span>
+          <i class="punkt" style="background:${kat.farbe}"></i>${esc(t2(kat.name))}</span>
+        <span><b>${a.ziel.typ === 'stand' ? t2('{n} Stände', { n: g.length }) : t2('{n} Völker', { n: g.length })}</b></span>
         <span class="z-${a.zustand === 'ueberfaellig' ? 'ueberfaellig' : a.zustand === 'faellig' ? 'faellig' : ''}">${esc(zeit)}</span>
       </div>
       <div class="warum">${esc(g.map((x) => x.ziel.name).join(', '))}</div>
@@ -366,7 +378,7 @@ function ansichtVoelker() {
   for (const st of S.standorte) {
     const liste = S.voelker.filter((v) => v.standortId === st.id);
     if (!liste.length) continue;
-    t.push(`<h2 class="abschnitt">${esc(st.name)} · ${liste.length} Völker</h2><div class="karte">`);
+    t.push(`<h2 class="abschnitt">${esc(st.name)} · ${t2('{n} Völker', { n: liste.length })}</h2><div class="karte">`);
     for (const v of liste) {
       const offen = S.plan.filter((a) => a.ziel.id === v.id
         && ['ueberfaellig', 'faellig'].includes(a.zustand)).length;
@@ -375,9 +387,9 @@ function ansichtVoelker() {
         ${bildFuerVolk(v, st, 52)}
         <div class="info">
           <b>${esc(v.name)}</b>
-          <div>${v.koeniginJahr ? `<i class="koenigin" style="background:${koeniginFarbe(v.koeniginJahr)}"></i>${esc(v.koeniginJahr)} · ` : ''}${letzte ? `Durchsicht ${fmtDatum(letzte.datum)}` : 'noch keine Durchsicht'}</div>
+          <div>${v.koeniginJahr ? `<i class="koenigin" style="background:${koeniginFarbe(v.koeniginJahr)}"></i>${esc(v.koeniginJahr)} · ` : ''}${letzte ? t2('Durchsicht {d}', { d: fmtDatum(letzte.datum) }) : t2('noch keine Durchsicht')}</div>
         </div>
-        ${offen ? `<span class="marke" style="background:#F3DAD5;color:#8E2E22">${offen} offen</span>` : ''}
+        ${offen ? `<span class="marke" style="background:#F3DAD5;color:#8E2E22">${t2('{n} offen', { n: offen })}</span>` : ''}
         <span class="pfeil">›</span></div>`);
     }
     t.push('</div>');
@@ -423,15 +435,15 @@ function ansichtVolk() {
 
   const ereignisse = [
     ...S.durchsichten.filter((d) => d.volkId === v.id).map((d) => ({
-      datum: d.datum, titel: 'Durchsicht', notiz: durchsichtKurz(d), id: d.id, art: 'durchsicht',
+      datum: d.datum, titel: t2('Durchsicht'), notiz: durchsichtKurz(d), id: d.id, art: 'durchsicht',
     })),
     ...S.erledigungen.filter((e) => e.zielId === v.id).map((e) => ({
-      datum: e.datum, titel: regelNach(e.regelId)?.titel || e.regelId,
+      datum: e.datum, titel: t2(regelNach(e.regelId)?.titel) || e.regelId,
       notiz: datenKurz(e.daten, e.regelId) + (e.status === 'uebersprungen' ? ' (übersprungen)' : ''),
       id: e.id, art: 'erledigung',
     })),
     ...S.wanderungen.filter((w) => w.volkId === v.id).map((w) => ({
-      datum: w.datum, titel: 'Umzug / Wanderung',
+      datum: w.datum, titel: t2('Umzug / Wanderung'),
       notiz: `${standortName(w.vonStandortId) || w.vonName || '?'} → `
         + `${standortName(w.nachStandortId) || w.nachName || '?'}${w.notiz ? ' · ' + w.notiz : ''}`,
       id: w.id, art: 'wanderung',
@@ -513,8 +525,7 @@ function historieHTML(v) {
       <thead><tr><th>Saison</th><th>Ernte</th><th>Behandl.</th><th>Durchs.</th><th>max. Gassen</th></tr></thead>
       <tbody>${reihen}</tbody>
     </table>
-    ${punkte.length > 1 ? `<div class="mini" style="margin-top:12px">Volksstärke ${jetzt}
-      – besetzte Wabengassen</div>${sparkline(punkte)}` : ''}
+    ${punkte.length > 1 ? `<div class="mini" style="margin-top:12px">${t2('Volksstärke {jahr} – besetzte Wabengassen', { jahr: jetzt })}</div>${sparkline(punkte)}` : ''}
   </div></div>`;
 }
 
@@ -536,10 +547,12 @@ function sparkline(punkte) {
 }
 
 const durchsichtKurz = (d) => [
-  d.wabengassen ? `${d.wabengassen} Gassen` : null,
-  d.brut, d.koenigin, d.zellen ? `${d.zellen} Weiselzellen` : null,
-  d.futter ? `${d.futter} kg Futter` : null,
-  d.milbenProTag ? `${d.milbenProTag} Milben/Tag` : null,
+  d.wabengassen ? t2('{n} Gassen', { n: d.wabengassen }) : null,
+  d.brut ? d.brut.split(', ').map((x) => t2(x)).join(', ') : null,
+  d.koenigin ? d.koenigin.split(', ').map((x) => t2(x)).join(', ') : null,
+  d.zellen ? t2('{n} Weiselzellen', { n: d.zellen }) : null,
+  d.futter ? t2('{n} kg Futter', { n: d.futter }) : null,
+  d.milbenProTag ? t2('{n} Milben/Tag', { n: d.milbenProTag }) : null,
   d.notiz,
 ].filter(Boolean).join(' · ');
 
@@ -558,7 +571,7 @@ const datenKurz = (d, regelId) => {
   const einheit = (k) => (felder.find((f) => f.key === k)?.einheit || '').split(' ')[0];
   return Object.entries(d || {})
     .filter(([k]) => k !== 'notiz')
-    .map(([k, val]) => `${label(k)}: ${val}${einheit(k) ? ' ' + einheit(k) : ''}`)
+    .map(([k, val]) => `${t2(label(k))}: ${val}${einheit(k) ? ' ' + t2(einheit(k)) : ''}`)
     .concat(d?.notiz ? [d.notiz] : []).join(' · ');
 };
 
@@ -573,30 +586,32 @@ function ansichtTracht() {
     const bluehen = tr ? tr.arten.filter((a) => a.status === 'blueht').map((a) => a.name) : [];
     t.push(`<div class="karte">
       <div class="klapper" data-klapp="tracht:${st.id}">
-        <span><b>${esc(st.name)}</b>${bluehen.length ? `<br><small class="mini">blüht: ${esc(bluehen.slice(0, 3).join(', '))}${bluehen.length > 3 ? ' …' : ''}</small>` : ''}</span>
+        <span><b>${esc(st.name)}</b>${bluehen.length ? `<br><small class="mini">${t2('blüht: {liste}', { liste: esc(bluehen.slice(0, 3).map((x) => t2(x)).join(', ')) })}${bluehen.length > 3 ? ' …' : ''}</small>` : ''}</span>
         <span class="pfeil">${auf ? '⌄' : '›'}</span></div>`);
     if (auf) {
       if (!tr) t.push('<div class="karte-inhalt mini">Wird geladen …</div>');
       else {
-        const quelle = tr.modellAktiv
-          ? `Wärmesummen-Modell für diesen Standort${tr.verschiebung != null
-            ? ` · Jahr liegt ${tr.verschiebung === 0 ? 'im Mittel'
-              : (tr.verschiebung > 0 ? `${tr.verschiebung} Tage vor` : `${-tr.verschiebung} Tage hinter`)} dem langjährigen Mittel` : ''}`
-          : 'Kalendermittel – keine Wetterdaten verfügbar, Werte sind grob';
+        const quelle = !tr.modellAktiv
+          ? t2('Kalendermittel – keine Wetterdaten verfügbar, Werte sind grob')
+          : tr.verschiebung == null ? t2('Wärmesummen-Modell für diesen Standort')
+            : tr.verschiebung === 0 ? t2('Wärmesummen-Modell · Jahr liegt im langjährigen Mittel')
+              : tr.verschiebung > 0
+                ? t2('Wärmesummen-Modell · Jahr liegt {n} Tage vor dem langjährigen Mittel', { n: tr.verschiebung })
+                : t2('Wärmesummen-Modell · Jahr liegt {n} Tage hinter dem langjährigen Mittel', { n: -tr.verschiebung });
         t.push(`<div class="karte-inhalt" style="padding:8px 14px 4px;border-top:1px solid var(--rand)">
           <div class="mini">${esc(quelle)}</div></div>`);
         const rang = { blueht: 0, bevorstehend: 1, spaeter: 2, vorbei: 3 };
         for (const a of [...tr.arten].sort((x, y) => (rang[x.status] - rang[y.status])
           || ((x.start || 0) - (y.start || 0)))) {
           const farbe = { blueht: 'var(--ok)', bevorstehend: 'var(--faellig)' }[a.status] || 'var(--text-zart)';
-          const txt = a.status === 'blueht' ? `blüht seit ${fmtDatum(a.start)}`
-            : a.status === 'bevorstehend' ? `erwartet ${fmtDatum(a.start)} · ${fmtRelativ(a.start)}`
-              : a.status === 'vorbei' ? `vorbei seit ${fmtDatum(a.ende)}`
+          const txt = a.status === 'blueht' ? t2('blüht seit {d}', { d: fmtDatum(a.start) })
+            : a.status === 'bevorstehend' ? t2('erwartet {d} · {rel}', { d: fmtDatum(a.start), rel: fmtRelativ(a.start) })
+              : a.status === 'vorbei' ? t2('vorbei seit {d}', { d: fmtDatum(a.ende) })
                 : `${fmtDatum(a.start)} – ${fmtDatum(a.ende)}`;
-          const qm = a.bestaetigt ? 'von dir bestätigt'
-            : a.quelle === 'modell-kalibriert' ? `Modell, kalibriert an ${a.kalibriertAus} Beobachtung${a.kalibriertAus > 1 ? 'en' : ''}`
-              : a.quelle === 'modell' ? (a.prognose ? 'Prognose' : 'Modell')
-                : a.quelle === 'erfahrung' ? 'Erfahrungswert' : 'Kalender';
+          const qm = a.bestaetigt ? t2('von dir bestätigt')
+            : a.quelle === 'modell-kalibriert' ? t2('Modell, kalibriert an {n} Beobachtungen', { n: a.kalibriertAus })
+              : a.quelle === 'modell' ? (a.prognose ? t2('Prognose') : t2('Modell'))
+                : a.quelle === 'erfahrung' ? t2('Erfahrungswert') : t2('Kalender');
           const offenId = `art:${st.id}:${a.art}`;
           const offen = !!S.offen[offenId];
           const meta = ARTEN.find((x) => x.id === a.art);
@@ -604,16 +619,16 @@ function ansichtTracht() {
             <i class="punkt" style="background:${farbe};width:10px;height:10px"></i>
             <img class="trachtthumb" data-bild-klein="${a.art}"
               src="${platzhalter(a.name)}" alt="">
-            <div class="name"><b style="font-weight:600">${esc(a.name)}</b>
-              <small>${esc(txt)} · ${esc(qm)}${a.unsicher ? ' · unsicher' : ''}</small></div>
+            <div class="name"><b style="font-weight:600">${esc(t2(a.name))}</b>
+              <small>${esc(txt)} · ${esc(qm)}${a.unsicher ? ' · ' + t2('unsicher') : ''}</small></div>
             <span class="pfeil">${offen ? '⌄' : '›'}</span></div>`);
           if (offen) {
             t.push(`<div class="trachtdetail">
               <img class="trachtbild" data-bild-art="${a.art}" src="${platzhalter(a.name)}" alt="">
-              <div class="bildtext" data-bild-text="${a.art}">${esc(meta?.hinweis || '')}</div>
+              <div class="bildtext" data-bild-text="${a.art}">${esc(t2(meta?.hinweis) || '')}</div>
               <div class="mini" style="margin:6px 0 10px">
-                ${meta?.art === 'pollen' ? 'liefert Pollen'
-                  : meta?.art === 'nektar' ? 'liefert Nektar' : 'liefert Nektar und Pollen'}
+                ${meta?.art === 'pollen' ? t2('liefert Pollen')
+                  : meta?.art === 'nektar' ? t2('liefert Nektar') : t2('liefert Nektar und Pollen')}
                 ${wikiSeite(a.art) ? ` · <a href="${wikiSeite(a.art)}" target="_blank" rel="noopener">Wikipedia</a>` : ''}
               </div>
               <label class="feld" data-typ="wert"><span>Datum</span>
@@ -698,13 +713,48 @@ function ansichtMehr() {
       <button class="knopf leise" data-import>Sicherung einspielen</button>
     </div>
     <div class="knopfreihe">
-      <button class="knopf leise klein" data-benachrichtigung>Erinnerungen erlauben</button>
       <button class="knopf leise klein" data-ics>Kalenderdatei (.ics)</button>
     </div>
     <div class="knopfreihe">
       <button class="knopf leise klein" data-demo>Beispieldaten laden</button>
       <button class="knopf leise klein loeschen" data-reset>Alles löschen</button>
     </div>
+  </div></div>
+
+  <h2 class="abschnitt">Sprache</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="chips" id="sprachwahl">
+      ${SPRACHEN.map((s) => `<button type="button" data-sprache="${s.code}"
+        class="${sprache() === s.code ? 'an' : ''}">${esc(s.eigen)}</button>`).join('')}
+    </div>
+    <div class="mini" style="margin-top:8px">Weitere Sprachen lassen sich als Textdatei
+      ergänzen, ohne am Programm etwas zu ändern – siehe <code>js/lang/</code>.</div>
+  </div></div>
+
+  <h2 class="abschnitt">Benachrichtigungen</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="mini" style="margin-bottom:10px"><span>Wofür BeeWise sich melden darf.</span>
+      <span>${'Notification' in window && Notification.permission === 'granted'
+        ? 'Meldungen sind erlaubt.'
+        : 'Meldungen sind noch nicht erlaubt – unten freigeben.'}</span></div>
+    ${[['faellig', 'Fällige und überfällige Aufgaben', 'Eine Zusammenfassung dessen, was ansteht oder liegengeblieben ist.'],
+       ['warnungen', 'Automatische Warnungen', 'Varroabefall über der Schwelle, weiselloses Volk, Schwarmstimmung, Futter knapp.'],
+       ['tracht', 'Trachtfragen', 'Rückfragen wie „Blüht der Raps schon?“, die das Modell genauer machen.'],
+       ['vorwarnung', 'Wichtige Termine vorab', 'Vorwarnung vor kritischen Terminen wie letzter Ernte oder Auffütterungsschluss.']]
+      .map(([k, titel, text]) => `<label class="schalter">
+        <span><b>${esc(titel)}</b><small>${esc(text)}</small></span>
+        <input type="checkbox" data-meldung="${k}" ${S.meldungen?.[k] ? 'checked' : ''}>
+      </label>`).join('')}
+    <label class="feld" data-typ="wert" style="margin-top:10px"><span>Vorwarnzeit</span>
+      <select data-vorlauf>${[1, 2, 3, 5, 7].map((n) =>
+        `<option value="${n}" ${Number(S.meldungen?.vorlaufTage) === n ? 'selected' : ''}>${t2('{n} Tage', { n })}</option>`).join('')}</select></label>
+    <div class="knopfreihe">
+      <button class="knopf leise klein" data-benachrichtigung>Meldungen erlauben</button>
+      <button class="knopf leise klein" data-melde-test>Probemeldung</button>
+    </div>
+    <div class="mini" style="margin-top:9px">Im Browser kann BeeWise nur melden, solange die
+      App zwischendurch geöffnet wird. Für Meldungen bei geschlossener App braucht es die
+      Android-Fassung.</div>
   </div></div>
 
   <h2 class="abschnitt">Als App installieren</h2>
@@ -728,12 +778,12 @@ function ansichtMehr() {
 
   <h2 class="abschnitt">Diagnose</h2>
   <div class="karte"><div class="karte-inhalt mini">
-    Speicherung: <b>${db.nurFluechtig?.() ? 'nur im Arbeitsspeicher – nichts bleibt erhalten'
-      : 'lokale Datenbank (IndexedDB)'}</b><br>
-    Datensätze: ${S.standorte.length} Stände · ${S.voelker.length} Völker ·
-      ${S.durchsichten.length} Durchsichten · ${S.erledigungen.length} Erledigungen ·
-      ${S.wanderungen.length} Umzüge<br>
-    Adresse: <code>${esc(location.protocol)}//…</code>
+    <span>Speicherung:</span> <b>${db.nurFluechtig?.() ? t2('nur im Arbeitsspeicher – nichts bleibt erhalten')
+      : t2('lokale Datenbank (IndexedDB)')}</b><br>
+    ${t2('Datensätze: {st} Stände · {vo} Völker · {du} Durchsichten · {er} Erledigungen · {wa} Umzüge',
+      { st: S.standorte.length, vo: S.voelker.length, du: S.durchsichten.length,
+        er: S.erledigungen.length, wa: S.wanderungen.length })}<br>
+    <span>Adresse:</span> <code>${esc(location.protocol)}//…</code>
     ${db.letzterFehler?.() ? `<div style="color:var(--ueberfaellig);margin-top:8px">
       <b>Datenbank:</b> ${esc(db.letzterFehler())}</div>` : ''}
     ${letzterAppFehler ? `<div style="color:var(--ueberfaellig);margin-top:6px">
@@ -756,14 +806,21 @@ function ansichtMehr() {
 
 function ankerText(r) {
   const a = r.anker;
-  if (a.typ === 'datum') return `Kalender ${a.von[1]}.${a.von[0]}. – ${a.bis[1]}.${a.bis[0]}.`;
-  if (a.typ === 'bluete') return `${ARTEN.find((x) => x.id === a.art)?.name} ${a.ereignis === 'ende' ? 'Blühende' : 'Blühbeginn'}`;
+  if (a.typ === 'datum') {
+    return t2('Kalender {von} – {bis}',
+      { von: `${a.von[1]}.${a.von[0]}.`, bis: `${a.bis[1]}.${a.bis[0]}.` });
+  }
+  if (a.typ === 'bluete') {
+    const art = t2(ARTEN.find((x) => x.id === a.art)?.name);
+    return a.ereignis === 'ende' ? t2('{art} Blühende', { art }) : t2('{art} Blühbeginn', { art });
+  }
   if (a.typ === 'wetter') {
-    return { ersterWarmtag: 'erster warmer Tag', durchsichtWetter: 'erstes durchsichtstaugliches Wetter',
-      brutfrei: 'Brutfreiheit nach Frost', ersterNachtfrost: 'erster Nachtfrost' }[a.ereignis];
+    return t2({ ersterWarmtag: 'erster warmer Tag', durchsichtWetter: 'erstes durchsichtstaugliches Wetter',
+      brutfrei: 'Brutfreiheit nach Frost', ersterNachtfrost: 'erster Nachtfrost' }[a.ereignis]);
   }
   if (a.typ === 'nachAufgabe') {
-    return `${r.fenster?.[0]}–${r.fenster?.[1]} Tage nach „${regelNach(a.regel)?.kurz || regelNach(a.regel)?.titel}“`;
+    return t2('{a}–{b} Tage nach „{regel}“', { a: r.fenster?.[0], b: r.fenster?.[1],
+      regel: t2(regelNach(a.regel)?.kurz || regelNach(a.regel)?.titel) });
   }
   return '';
 }
@@ -804,7 +861,7 @@ function verdrahten() {
   });
   on('[data-volk-loeschen]', 'click', async (e) => {
     const v = S.voelker.find((x) => x.id === e.currentTarget.dataset.volkLoeschen);
-    if (!await bestaetige(`„${v.name}“ wirklich löschen? Der Verlauf geht mit verloren.`)) return;
+    if (!await bestaetige(t('„{name}“ wirklich löschen? Der Verlauf geht mit verloren.', { name: v.name }))) return;
     await db.loesche('voelker', v.id);
     await datenLaden(); render(); toast('Volk gelöscht.');
   });
@@ -838,13 +895,27 @@ function verdrahten() {
     const liste = gefiltert(offeneAufgaben());
     if (!liste.length) return toast('Nichts zu exportieren.');
     icsHerunterladen(liste);
-    toast(`${liste.length} Termine als .ics – in den Kalender importieren.`);
+    toast(t('{n} Termine als .ics – in den Kalender importieren.', { n: liste.length }));
   });
   on('[data-export]', 'click', exportieren);
   on('[data-import]', 'click', importieren);
   on('[data-demo]', 'click', beispieldaten);
   on('[data-reset]', 'click', allesLoeschen);
   on('[data-benachrichtigung]', 'click', benachrichtigungenAnfragen);
+  on('[data-sprache]', 'click', async (e) => {
+    spracheSetzen(e.currentTarget.dataset.sprache);
+    render();
+    toast('Sprache geändert.');
+  });
+  on('[data-meldung]', 'change', async (e) => {
+    S.meldungen = { ...S.meldungen, [e.currentTarget.dataset.meldung]: e.currentTarget.checked };
+    await db.metaSchreibe('meldungen', S.meldungen);
+  });
+  on('[data-vorlauf]', 'change', async (e) => {
+    S.meldungen = { ...S.meldungen, vorlaufTage: Number(e.currentTarget.value) };
+    await db.metaSchreibe('meldungen', S.meldungen);
+  });
+  on('[data-melde-test]', 'click', () => erinnern({ erzwingen: true }));
   on('[data-db-reset]', 'click', async () => {
     if (!await bestaetige('Datenbank zurücksetzen? Alle Daten auf diesem Gerät gehen verloren. '
       + 'Vorher am besten eine Sicherung exportieren.', 'Ja, zurücksetzen')) return;
@@ -853,18 +924,18 @@ function verdrahten() {
   });
   on('[data-selbsttest]', 'click', async (e) => {
     const aus = AN.querySelector('#testausgabe');
-    aus.innerHTML = 'Test läuft …';
+    aus.innerHTML = esc(t('Test läuft …'));
     const zeilen = [];
     try {
-      const probe = await db.schreibe('meta', { id: 'selbsttest', wert: Date.now() });
-      zeilen.push('Schreiben: ok');
+      await db.schreibe('meta', { id: 'selbsttest', wert: Date.now() });
+      zeilen.push(t('Schreiben: ok'));
       const zurueck = await db.hole('meta', 'selbsttest');
-      zeilen.push('Lesen: ' + (zurueck ? 'ok' : 'FEHLGESCHLAGEN'));
+      zeilen.push(zurueck ? t('Lesen: ok') : t('Lesen: FEHLGESCHLAGEN'));
       await db.entferne('meta', 'selbsttest');
-      zeilen.push('Löschen: ok');
-      zeilen.push(db.nurFluechtig?.() ? 'ACHTUNG: nur Arbeitsspeicher' : 'Dauerhafte Speicherung: ok');
+      zeilen.push(t('Löschen: ok'));
+      zeilen.push(db.nurFluechtig?.() ? t('ACHTUNG: nur Arbeitsspeicher') : t('Dauerhafte Speicherung: ok'));
     } catch (f) {
-      zeilen.push('FEHLER: ' + (f?.message || f));
+      zeilen.push(t('FEHLER: {grund}', { grund: f?.message || f }));
     }
     aus.innerHTML = zeilen.map((z) => `<div>${esc(z)}</div>`).join('');
   });
@@ -977,10 +1048,10 @@ function futterRechnerVerdrahten(root) {
 }
 
 function aufgabeOeffnen(a) {
-  const zeit = a.von && a.bis ? `${fmtDatum(a.von)} bis ${fmtDatum(a.bis)}` : 'Termin noch offen';
+  const zeit = a.von && a.bis ? t2('{von} bis {bis}', { von: fmtDatum(a.von), bis: fmtDatum(a.bis) }) : t2('Termin noch offen');
   sheetAuf({
     titel: a.titel,
-    unter: `${a.ziel.typ === 'imkerei' ? 'Ganze Imkerei' : a.ziel.name}${a.ziel.typ === 'volk' && a.ziel.standortName ? ' · ' + a.ziel.standortName : ''} · ${zeit}`,
+    unter: `${a.ziel.typ === 'imkerei' ? t2('Ganze Imkerei') : a.ziel.name}${a.ziel.typ === 'volk' && a.ziel.standortName ? ' · ' + a.ziel.standortName : ''} · ${zeit}`,
     inhalt: `
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
       ${hilfeBlock(a)}
@@ -1036,7 +1107,7 @@ async function aufgabeSpeichern(a, root, status) {
   sheetZu();
   await datenLaden();
   render();
-  toast(neu ? `Erledigt. ${neu} neue Aufgabe${neu > 1 ? 'n' : ''} automatisch angelegt.`
+  toast(neu ? t('Erledigt. {n} neue Aufgaben automatisch angelegt.', { n: neu })
     : (status === 'erledigt' ? 'Erledigt – Folgetermine neu berechnet.' : 'Übersprungen.'));
 }
 
@@ -1046,7 +1117,8 @@ function gruppeOeffnen(gruppe) {
   const a = gruppe[0];
   sheetAuf({
     titel: a.titel,
-    unter: `${gruppe.length} ${a.ziel.typ === 'stand' ? 'Stände' : 'Völker'} betroffen`,
+    unter: a.ziel.typ === 'stand' ? t2('{n} Stände betroffen', { n: gruppe.length })
+      : t2('{n} Völker betroffen', { n: gruppe.length }),
     inhalt: `
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
       ${hilfeBlock(a)}
@@ -1093,7 +1165,8 @@ function gruppeOeffnen(gruppe) {
           }
         }
         sheetZu(); await datenLaden(); render();
-        toast(`${ids.length} × erledigt${neu ? `, ${neu} neue Aufgabe${neu > 1 ? 'n' : ''}` : ''}.`);
+        toast(neu ? t('{k} × erledigt, {n} neue Aufgaben.', { k: ids.length, n: neu })
+          : t('{k} × erledigt.', { k: ids.length }));
       };
       root.querySelector('[data-ok]').onclick = () => speichern('erledigt');
       root.querySelector('[data-skip]').onclick = () => speichern('uebersprungen');
@@ -1157,7 +1230,7 @@ function eigeneAufgabeSheet() {
           von: w.von || iso(heute()), bis: w.bis || iso(addDays(heute(), 14)), ziele,
         });
         sheetZu(); await datenLaden(); render();
-        toast(`Aufgabe für ${ziele.length} ${ziele.length === 1 ? 'Ziel' : 'Ziele'} angelegt.`);
+        toast(t('Aufgabe für {n} Ziele angelegt.', { n: ziele.length }));
       };
     },
   });
@@ -1197,7 +1270,7 @@ function umzugSheet(volkId) {
     .sort((a, b) => (a.datum < b.datum ? 1 : -1));
   sheetAuf({
     titel: 'Umziehen / wandern',
-    unter: `${v.name} · steht auf „${standortName(v.standortId) || '–'}“`,
+    unter: `${v.name} · ` + t2('steht auf „{ort}“', { ort: standortName(v.standortId) || '–' }),
     inhalt: `
       <div class="hinweis">Die gesamte Historie bleibt beim Volk – Durchsichten, Behandlungen,
         Ernten. Ab dem Umzugsdatum rechnet BeeWise Tracht und Wetter für den neuen Standort.</div>
@@ -1215,7 +1288,7 @@ function umzugSheet(volkId) {
         const ziel = root.querySelector('[data-key=ziel] select').value;
         await volkUmziehen(volkId, ziel, w.datum || iso(heute()), w.notiz || '');
         sheetZu(); await datenLaden(); render(); trachtLaden({ still: true });
-        toast(`Umgezogen nach „${standortName(ziel)}“.`);
+        toast(t('Umgezogen nach {ort}.', { ort: standortName(ziel) }));
       };
     },
   });
@@ -1227,7 +1300,7 @@ function standortLoeschenSheet(st) {
   const andere = S.standorte.filter((s) => s.id !== st.id);
 
   if (!voelker.length) {
-    return bestaetige(`Bienenstand „${st.name}“ wirklich löschen?`).then(async (ja) => {
+    return bestaetige(t2('Bienenstand „{name}“ wirklich löschen?', { name: st.name })).then(async (ja) => {
       if (!ja) return;
       await db.loesche('standorte', st.id);
       await datenLaden(); render(); toast('Bienenstand gelöscht.');
@@ -1235,9 +1308,8 @@ function standortLoeschenSheet(st) {
   }
 
   sheetAuf({
-    titel: `Bienenstand „${st.name}“ löschen`,
-    unter: `${voelker.length} ${voelker.length === 1 ? 'Volk steht' : 'Völker stehen'} hier: `
-      + voelker.map((v) => v.name).join(', '),
+    titel: t2('Bienenstand „{name}“ löschen', { name: st.name }),
+    unter: t2('{n} Völker stehen hier: {liste}', { n: voelker.length, liste: voelker.map((v) => v.name).join(', ') }),
     inhalt: `
       <div class="hinweis">Was soll mit den Völkern passieren? Beim Umziehen bleibt die
         gesamte Historie erhalten – der Wechsel wird als Wanderung eingetragen.</div>
@@ -1267,11 +1339,11 @@ function standortLoeschenSheet(st) {
           wahl = b.dataset.w;
           if (box) box.hidden = wahl !== 'umziehen';
           root.querySelector('[data-ok]').textContent =
-            wahl === 'umziehen' ? 'Umziehen und löschen' : 'Völker mitlöschen';
+            wahl === 'umziehen' ? t2('Umziehen und löschen') : t2('Völker mitlöschen');
         };
       });
       root.querySelector('[data-ok]').textContent =
-        wahl === 'umziehen' ? 'Umziehen und löschen' : 'Völker mitlöschen';
+        wahl === 'umziehen' ? t2('Umziehen und löschen') : t2('Völker mitlöschen');
       root.querySelector('[data-abbruch]').onclick = () => sheetZu();
       root.querySelector('[data-ok]').onclick = async () => {
         if (wahl === 'umziehen') {
@@ -1280,15 +1352,15 @@ function standortLoeschenSheet(st) {
           for (const v of voelker) await volkUmziehen(v.id, ziel, datum, `Auflösung ${st.name}`);
           await db.loesche('standorte', st.id);
           sheetZu(); await datenLaden(); render(); trachtLaden({ still: true });
-          toast(`${voelker.length} Völker umgezogen, Bienenstand gelöscht.`);
+          toast(t('{n} Völker umgezogen, Bienenstand gelöscht.', { n: voelker.length }));
         } else {
           sheetZu();
-          if (!await bestaetige(`Wirklich ${voelker.length} Völker mit ihrer gesamten Historie löschen?`,
+          if (!await bestaetige(t('Wirklich {n} Völker mit ihrer gesamten Historie löschen?', { n: voelker.length }),
             'Ja, alles löschen')) return;
           for (const v of voelker) await db.loesche('voelker', v.id);
           await db.loesche('standorte', st.id);
           await datenLaden(); render();
-          toast(`Bienenstand und ${voelker.length} Völker gelöscht.`);
+          toast(t('Bienenstand und {n} Völker gelöscht.', { n: voelker.length }));
         }
       };
     },
@@ -1386,9 +1458,9 @@ async function syncAusfuehren() {
     const r = await sync.abgleichen({ beiSchritt: (t) => toast(t) });
     await datenLaden(); render();
     toast(r.erstmalig ? 'Erste Übertragung abgeschlossen.'
-      : `Abgeglichen: ${r.neu} neu, ${r.aktualisiert} aktualisiert.`);
+      : t('Abgeglichen: {neu} neu, {alt} aktualisiert.', { neu: r.neu, alt: r.aktualisiert }));
   } catch (f) {
-    toast('Abgleich fehlgeschlagen: ' + f.message);
+    toast(t('Abgleich fehlgeschlagen: {grund}', { grund: f.message }));
   }
 }
 
@@ -1442,7 +1514,7 @@ function standortSheet(st = null) {
           toast('Standort gespeichert.');
         } catch (f) {
           console.error(f);
-          toast('Speichern fehlgeschlagen: ' + (f?.message || f));
+          toast(t('Speichern fehlgeschlagen: {grund}', { grund: f?.message || f }));
         }
       };
 
@@ -1603,10 +1675,9 @@ function durchsichtSheet(volkId) {
   const monat = new Date().getMonth() + 1;
   sheetAuf({
     titel: 'Durchsicht',
-    unter: `${v.name}${letzte ? ` · zuletzt ${fmtDatum(letzte.datum)} (vor ${diffTage(heute(), parseISO(letzte.datum))} Tagen)` : ''}`,
+    unter: `${v.name}${letzte ? ' · ' + t2('zuletzt {d} (vor {n} Tagen)', { d: fmtDatum(letzte.datum), n: diffTage(heute(), parseISO(letzte.datum)) }) : ''}`,
     inhalt: `
-      <div class="mini" style="margin-bottom:10px">Alarmschwelle Milbenfall in diesem Monat:
-        ${varroaSchwelle(monat)} pro Tag.</div>
+      <div class="mini" style="margin-bottom:10px">${t2('Alarmschwelle Milbenfall in diesem Monat: {n} pro Tag.', { n: varroaSchwelle(monat) })}</div>
       <label class="feld" data-key="datum" data-typ="wert"><span>Datum</span>
         <input type="date" value="${iso(heute())}"></label>
       ${DURCHSICHT_FELDER.map((f) => feldHTML(f)).join('')}
@@ -1632,7 +1703,7 @@ function durchsichtSheet(volkId) {
           daten: w, zielTyp: 'volk', zielId: volkId, zielName: v.name, datum,
         });
         sheetZu(); await datenLaden(); render();
-        toast(neu ? `Durchsicht gespeichert. ${neu} neue Aufgabe${neu > 1 ? 'n' : ''} angelegt.`
+        toast(neu ? t('Durchsicht gespeichert. {n} neue Aufgaben angelegt.', { n: neu })
           : 'Durchsicht gespeichert.');
       };
     },
@@ -1722,18 +1793,52 @@ async function benachrichtigungenAnfragen() {
   if (r === 'granted') erinnern();
 }
 
-function erinnern() {
-  if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const z = zusammenfassung(S.plan);
-  const n = z.ueberfaellig + z.faellig;
-  if (!n) return;
-  try {
-    if (localStorage.getItem('letzteErinnerung') === iso(heute())) return;
-    localStorage.setItem('letzteErinnerung', iso(heute()));
-  } catch { /* ohne localStorage halt jedes Mal */ }
-  const erste = S.plan.find((a) => ['ueberfaellig', 'faellig'].includes(a.zustand));
-  new Notification(`${n} Aufgabe${n > 1 ? 'n' : ''} am Bienenstand`, {
-    body: `${erste.titel}${erste.ziel.typ === 'volk' ? ' – ' + erste.ziel.name : ''}`,
+function erinnern({ erzwingen = false } = {}) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission !== 'granted') {
+    if (erzwingen) toast('Meldungen sind nicht erlaubt.');
+    return;
+  }
+  const m = S.meldungen || MELDUNGEN_STANDARD;
+  const zeilen = [];
+
+  if (m.faellig) {
+    const z = zusammenfassung(S.plan);
+    const n = z.ueberfaellig + z.faellig;
+    if (n) {
+      const erste = S.plan.find((a) => ['ueberfaellig', 'faellig'].includes(a.zustand));
+      zeilen.push(t('{n} Aufgaben fällig', { n }) + ': ' + t(erste.titel)
+        + (erste.ziel.typ === 'volk' ? ' – ' + erste.ziel.name : ''));
+    }
+  }
+  if (m.warnungen) {
+    const w = S.plan.filter((a) => a.quelle === 'auto'
+      && ['ueberfaellig', 'faellig'].includes(a.zustand));
+    if (w.length) zeilen.push(t('{n} Warnungen', { n: w.length }) + ': ' + t(w[0].titel));
+  }
+  if (m.tracht && S.fragen.length) {
+    zeilen.push(t('Trachtfrage offen') + ': ' + t(S.fragen[0].name));
+  }
+  if (m.vorwarnung) {
+    const grenze = Number(m.vorlaufTage) || 3;
+    const bald = S.plan.filter((a) => a.wichtig && a.zustand === 'bald'
+      && a.von && diffTage(a.von, heute()) <= grenze);
+    if (bald.length) zeilen.push(t('Bald wichtig') + ': ' + t(bald[0].titel));
+  }
+
+  if (!zeilen.length) {
+    if (erzwingen) toast('Im Moment gibt es nichts zu melden.');
+    return;
+  }
+  if (!erzwingen) {
+    // höchstens eine Meldung pro Tag, sonst wird die App zur Nervensäge
+    try {
+      if (localStorage.getItem('letzteErinnerung') === iso(heute())) return;
+      localStorage.setItem('letzteErinnerung', iso(heute()));
+    } catch { /* ohne localStorage halt jedes Mal */ }
+  }
+  new Notification('BeeWise', {
+    body: zeilen.join('\n'),
     icon: 'icons/icon-192.png', tag: 'beewise-heute',
   });
 }
@@ -1799,8 +1904,35 @@ document.getElementById('tabbar').addEventListener('click', (e) => {
   if (b) gehe(b.dataset.tab);
 });
 
+/** Beim allerersten Start nach der Sprache fragen – zweisprachig beschriftet. */
+function spracheAbfragen() {
+  return new Promise((fertig) => {
+    const box = document.createElement('div');
+    box.className = 'sprachstart';
+    box.innerHTML = `<div class="sprachkarte">
+      <img src="icons/icon-192.png" alt="" width="64" height="64">
+      <h1>BeeWise</h1>
+      <p>Choose your language<br><span>Sprache wählen</span></p>
+      ${SPRACHEN.map((s) => `<button class="knopf${s.code === 'en' ? '' : ' leise'}"
+        data-s="${s.code}">${s.eigen}</button>`).join('')}
+      <small>Can be changed any time under „More“ · Jederzeit unter „Mehr“ änderbar</small>
+    </div>`;
+    document.body.appendChild(box);
+    box.querySelectorAll('[data-s]').forEach((b) => {
+      b.onclick = () => {
+        spracheSetzen(b.dataset.s);
+        box.remove();
+        fertig();
+      };
+    });
+  });
+}
+
 (async function start() {
+  const { code, gewaehlt } = spracheErmitteln();
+  document.documentElement.lang = code;
   uiInit();
+  if (!gewaehlt) await spracheAbfragen();
   await datenLaden();
   render();
   trachtLaden({ still: true }).then(() => setTimeout(erinnern, 1200));

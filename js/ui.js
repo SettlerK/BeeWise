@@ -1,5 +1,6 @@
 // Oberflächen-Bausteine: Bottom-Sheet, Toast, Formularfelder.
 import { esc } from './util.js';
+import { t, uebersetzeDom } from './i18n.js';
 
 let sheetEl; let dunkelEl; let toastEl; let toastTimer; let aufSchliessen = null;
 
@@ -11,9 +12,10 @@ export function uiInit() {
 }
 
 export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSchliessen = null }) {
-  sheetEl.innerHTML = `<div class="griff"></div><h3>${esc(titel)}</h3>`
-    + (unter ? `<div class="unter">${esc(unter)}</div>` : '')
+  sheetEl.innerHTML = `<div class="griff"></div><h3>${esc(t(titel))}</h3>`
+    + (unter ? `<div class="unter">${esc(t(unter))}</div>` : '')
     + inhalt;
+  uebersetzeDom(sheetEl);
   sheetEl.classList.add('auf');
   dunkelEl.classList.add('auf');
   sheetEl.scrollTop = 0;
@@ -37,7 +39,7 @@ export function sheetZu() {
 }
 
 export function toast(text) {
-  toastEl.textContent = text;
+  toastEl.textContent = t(text);
   toastEl.classList.add('auf');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => toastEl.classList.remove('auf'), 2800);
@@ -54,7 +56,7 @@ export function bestaetige(frage, jaText = 'Ja, löschen') {
       titel: frage,
       inhalt: `<div class="knopfreihe">
         <button class="knopf leise" data-nein>Abbrechen</button>
-        <button class="knopf gefahr" data-ja>${esc(jaText)}</button></div>`,
+        <button class="knopf gefahr" data-ja>${esc(t(jaText))}</button></div>`,
       danach(root) {
         root.querySelector('[data-ja]').onclick = () => { antwort(true); sheetZu(); };
         root.querySelector('[data-nein]').onclick = () => { antwort(false); sheetZu(); };
@@ -66,9 +68,9 @@ export function bestaetige(frage, jaText = 'Ja, löschen') {
 
 // ------------------------------------------------------------------ Formular
 
-const kopfZeile = (f) => `<span>${esc(f.label)}`
-  + (f.einheit ? ` <em>${esc(f.einheit)}</em>` : '') + '</span>';
-const fussZeile = (f) => (f.hinweis ? `<small class="feldhinweis">${esc(f.hinweis)}</small>` : '');
+const kopfZeile = (f) => `<span>${esc(t(f.label))}`
+  + (f.einheit ? ` <em>${esc(t(f.einheit))}</em>` : '') + '</span>';
+const fussZeile = (f) => (f.hinweis ? `<small class="feldhinweis">${esc(t(f.hinweis))}</small>` : '');
 
 export function feldHTML(f, wert) {
   const w = wert ?? f.standard ?? '';
@@ -86,13 +88,13 @@ export function feldHTML(f, wert) {
     const opt = f.typ === 'jaNein' ? ['ja', 'nein'] : (f.optionen || []);
     return `<label class="feld" data-key="${f.key}" data-typ="chips"${f.typ === 'jaNein' ? ' data-einfach="1"' : ''}>${kopf}
       <div class="chips">${opt.map((o) =>
-        `<button type="button" data-wert="${esc(o)}"${String(w).split(', ').includes(String(o)) ? ' class="an"' : ''}>${esc(o === 'ja' ? 'Ja' : o === 'nein' ? 'Nein' : o)}</button>`).join('')}
+        `<button type="button" data-wert="${esc(o)}"${String(w).split(', ').includes(String(o)) ? ' class="an"' : ''}>${esc(o === 'ja' ? t('Ja') : o === 'nein' ? t('Nein') : t(o))}</button>`).join('')}
       </div>${fuss}</label>`;
   }
   if (f.typ === 'auswahl') {
     return `<label class="feld" data-key="${f.key}" data-typ="wert">${kopf}
       <select><option value=""></option>${(f.optionen || []).map((o) =>
-        `<option${String(o) === String(w) ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>${fuss}</label>`;
+        `<option value="${esc(o)}"${String(o) === String(w) ? ' selected' : ''}>${esc(t(o))}</option>`).join('')}</select>${fuss}</label>`;
   }
   if (f.typ === 'datum') {
     return `<label class="feld" data-key="${f.key}" data-typ="wert">${kopf}

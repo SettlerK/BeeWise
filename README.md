@@ -157,6 +157,8 @@ js/kalenderexport.js    .ics-Export, nach Stichtag gebündelt
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
 js/berichte.js          Behandlungsprotokoll und Volkshistorie als PDF
 js/sync.js              Geräteabgleich über ein privates GitHub-Repository
+js/i18n.js              Mehrsprachigkeit (Schlüssel = deutsche Originaltexte)
+js/lang/en.js           englisches Sprachpaket
 js/ui.js                Bottom-Sheet, Toast, Formularfelder
 js/app.js               Ansichten und Interaktion
 sw.js                   Service Worker (Hülle offline, Wetter network-first)
@@ -335,6 +337,34 @@ Android-Installation.
   kommerziellen Tarif oder eine eigene Datenquelle.
 
 ---
+
+## Sprachen
+
+Standard ist **Englisch**; beim ersten Start fragt BeeWise einmal nach, danach steht die
+Einstellung unter *Mehr → Sprache*. Vollständig übersetzt sind Englisch und Deutsch –
+Bedienoberfläche, alle 25 Aufgabenregeln samt Erklärungen, Trachtpflanzen, Meldungen und die
+PDF-Berichte.
+
+Die Umsetzung nutzt die **deutschen Originaltexte als Schlüssel** (`js/i18n.js`). Das hat zwei
+praktische Folgen: der Quelltext bleibt lesbar, und eine vergessene Stelle zeigt Deutsch statt
+eines kryptischen Platzhalters. Übersetzt wird auf zwei Wegen – `t('…')` für Meldungen und
+zusammengesetzte Sätze, und ein Durchlauf über den fertig aufgebauten Bildschirm für die
+vielen Beschriftungen in den HTML-Vorlagen.
+
+**Eine Sprache ergänzen** braucht keine Programmierung: `js/lang/en.js` kopieren, die rechte
+Seite übersetzen, die Datei in `js/i18n.js` unter `PAKETE` eintragen. Fehlende Einträge fallen
+automatisch auf Deutsch zurück, eine unvollständige Übersetzung ist also unproblematisch.
+
+## Benachrichtigungen
+
+Unter *Mehr → Benachrichtigungen* lässt sich einzeln einstellen, wofür BeeWise sich melden
+darf: fällige und überfällige Aufgaben, automatische Warnungen (Varroaschwelle, weisellos,
+Schwarmstimmung, Futter knapp), Trachtfragen und eine Vorwarnung vor kritischen Terminen mit
+einstellbarem Vorlauf. Höchstens eine Meldung pro Tag; eine Probemeldung gibt es auf Knopfdruck.
+
+Ehrliche Einschränkung: im Browser kann eine Web-App nur melden, während sie zwischendurch
+geöffnet wird. Für Meldungen bei geschlossener App braucht es die Android-Fassung mit
+`@capacitor/local-notifications` – die Berechnung dahinter ist fertig.
 
 ## Fremddienste, Kosten und Lizenzen
 
