@@ -15,11 +15,16 @@ import { statischesLuftbild, MiniKarte, adresseSuchen, adresseZuKoordinaten } fr
 import { trachtBild, platzhalter, wikiSeite, bildVerwerfen } from './bilder.js';
 import { videoSuche, videoSucheAllgemein, PLAYLIST, KANAL } from './hilfe.js';
 import { icsHerunterladen } from './kalenderexport.js';
+import {
+  SCHNELL, OHNE_BEFUND, standVoelker, offeneFuer, volkSchritt, abschlussSchritt,
+  grobWerteLesen, schrittSpeichern,
+} from './stand.js';
+import { etikettenPDF, grundadresse } from './etiketten.js';
 import { behandlungsprotokoll, volkHistorie, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
   uiInit, sheetAuf, sheetZu, toast, bestaetige, feldHTML, felderVerdrahten, werteLesen,
-  zurueckFallbackSetzen, sheetIstAuf,
+  zurueckFallbackSetzen, ebenenQuelleSetzen, verlaufAbgleichen, sheetIstAuf,
 } from './ui.js';
 import {
   SPRACHEN, t, uebersetzeDom, spracheErmitteln, spracheSetzen, sprache, spracheName, gebietsschema,
@@ -30,6 +35,7 @@ const S = {
   standorte: [], voelker: [], durchsichten: [], erledigungen: [], trachtObs: [], eigene: [],
   wanderungen: [],
   tracht: {}, wetter: {}, stunden: {}, plan: [], fragen: [],
+  stand: null,                  // laufender Durchgang am Bienenstand
   filter: null,                 // Kategorie-Filter
   monat: new Date(),            // Kalenderansicht
   tag: null,                    // gewählter Tag im Kalender
@@ -123,13 +129,14 @@ async function wetterLaden({ still = true } = {}) {
 
 const TITEL = {
   heute: 'Heute', kalender: 'Kalender', voelker: 'Völker',
-  tracht: 'Tracht', mehr: 'Mehr', volk: 'Volk',
+  tracht: 'Tracht', mehr: 'Mehr', volk: 'Volk', stand: 'Durchgang',
 };
 
 function render() {
   lageLeeren();
   KOPF.textContent = S.ansicht === 'volk'
     ? (S.voelker.find((v) => v.id === S.volkId)?.name || t('Volk')) : t(TITEL[S.ansicht]);
+  document.body.classList.toggle('imstand', S.ansicht === 'stand');
   document.getElementById('kopf-datum').textContent =
     heute().toLocaleDateString(gebietsschema(), { weekday: 'short', day: 'numeric', month: 'long' });
   if (ZURUECK) ZURUECK.hidden = !UNTERANSICHT[S.ansicht];
@@ -145,7 +152,7 @@ function render() {
       </div></div>` : '';
   AN.innerHTML = warnung + ({
     heute: ansichtHeute, kalender: ansichtKalender, voelker: ansichtVoelker,
-    volk: ansichtVolk, tracht: ansichtTracht, mehr: ansichtMehr,
+    volk: ansichtVolk, tracht: ansichtTracht, mehr: ansichtMehr, stand: ansichtStand,
   }[S.ansicht])();
   uebersetzeDom(document.body);
   verdrahten();
@@ -153,26 +160,20 @@ function render() {
 }
 
 /** Ansichten, die „unter" einem Tab liegen und einen Zurück-Weg brauchen. */
-const UNTERANSICHT = { volk: 'voelker' };
+const UNTERANSICHT = { volk: 'voelker', stand: 'heute' };
 
 function gehe(tab, volkId = null) {
-  const vorher = S.ansicht;
   S.ansicht = tab; S.volkId = volkId;
-  // Für Unteransichten einen Verlaufseintrag anlegen, damit die Zurück-Taste
-  // des Geräts zur Liste zurückführt und nicht die App verlässt.
-  if (UNTERANSICHT[tab] && !UNTERANSICHT[vorher]) {
-    try { history.pushState({ beewise: 'ansicht' }, ''); } catch { /* file:// */ }
-  }
+  if (tab !== 'stand') S.stand = null;
   render(); window.scrollTo(0, 0);
+  verlaufAbgleichen();      // ui.js hält genau einen Eintrag, solange etwas offen ist
 }
 
 /** Eine Ebene zurück: Unteransicht schließen, sonst auf „Heute". */
-function zurueck({ ausVerlauf = false } = {}) {
+function zurueck() {
   const ziel = UNTERANSICHT[S.ansicht];
   if (!ziel) return false;
-  S.ansicht = ziel; S.volkId = null;
-  render(); window.scrollTo(0, 0);
-  if (!ausVerlauf) { try { history.back(); } catch { /* egal */ } }
+  gehe(ziel);
   return true;
 }
 
@@ -206,6 +207,10 @@ function ansichtHeute() {
   </div>`);
 
   t.push(wetterUebersichtHTML());
+  if (S.voelker.length) {
+    t.push(`<div class="knopfreihe" style="margin:0 0 12px">
+      <button class="knopf" data-standmodus>${esc(t2('Durchgang am Bienenstand'))}</button></div>`);
+  }
   t.push(filterLeiste());
 
   if (S.fragen.length && !S.filter) {
@@ -588,6 +593,137 @@ function wetterSheet(standortId) {
   });
 }
 
+
+// ============================================================ Stand-Modus
+// Ein Volk je Bildschirm, große Flächen, sofort gespeichert. Die Bausteine
+// liegen in js/stand.js – hier steht nur, was mit dem Zustand der App zu tun hat.
+
+function standStarten(standortId) {
+  S.stand = { standortId, i: 0, bilanz: { voelker: 0, aufgaben: 0, neu: 0 }, erfasst: new Set() };
+  gehe('stand');
+}
+
+function ansichtStand() {
+  const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
+  if (!stand) return `<div class="karte"><div class="karte-inhalt leer">
+    ${t2('Kein Bienenstand ausgewählt.')}</div></div>`;
+  const liste = standVoelker(S, stand.id);
+  if (!liste.length) {
+    return `<div class="karte"><div class="karte-inhalt leer"><span class="gross">🗂</span>
+      ${t2('An diesem Bienenstand steht noch kein Volk.')}
+      <div class="knopfreihe" style="margin-top:16px">
+        <button class="knopf" data-neu-volk>Volk anlegen</button></div></div></div>`;
+  }
+  if (S.stand.i >= liste.length) return abschlussSchritt(S, stand, S.stand.bilanz);
+  return volkSchritt(S, liste[S.stand.i], stand, S.stand.i + 1, liste.length);
+}
+
+/** Was gerade auf dem Bildschirm eingetragen ist. */
+function standSammeln(ohneBefund = false) {
+  const werte = grobWerteLesen(AN);
+  if (ohneBefund) {
+    for (const [k, v] of Object.entries(OHNE_BEFUND)) if (werte[k] == null) werte[k] = v;
+  }
+  const abgehakt = [...AN.querySelectorAll('.standaufgabe.an')]
+    .map((el) => S.plan.find((a) => a.schluessel === el.dataset.saufgabe))
+    .filter(Boolean);
+  return { werte, abgehakt };
+}
+
+/**
+ * Den aktuellen Schritt festschreiben. Wird auch beim Blättern aufgerufen –
+ * niemand soll Eingaben verlieren, nur weil er den Pfeil statt des Knopfes trifft.
+ */
+async function standSpeichern({ ohneBefund = false } = {}) {
+  const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
+  if (!stand) return { leer: true };
+  const liste = standVoelker(S, stand.id);
+  const volk = liste[S.stand.i];
+  const { werte, abgehakt } = standSammeln(ohneBefund && !!volk);
+  if (!Object.keys(werte).length && !abgehakt.length) return { leer: true };
+
+  try {
+    if (volk) {
+      const b = await schrittSpeichern({ S, volk, werte, abgehakt });
+      if (b.durchsicht) S.stand.erfasst.add(volk.id);
+      S.stand.bilanz.voelker = S.stand.erfasst.size;
+      S.stand.bilanz.aufgaben += b.aufgaben;
+      S.stand.bilanz.neu += b.neu;
+    } else {
+      // Abschlussseite: dort hängen nur noch die Aufgaben des Standes selbst
+      for (const a of abgehakt) {
+        await db.schreibe('erledigungen', {
+          id: uid(), regelId: a.regelId, zielTyp: a.ziel.typ, zielId: a.ziel.id,
+          datum: iso(heute()), status: 'erledigt', daten: {},
+          jahr: heute().getFullYear(),
+        });
+        S.stand.bilanz.aufgaben += 1;
+      }
+    }
+    await datenLaden();
+    return { leer: false };
+  } catch (e) {
+    fehlerZeigen('Durchgang speichern', e);
+    return { fehler: true };
+  }
+}
+
+function standBlaettern(richtung) {
+  const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
+  const liste = stand ? standVoelker(S, stand.id) : [];
+  S.stand.i = Math.max(0, Math.min(liste.length, S.stand.i + richtung));
+  render();
+  window.scrollTo(0, 0);
+}
+
+/** Pfeiltasten: erst sichern, dann blättern. */
+async function standWechseln(richtung) {
+  await standSpeichern();
+  standBlaettern(richtung);
+}
+
+async function standWeiter({ ohneBefund = false } = {}) {
+  const r = await standSpeichern({ ohneBefund });
+  if (r.fehler) return;
+  if (r.leer && !ohneBefund) toast('Nichts eingetragen – trotzdem weiter.');
+  standBlaettern(1);
+}
+
+async function standBeenden() {
+  const r = await standSpeichern();
+  const b = S.stand?.bilanz || { voelker: 0, aufgaben: 0, neu: 0 };
+  gehe('heute');
+  if (!r.fehler) {
+    toast(b.voelker || b.aufgaben
+      ? t('Durchgang gespeichert: {v} Völker, {a} Aufgaben.', { v: b.voelker, a: b.aufgaben })
+      : 'Durchgang beendet.');
+  }
+}
+
+/** Auswahl des Bienenstandes – entfällt, wenn es nur einen gibt. */
+function standWaehlen() {
+  const mitVoelkern = S.standorte.filter((st) => standVoelker(S, st.id).length);
+  if (!mitVoelkern.length) return toast('Erst Völker anlegen.');
+  if (mitVoelkern.length === 1) return standStarten(mitVoelkern[0].id);
+  sheetAuf({
+    titel: 'Durchgang starten',
+    unter: 'An welchem Bienenstand stehst du?',
+    inhalt: `<div class="standwahl">${mitVoelkern.map((st) => {
+      const n = standVoelker(S, st.id).length;
+      const offen = S.plan.filter((a) => a.ziel.standortId === st.id
+        && ['faellig', 'ueberfaellig'].includes(a.zustand)).length;
+      return `<button class="knopf leise gross" data-swahl="${st.id}">
+        <b>${esc(st.name)}</b><small>${esc(t2('{n} Völker', { n }))}${offen
+        ? ' · ' + esc(t2('{n} offen', { n: offen })) : ''}</small></button>`;
+    }).join('')}</div>`,
+    danach(root) {
+      root.querySelectorAll('[data-swahl]').forEach((b) => {
+        b.onclick = () => { sheetZu(); standStarten(b.dataset.swahl); };
+      });
+    },
+  });
+}
+
 // ---------------------------------------------------------------- Kalender
 
 /**
@@ -689,6 +825,9 @@ function ansichtVoelker() {
     }
     t.push(wetterZeileHTML(st));
     t.push('</div>');
+    t.push(`<div class="knopfreihe" style="margin-top:-4px">
+      <button class="knopf leise klein" data-standmodus="${st.id}">${
+      esc(t2('Durchgang an diesem Stand'))}</button></div>`);
   }
   const ohne = S.voelker.filter((v) => !S.standorte.some((s) => s.id === v.standortId));
   if (ohne.length) {
@@ -1006,7 +1145,8 @@ function ansichtMehr() {
       <button class="knopf leise" data-protokoll>Behandlungsprotokoll (PDF)</button>
     </div>
     <div class="mini" style="margin-top:9px">Die Stockkarte eines einzelnen Volkes als PDF
-      gibt es auf der Seite des jeweiligen Volkes.</div>
+      gibt es auf der Seite des jeweiligen Volkes.
+      <a href="#" data-etiketten>QR-Aufkleber für die Beuten</a>.</div>
   </div></div>
 
   <h2 class="abschnitt">Abgleich zwischen Geräten</h2>
@@ -1172,6 +1312,38 @@ function verdrahten() {
     render();
   });
   on('[data-wetter]', 'click', (e) => { e.stopPropagation(); wetterSheet(e.currentTarget.dataset.wetter); });
+  on('[data-standmodus]', 'click', (e) => {
+    const id = e.currentTarget.dataset.standmodus;
+    if (id) standStarten(id); else standWaehlen();
+  });
+  on('[data-sschritt]', 'click', (e) => standWechseln(Number(e.currentTarget.dataset.sschritt)));
+  on('[data-sweiter]', 'click', () => standWeiter());
+  on('[data-sohne]', 'click', () => standWeiter({ ohneBefund: true }));
+  on('[data-sende]', 'click', () => standBeenden());
+  on('[data-saufgabe]', 'click', (e) => e.currentTarget.classList.toggle('an'));
+  on('[data-sdetail]', 'click', (e) => {
+    e.stopPropagation();
+    const a = S.plan.find((x) => x.schluessel === e.currentTarget.dataset.sdetail);
+    if (a) aufgabeOeffnen(a);
+  });
+  AN.querySelectorAll('.grobfeld[data-typ="wahl"]').forEach((f) => {
+    f.querySelectorAll('button').forEach((b) => {
+      b.onclick = () => {
+        const anVorher = b.classList.contains('an');
+        f.querySelectorAll('button').forEach((x) => x.classList.remove('an'));
+        if (!anVorher) b.classList.add('an');       // nochmal tippen hebt auf
+      };
+    });
+  });
+  AN.querySelectorAll('.grobfeld[data-typ="zahl"]').forEach((f) => {
+    const inp = f.querySelector('input');
+    const um = (r) => {
+      const jetzt = inp.value === '' ? (r > 0 ? 0 : 1) : parseFloat(inp.value) || 0;
+      inp.value = Math.max(0, jetzt + r);
+    };
+    f.querySelector('[data-minus]').onclick = () => um(-1);
+    f.querySelector('[data-plus]').onclick = () => um(1);
+  });
   on('[data-volk]', 'click', (e) => gehe('volk', e.currentTarget.dataset.volk));
   on('[data-neu-volk]', 'click', () => volkSheet());
   on('[data-volk-bearbeiten]', 'click', (e) => {
@@ -1192,6 +1364,7 @@ function verdrahten() {
     if (p) { p.herunterladen(`stockkarte-${dateiname(v.name)}-${iso(heute())}.pdf`); toast('PDF erstellt.'); }
   });
   on('[data-protokoll]', 'click', () => protokollSheet());
+  on('[data-etiketten]', 'click', (e) => { e.preventDefault(); etikettenSheet(); });
   on('[data-sync-einrichten]', 'click', () => syncSheet());
   on('[data-sync-jetzt]', 'click', () => syncAusfuehren());
   on('[data-neu-standort]', 'click', () => standortSheet());
@@ -1717,6 +1890,70 @@ function protokollSheet() {
       };
     },
   });
+}
+
+
+/** QR-Aufkleber für die Beuten – bewusst unauffällig unter „Berichte". */
+function etikettenSheet() {
+  const basis = grundadresse();
+  const staende = S.standorte.filter((st) => S.voelker.some((v) => v.standortId === st.id));
+  sheetAuf({
+    titel: 'QR-Aufkleber für die Beuten',
+    unter: 'Kamera des Handys darauf halten – die Stockkarte dieses Volkes geht auf.',
+    inhalt: `
+      <div class="hinweis">Ein Aufkleber je Volk, zwei Spalten auf A4. Am besten auf
+        Klebefolie drucken oder einschweißen – im Stockbereich wird alles feucht.
+        Gescannt wird mit der normalen Kamera-App, die App braucht dafür keine Rechte.</div>
+      ${basis ? '' : `<div class="hinweis" style="border-color:var(--ueberfaellig)">
+        Die App läuft gerade nicht unter einer Web-Adresse. Trage unten die Adresse ein,
+        unter der du BeeWise am Handy öffnest – sonst zeigt der Aufkleber ins Leere.</div>`}
+      ${feldHTML({ key: 'wo', label: 'Welche Völker', typ: 'auswahl',
+        optionen: ['alle Völker', ...staende.map((st) => st.name)] }, 'alle Völker')}
+      ${feldHTML({ key: 'basis', label: 'Adresse der App',
+        platzhalter: 'https://benutzername.github.io/BeeWise/',
+        hinweis: 'Diese Adresse öffnet der Aufkleber. Muss die veröffentlichte sein, '
+          + 'nicht die Datei auf dem PC.' }, basis)}
+      <div class="knopfreihe"><button class="knopf" data-ok>PDF erstellen</button></div>`,
+    danach(root) {
+      felderVerdrahten(root);
+      root.querySelector('[data-ok]').onclick = () => {
+        const w = werteLesen(root);
+        const adresse = String(w.basis || '').trim();
+        if (!/^https?:\/\//.test(adresse)) return toast('Bitte eine vollständige Web-Adresse eintragen.');
+        const st = staende.find((x) => x.name === w.wo);
+        const liste = st ? S.voelker.filter((v) => v.standortId === st.id) : S.voelker;
+        if (!liste.length) return toast('Keine Völker ausgewählt.');
+        try {
+          etikettenPDF(liste, {
+            basis: adresse,
+            standortName: (v) => standortName(v.standortId) || '',
+          }).herunterladen(`beewise-aufkleber-${iso(heute())}.pdf`);
+          sheetZu();
+          toast(t('{n} Aufkleber erstellt.', { n: liste.length }));
+        } catch (f) {
+          fehlerZeigen('Aufkleber', f);
+        }
+      };
+    },
+  });
+}
+
+/**
+ * Aufkleber gescannt: die Adresse trägt die Kennung des Volkes im Ankerteil.
+ * Der Anker wird danach entfernt, damit ein späteres Neuladen nicht wieder
+ * dorthin springt.
+ */
+function tiefenlinkPruefen() {
+  const treffer = String(location.hash || '').match(/volk=([\w-]+)/);
+  if (!treffer) return false;
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* egal */ }
+  const v = S.voelker.find((x) => x.id === treffer[1]);
+  if (!v) {
+    toast('Zu diesem Aufkleber gibt es auf diesem Gerät kein Volk – fehlt der Abgleich?');
+    return false;
+  }
+  gehe('volk', v.id);
+  return true;
 }
 
 // -------------------------------------------------------------------- Abgleich
@@ -2274,10 +2511,13 @@ function spracheAbfragen() {
   document.documentElement.lang = code;
   uiInit();
   // Zurück-Taste: erst Fenster schließen (macht ui.js selbst), dann Unteransicht.
-  zurueckFallbackSetzen(() => zurueck({ ausVerlauf: true }));
+  zurueckFallbackSetzen(() => zurueck());
+  ebenenQuelleSetzen(() => (UNTERANSICHT[S.ansicht] ? 1 : 0));
   if (!gewaehlt) await spracheAbfragen();
   await datenLaden();
   render();
+  tiefenlinkPruefen();
+  window.addEventListener('hashchange', tiefenlinkPruefen);
   trachtLaden({ still: true }).then(() => setTimeout(erinnern, 1200));
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -2285,4 +2525,5 @@ function spracheAbfragen() {
 })();
 
 window.__beewise = { S, db, planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
-  gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText };
+  gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText,
+  standStarten, standWeiter, standBeenden, etikettenSheet };

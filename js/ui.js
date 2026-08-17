@@ -9,15 +9,47 @@ let sheetEl; let dunkelEl; let toastEl; let toastTimer; let aufSchliessen = null
 // Wegen, die jemand erwartet: sichtbarer Knopf, Escape, Tippen daneben, nach
 // unten wischen und die Zurück-Taste des Geräts. Letzteres ist am Handy der
 // wichtigste: ohne eigenen Eintrag im Verlauf würde sie die App beenden.
+//
+// Umgesetzt mit GENAU EINEM zusätzlichen Verlaufseintrag, solange irgendetwas
+// „offen" ist – ein Fenster oder eine Unteransicht. Ein Eintrag je Ebene wäre
+// naheliegender, geht aber schief, sobald ein Fenster im selben Wimpernschlag
+// schließt und eine Unteransicht öffnet (Standwahl → Durchgang): dann jagen
+// sich Zurückspringen und Hinzufügen gegenseitig. Deshalb wird der Abgleich
+// ans Ende der Ereignisschleife gelegt und erst der Endzustand angewandt.
 let sheetOffen = false;
 let ausPopstate = false;      // Schließen kam von der Zurück-Taste
 let erwarteterPop = false;    // wir haben selbst history.back() ausgelöst
+let marke = false;            // liegt unser Eintrag im Verlauf?
+let abgleichGeplant = false;
 let zurueckFallback = null;   // greift, wenn kein Fenster offen ist (z. B. Volk-Ansicht)
+let ebenenZaehler = () => 0;  // wie viele Unteransichten die App gerade zeigt
 
-const verlaufSchieben = () => { try { history.pushState({ beewise: 'sheet' }, ''); } catch { /* file:// */ } };
+function markeSetzen(soll) {
+  if (soll === marke) return;
+  marke = soll;
+  try {
+    if (soll) history.pushState({ beewise: 'ebene' }, '');
+    else { erwarteterPop = true; history.back(); }
+  } catch { marke = soll ? false : marke; erwarteterPop = false; }   // file://
+}
+
+function verlaufAbgleichen() {
+  if (abgleichGeplant) return;
+  abgleichGeplant = true;
+  setTimeout(() => {
+    abgleichGeplant = false;
+    markeSetzen(sheetOffen || ebenenZaehler() > 0);
+  }, 0);
+}
 
 /** Wird von der Anwendung gesetzt: was passiert bei „zurück" ohne offenes Fenster? */
 export function zurueckFallbackSetzen(fn) { zurueckFallback = fn; }
+
+/** Wird von der Anwendung gesetzt: zeigt sie gerade eine Unteransicht? */
+export function ebenenQuelleSetzen(fn) { ebenenZaehler = fn; verlaufAbgleichen(); }
+
+/** Nach jedem Ansichtswechsel aufrufen. */
+export { verlaufAbgleichen };
 
 export const sheetIstAuf = () => sheetOffen;
 
@@ -33,12 +65,14 @@ export function uiInit() {
 
   window.addEventListener('popstate', () => {
     if (erwarteterPop) { erwarteterPop = false; return; }
+    marke = false;                       // unser Eintrag ist soeben verbraucht
     if (sheetOffen) {
       ausPopstate = true;
       try { sheetZu(); } finally { ausPopstate = false; }
-      return;
+    } else if (zurueckFallback) {
+      zurueckFallback();
     }
-    if (zurueckFallback) zurueckFallback();
+    verlaufAbgleichen();                 // bleibt etwas offen, kommt ein neuer Eintrag
   });
 
   // Nach unten wischen schließt ebenfalls – das erwartet man bei einem Fenster,
@@ -70,7 +104,8 @@ export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSc
   sheetEl.classList.add('auf');
   dunkelEl.classList.add('auf');
   sheetEl.scrollTop = 0;
-  if (!sheetOffen) { sheetOffen = true; verlaufSchieben(); }
+  sheetOffen = true;
+  verlaufAbgleichen();
   aufSchliessen = beimSchliessen;
   if (danach) {
     try {
@@ -85,16 +120,10 @@ export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSc
 }
 
 export function sheetZu() {
-  const warOffen = sheetOffen;
   sheetOffen = false;
   sheetEl.classList.remove('auf');
   dunkelEl.classList.remove('auf');
-  // Der eigene Verlaufseintrag muss wieder weg, sonst bräuchte es später zwei
-  // Betätigungen der Zurück-Taste, um die App zu verlassen.
-  if (warOffen && !ausPopstate) {
-    erwarteterPop = true;
-    try { history.back(); } catch { erwarteterPop = false; }
-  }
+  if (!ausPopstate) verlaufAbgleichen();
   if (aufSchliessen) { const f = aufSchliessen; aufSchliessen = null; f(); }
 }
 

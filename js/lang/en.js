@@ -961,4 +961,63 @@ export const en = {
   'Jede offene Aufgabe steht genau einmal im Kalender: an ihrem nächsten Arbeitstag. Bleibt sie liegen, rückt sie mit jedem vergangenen Tag einen Tag weiter. Tippen für die Liste.':
     'Every open task appears exactly once in the calendar: on its next working day. If it is left '
     + 'undone, it moves on by one day for every day that passes. Tap for the list.',
+  // --------------------------------------------------------------- Stand-Modus
+  Durchgang: 'Round',
+  'Durchgang am Bienenstand': 'Round at the apiary',
+  'Durchgang an diesem Stand': 'Round at this apiary',
+  'Durchgang starten': 'Start a round',
+  'An welchem Bienenstand stehst du?': 'Which apiary are you at?',
+  'Kein Bienenstand ausgewählt.': 'No apiary selected.',
+  'An diesem Bienenstand steht noch kein Volk.': 'There is no colony at this apiary yet.',
+  'Volk {i} von {n}': 'Colony {i} of {n}',
+  'vorheriges Volk': 'previous colony',
+  'nächstes Volk': 'next colony',
+  'zuletzt durchgesehen {d} (vor {n} Tagen)': 'last inspected {d} ({n} days ago)',
+  'noch keine Durchsicht erfasst': 'no inspection recorded yet',
+  'Offen an diesem Volk': 'Open for this colony',
+  'Antippen hakt ab. Für Angaben wie Erntemenge oder Präparat den Knopf rechts nehmen.':
+    'Tap to tick off. For details such as yield or product use the button on the right.',
+  Kurzbefund: 'Quick findings',
+  'Besetzte Wabengassen': 'Seams of bees',
+  'Gassen, in denen Bienen sitzen – nicht die Futterwaben':
+    'seams the bees are sitting in – not the stores',
+  'Königin gesehen': 'queen seen',
+  'frei diktierbar über die Mikrofontaste der Tastatur':
+    'dictate freely with the microphone key on your keyboard',
+  'Speichern und weiter': 'Save and continue',
+  'Ohne Befund': 'Nothing to report',
+  '„Ohne Befund" trägt ein: weiselrichtig, keine Schwarmstimmung, keine Weiselzellen – und geht weiter.':
+    '"Nothing to report" records: queenright, no swarming mood, no queen cells – and moves on.',
+  'Durchgang beenden': 'End the round',
+  'Durchgang fertig': 'Round complete',
+  'Völker erfasst': 'colonies recorded',
+  'Aufgaben erledigt': 'tasks done',
+  'neu ausgelöst': 'newly triggered',
+  'Am Stand selbst': 'At the apiary itself',
+  Fertig: 'Done',
+  Details: 'Details',
+  'Nichts eingetragen – trotzdem weiter.': 'Nothing entered – moving on anyway.',
+  'Durchgang gespeichert: {v} Völker, {a} Aufgaben.': 'Round saved: {v} colonies, {a} tasks.',
+  'Durchgang beendet.': 'Round ended.',
+  'Erst Völker anlegen.': 'Add colonies first.',
+  // ----------------------------------------------------------------- Aufkleber
+  'QR-Aufkleber für die Beuten': 'QR labels for the hives',
+  'Kamera des Handys darauf halten – die Stockkarte dieses Volkes geht auf.':
+    'Point your phone camera at it – the record for that colony opens.',
+  'Ein Aufkleber je Volk, zwei Spalten auf A4. Am besten auf Klebefolie drucken oder einschweißen – im Stockbereich wird alles feucht. Gescannt wird mit der normalen Kamera-App, die App braucht dafür keine Rechte.':
+    'One label per colony, two columns on A4. Print on adhesive film or laminate them – '
+    + 'everything around a hive gets damp. Scanning is done with the ordinary camera app, '
+    + 'so BeeWise needs no camera permission.',
+  'Die App läuft gerade nicht unter einer Web-Adresse. Trage unten die Adresse ein, unter der du BeeWise am Handy öffnest – sonst zeigt der Aufkleber ins Leere.':
+    'The app is not running under a web address right now. Enter below the address you use to '
+    + 'open BeeWise on your phone – otherwise the label leads nowhere.',
+  'Welche Völker': 'Which colonies',
+  'Adresse der App': 'Address of the app',
+  'Diese Adresse öffnet der Aufkleber. Muss die veröffentlichte sein, nicht die Datei auf dem PC.':
+    'This is the address the label opens. It must be the published one, not the file on your PC.',
+  'Bitte eine vollständige Web-Adresse eintragen.': 'Please enter a complete web address.',
+  'Keine Völker ausgewählt.': 'No colonies selected.',
+  '{n} Aufkleber erstellt.': '{n} labels created.',
+  'Zu diesem Aufkleber gibt es auf diesem Gerät kein Volk – fehlt der Abgleich?':
+    'There is no colony for this label on this device – is the sync missing?',
 };

@@ -8,8 +8,8 @@ import re, base64, pathlib
 
 W = pathlib.Path(__file__).parent
 MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
-          'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'pdf.js', 'berichte.js',
-          'sync.js', 'ui.js', 'app.js']
+          'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'qr.js', 'pdf.js', 'etiketten.js',
+          'berichte.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
 
 def entkerne(text):
     text = re.sub(r'^import\s[\s\S]*?from\s+[\'"][^\'"]+[\'"];\s*$', '', text, flags=re.M)
@@ -31,7 +31,8 @@ def aliase():
                 if ' as ' not in teil:
                     continue
                 a, b = (x.strip() for x in teil.split(' as '))
-                treffer.setdefault(quelle, []).append((a, b))
+                if (a, b) not in treffer.setdefault(quelle, []):
+                    treffer[quelle].append((a, b))
     return treffer
 
 ALIASE = aliase()
@@ -67,4 +68,18 @@ html = html.replace("icon: 'icons/icon-192.png',", f"icon: 'data:image/png;base6
 
 ziel = W.parent / 'beewise-einzeldatei.html'
 ziel.write_text(html, encoding='utf-8')
-print(f'{ziel}  ({len(html)/1024:.0f} kB)')
+
+# Sicherheitsnetz: im Bündel teilen sich alle Module einen Namensraum. Zwei
+# gleichnamige Deklarationen aus verschiedenen Dateien fallen erst beim Laden
+# auf – deshalb wird das Ergebnis hier sofort geprüft.
+import subprocess, tempfile
+skript = html.split('<script type="module">')[1].split('</script>')[0]
+with tempfile.NamedTemporaryFile('w', suffix='.mjs', delete=False, encoding='utf-8') as f:
+    f.write(skript)
+    pruef = f.name
+lauf = subprocess.run(['node', '--check', pruef], capture_output=True, text=True)
+if lauf.returncode:
+    print('FEHLER im Bündel:\n' + lauf.stderr[:1200])
+    raise SystemExit(1)
+
+print(f'{ziel}  ({len(html)/1024:.0f} kB)  – Bündel geprüft')

@@ -451,3 +451,82 @@ label.feld > span em{font-style:normal;opacity:.65;font-weight:400}
   border:1px solid rgba(0,0,0,.18);box-shadow:inset 0 -3px 6px rgba(0,0,0,.12);
 }
 .pollenklecks.leer{background:repeating-linear-gradient(45deg,var(--rand),var(--rand) 3px,var(--karte) 3px,var(--karte) 6px)}
+
+
+/* -------------------------------------------------------------- Stand-Modus */
+/* Große Flächen: alles hier ist für Handschuhe und schräges Licht gemacht. */
+.standkopf{
+  display:flex;align-items:center;gap:10px;margin:2px 0 8px;
+}
+.standkopf .standtitel{flex:1;min-width:0;text-align:center;line-height:1.2}
+.standkopf .standtitel b{font-size:24px;display:block}
+.standkopf .standtitel small{color:var(--text-schwach);font-size:12.5px}
+.standpfeil{
+  width:52px;height:52px;border-radius:14px;font-size:30px;line-height:1;flex:none;
+  background:var(--karte);border:1px solid var(--rand);color:var(--text-schwach);
+  box-shadow:var(--schatten);
+}
+.standpfeil:active{background:var(--rand)}
+.standbalken{height:5px;border-radius:99px;background:var(--rand);overflow:hidden;margin-bottom:12px}
+.standbalken i{display:block;height:100%;background:var(--honig);transition:width .25s}
+
+.standaufgabe{
+  display:flex;align-items:center;gap:12px;padding:15px 14px;cursor:pointer;
+  border-top:1px solid var(--rand);
+}
+.karte .standaufgabe:first-child{border-top:none}
+.standaufgabe .kasten{
+  width:30px;height:30px;border-radius:9px;border:2px solid var(--rand-stark);flex:none;
+  position:relative;
+}
+.standaufgabe.an .kasten{background:var(--ok);border-color:var(--ok)}
+.standaufgabe.an .kasten::after{
+  content:'';position:absolute;left:9px;top:4px;width:8px;height:15px;
+  border:solid #fff;border-width:0 3px 3px 0;transform:rotate(45deg);
+}
+.standaufgabe .txt{flex:1;min-width:0;font-size:15.5px;line-height:1.3}
+.standaufgabe .txt small{display:block;font-size:11.5px;font-weight:650}
+.standaufgabe.an .txt{color:var(--text-schwach);text-decoration:line-through}
+.mehrknopf{
+  width:40px;height:40px;border-radius:10px;flex:none;color:var(--text-zart);font-size:17px;
+  letter-spacing:1px;
+}
+.mehrknopf:active{background:var(--rand)}
+
+.grobfeld{display:block;margin-bottom:16px}
+.grobfeld:last-child{margin-bottom:4px}
+.grobtitel{display:block;font-size:13px;font-weight:600;margin-bottom:7px}
+.grobtitel em{color:var(--text-zart);font-style:normal;font-weight:400}
+.grobfeld small{display:block;margin-top:5px;font-size:11.5px;color:var(--text-zart)}
+.grobfeld textarea{
+  width:100%;min-height:64px;padding:11px 12px;border:1px solid var(--rand);border-radius:12px;
+  background:var(--bg);resize:vertical;font-size:16px;
+}
+.grobzahl{display:flex;align-items:stretch;gap:8px}
+.grobzahl button{
+  width:60px;height:56px;border-radius:14px;background:var(--bg);border:1px solid var(--rand);
+  font-size:26px;color:var(--text);flex:none;
+}
+.grobzahl button:active{background:var(--rand)}
+.grobzahl input{
+  flex:1;min-width:0;text-align:center;font-size:24px;font-weight:650;border:1px solid var(--rand);
+  border-radius:14px;background:var(--bg);padding:0 4px;-moz-appearance:textfield;
+}
+.grobzahl input::-webkit-outer-spin-button,.grobzahl input::-webkit-inner-spin-button{
+  -webkit-appearance:none;margin:0}
+.grobchips{display:flex;flex-wrap:wrap;gap:8px}
+.grobchips button{
+  padding:13px 15px;border-radius:13px;background:var(--bg);border:1px solid var(--rand);
+  font-size:15px;min-height:50px;flex:1 1 auto;
+}
+.grobchips button.an{background:var(--honig);border-color:var(--honig);color:#241a05;font-weight:650}
+
+.standknoepfe{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.knopf.gross{padding:17px 18px;font-size:16.5px;border-radius:15px}
+.standwahl{display:flex;flex-direction:column;gap:10px;margin-bottom:6px}
+.standwahl .knopf{text-align:left;display:block}
+.standwahl .knopf b{display:block;font-size:16px}
+.standwahl .knopf small{display:block;color:var(--text-schwach);font-weight:400;margin-top:2px}
+
+/* Im Durchgang stört die Tab-Leiste eher – der Weg zurück steht oben. */
+body.imstand .tabbar{opacity:.55}

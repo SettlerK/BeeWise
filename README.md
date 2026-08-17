@@ -155,6 +155,9 @@ js/karte.js             Luftbildkarte ohne Fremdbibliothek, Adresssuche
 js/bilder.js            Trachtbilder über die Wikipedia-Schnittstelle
 js/hilfe.js             Videohilfe (kanalgebundene Suchlinks)
 js/kalenderexport.js    .ics-Export, nach Stichtag gebündelt
+js/stand.js             Stand-Modus: Durchgang Volk für Volk
+js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
+js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
 js/berichte.js          Behandlungsprotokoll und Volkshistorie als PDF
 js/sync.js              Geräteabgleich über ein privates GitHub-Repository
@@ -215,11 +218,52 @@ zwei Imkern am selben Volk wäre feldweises Mergen besser.
 
 | Reiter | Inhalt |
 |---|---|
-| **Heute** | Kennzahlen, Trachtrückfragen, Aufgaben nach Dringlichkeit gruppiert, Kategorienfilter, eigene Aufgabe anlegen, Kalenderexport, aufklappbarer Aufgabenkatalog |
+| **Heute** | Durchgang starten, Kennzahlen, Trachtrückfragen, Aufgaben nach Dringlichkeit gruppiert, Kategorienfilter, eigene Aufgabe anlegen, Kalenderexport, aufklappbarer Aufgabenkatalog |
 | **Kalender** | Monatsraster; jede offene Aufgabe steht an genau einem Tag – ihrem nächsten Arbeitstag – und rückt weiter, solange sie liegen bleibt. Tag antippen zeigt die Liste |
 | **Völker** | nach Standort gruppiert, mit Luftbild oder eigenem Foto; Detailseite mit Aufgaben, Saisonbilanz, Volksstärkekurve und vollständigem Verlauf |
 | **Tracht** | je Standort einklappbar, Art antippen zeigt Bild und Beschreibung, Blüte bestätigen |
 | **Mehr** | Stände, Völkerverwaltung, PDF-Berichte, Geräteabgleich, Sicherung, Erinnerungen |
+
+### Stand-Modus – der Durchgang
+
+Der Rest der App ist zum Auswerten gebaut, dieser Teil zum Erfassen: ein Volk je Bildschirm,
+große Flächen, wenige Angaben, sofort gespeichert.
+
+* **Heute → „Durchgang am Bienenstand"** (oder in *Völker* je Stand). Bei mehreren Ständen
+  fragt die App zuerst, wo du stehst.
+* Je Volk: die offenen Aufgaben als große Kästen zum Antippen (der Knopf rechts öffnet das
+  ausführliche Fenster, wenn Erntemenge oder Präparat dazugehören), darunter der Kurzbefund –
+  besetzte Wabengassen, Weiselzustand, Schwarmstimmung, Futter, Sanftmut, Notiz.
+* **„Ohne Befund"** trägt in einem Griff ein, was der Normalfall ist (weiselrichtig, keine
+  Schwarmstimmung, keine Weiselzellen), und blättert weiter. Was dabei gespeichert wird, steht
+  ausdrücklich darunter – die App erfindet nichts, was du nicht gesehen hast.
+* Gespeichert wird bei jedem Blättern, auch über die Pfeile. Ein leerer Akku kostet höchstens
+  das Volk, an dem du gerade stehst.
+* Eine Durchsicht mit Angabe zur Schwarmstimmung hakt eine fällige Schwarmkontrolle gleich mit
+  ab; Milbenfall, Weisellosigkeit oder knappes Futter lösen wie sonst automatisch Aufgaben aus.
+* Am Ende eine Bilanz und die Aufgaben, die dem Stand selbst gelten (Flugloch, Mäusegitter).
+
+**Freitext diktieren:** das Notizfeld ist ein normales Textfeld – die Mikrofontaste der
+Bildschirmtastatur diktiert hinein. Android und iPhone bringen ihre Diktierfunktion mit, sie
+arbeitet auf neueren Geräten direkt am Gerät und damit auch ohne Netz. BeeWise fängt Sprache
+bewusst **nicht** selbst ab und versucht auch nicht, Gesagtes in Felder zu zerlegen: Wörter wie
+„Wabengassen", „Spielnäpfchen" oder „weiselrichtig" erkennt keine allgemeine Spracherkennung
+verlässlich, im Browser braucht sie eine Netzverbindung, und in der auf den Startbildschirm
+gelegten Fassung arbeitet sie auf iOS nicht zuverlässig. Ein Tippfeld, das immer funktioniert,
+ist am Stand mehr wert als eine Sprachsteuerung, die zweimal von drei Malen klappt.
+
+### QR-Aufkleber an der Beute
+
+Unter *Mehr → Berichte* (klein verlinkt) erzeugt BeeWise einen Aufkleberbogen: je Volk ein
+QR-Code mit Name, Stand und Königinnenjahrgang. Kamera draufhalten – die Stockkarte dieses
+Volkes geht auf. Gescannt wird mit der **normalen Kamera-App**; iPhone und Android erkennen
+QR-Codes von sich aus, deshalb braucht BeeWise keine Kameraberechtigung und keinen eigenen
+Scanner. Die Adresse im Code ist im Fenster sichtbar und änderbar – sie muss die
+veröffentlichte sein, nicht die Datei auf dem PC.
+
+Der QR-Erzeuger (`js/qr.js`) ist selbst geschrieben, damit keine Fremdbibliothek dazukommt:
+Byte-Modus, Fehlerkorrektur M, Versionen 1–10. Geprüft gegen eine Referenzimplementierung und
+gegen einen echten Decoder.
 
 Details, die im Alltag zählen:
 

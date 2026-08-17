@@ -46,13 +46,16 @@ function umbrechen(s, groesse, maxBreite) {
 }
 
 export class PDF {
-  constructor({ titel = '', untertitel = '', fusszeile = '' } = {}) {
+  // `schlicht` schaltet Titelkopf und Fußzeile ab – für Bögen, die frei
+  // bedruckt werden (Aufkleber).
+  constructor({ titel = '', untertitel = '', fusszeile = '', schlicht = false } = {}) {
     this.seiten = [];
     this.strom = [];
     this.y = 0;
     this.titel = titel;
     this.untertitel = untertitel;
     this.fusszeile = fusszeile;
+    this.schlicht = schlicht;
     this.neueSeite();
   }
 
@@ -62,7 +65,7 @@ export class PDF {
     if (this.strom.length) this.seiten.push(this.strom.join('\n'));
     this.strom = [];
     this.y = A4.hoehe - RAND.oben;
-    if (this.titel) {
+    if (this.titel && !this.schlicht) {
       this.text(this.titel, { groesse: 15, fett: true });
       if (this.untertitel) this.text(this.untertitel, { groesse: 9, grau: true });
       this.linie(6);
@@ -84,6 +87,26 @@ export class PDF {
         + x.toFixed(1) + ' ' + this.y.toFixed(1) + ' Td (' + pdfText(z) + ') Tj ET');
       this.y -= groesse + abstand;
     }
+    return this;
+  }
+
+  /** Rohe Zeichenbefehle einfügen (für den QR-Code). */
+  roh(befehle) { this.strom.push(befehle); return this; }
+
+  /** Dünner Schnittrahmen für Aufkleberbögen. */
+  rahmen(x, y, b, h) {
+    this.strom.push(`0.4 w 0.82 0.78 0.72 RG ${x.toFixed(1)} ${y.toFixed(1)} `
+      + `${b.toFixed(1)} ${h.toFixed(1)} re S`);
+    return this;
+  }
+
+  /** Text an beliebiger Stelle der Seite. */
+  textAn(s, x, y, { groesse = 10, fett = false, grau = false, maxBreite = 400 } = {}) {
+    let txt = String(s ?? '');
+    while (textBreite(txt, groesse) > maxBreite && txt.length > 1) txt = txt.slice(0, -2) + '…';
+    this.strom.push('BT /' + (fett ? 'F2' : 'F1') + ' ' + groesse + ' Tf '
+      + (grau ? '0.45 0.42 0.38 rg ' : '0 0 0 rg ')
+      + x.toFixed(1) + ' ' + y.toFixed(1) + ' Td (' + pdfText(txt) + ') Tj ET');
     return this;
   }
 
@@ -161,7 +184,7 @@ export class PDF {
     const seitenAnzahl = this.seiten.length;
 
     // Fußzeile mit Seitenzahl auf jede Seite
-    const inhalte = this.seiten.map((s, i) => s + '\nBT /F1 7.5 Tf 0.5 0.48 0.44 rg '
+    const inhalte = this.schlicht ? this.seiten : this.seiten.map((s, i) => s + '\nBT /F1 7.5 Tf 0.5 0.48 0.44 rg '
       + `${RAND.links} ${(RAND.unten - 18).toFixed(1)} Td (`
       + pdfText(`${this.fusszeile}`) + ') Tj ET'
       + '\nBT /F1 7.5 Tf 0.5 0.48 0.44 rg '
