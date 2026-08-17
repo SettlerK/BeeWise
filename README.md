@@ -245,14 +245,19 @@ Details, die im Alltag zählen:
 * **Kalenderexport:** ein Sammeltermin je Stichtag („Imkereiaufgaben offen (3)"), nicht ein
   Eintrag je Aufgabe – sonst wäre der Kalender unbrauchbar. Details stehen in der App.
 * **Wetter je Bienenstand:** eine kompakte Zeile mit Lage, Temperatur und Wind, dazu eine
-  Bewertung („gut / mäßig / ungünstig / gereizt"). Antippen öffnet die Stunden der nächsten
-  24 Stunden, die nächsten Tage und die betroffenen Aufgaben.
+  Bewertung („gut / mäßig / ungünstig / gereizt") auf *Heute* und *Völker*. Antippen öffnet
+  die nächsten 24 Stunden, die nächsten Tage und die betroffenen Aufgaben.
 * **Wetter terminiert mit:** Aufgaben tragen einen Wetteranspruch (`oeffnen`, `as`, `os`,
   `trocken`). Passt die Lage nicht, steht am Kärtchen ein Hinweis wie „Bienen wahrscheinlich
   gereizt · besser morgen früh, ab 6 Uhr"; im Aufgabenfenster stehen die Gründe.
 * **Zurück kommt man immer:** Fenster haben oben einen Zurück-Knopf und ein Kreuz, reagieren
   auf Escape, auf Wischen nach unten, auf Tippen daneben und auf die Zurück-Taste des Geräts.
   Aus der Volksansicht führt der Pfeil in der Kopfzeile zur Liste.
+* **Pollenfarbe je Tracht:** beim Aufklappen einer Art steht, wie ihr Pollen in der Zelle
+  aussieht – Farbtupfer nach Bestimmungstafel plus Beschreibung (Löwenzahn leuchtend orange,
+  Phacelia schiefergrau-blau, Springkraut weiß). Fotos einzelner Pollenfarben in der Wabe
+  gibt es frei lizenziert praktisch nicht; ein falsch zugeordnetes Foto wäre schlechter als
+  eine saubere Farbangabe.
 * **Trachtbilder:** echte Fotos aus Wikipedia, klein neben dem Namen, groß beim Aufklappen.
   Botanische Zeichnungen werden automatisch aussortiert; die Bilder werden vollständig
   angezeigt statt beschnitten.
@@ -424,13 +429,17 @@ hängen an der Art der Arbeit:
 | `os` | Oxalsäure im brutfreien Volk | 0–8 °C, trocken |
 | `trocken` | Arbeit von außen (Mäusegitter, Windel, Futter) | nur Regen und Sturm stören |
 
-**Reizlage.** Unabhängig davon prüft die App, ob die Bienen wahrscheinlich stechlustig sind:
+**Reizlage.** Zusätzlich zur Eignung prüft die App, ob die Bienen wahrscheinlich stechlustig sind:
 Gewitter in den nächsten Stunden, rasch fallender Luftdruck (≥ 3 hPa in sechs Stunden),
 kühl und bedeckt (die gesamte Flugbiene sitzt dann im Stock), starker Wind, Regen, Schwüle
 und Trachtlücke.
 
-Passt es gerade nicht, sucht BeeWise das nächste zusammenhängende Fenster mit guter Bewertung
-und nennt es: „besser morgen früh, ab 6 Uhr". Die Termine selbst verschiebt das Wetter nicht –
+Eignung und Reizlage werden in **einem** Satz zusammengefasst, damit sich die Auskunft nicht
+selbst widerspricht: „Das Wetter selbst wäre in Ordnung – die Bienen dürften aber gereizt sein."
+Passt es nicht, sucht BeeWise das nächste zusammenhängende Fenster, in dem sowohl die Werte
+stimmen als auch keine Reizlage zu erwarten ist, und nennt es: „besser morgen früh, ab 6 Uhr".
+Gibt es keines (etwa bei einer Trachtlücke, die nicht vom Wetter abhängt), sagt die App das
+ebenfalls, statt einen Termin zu versprechen. Die Termine selbst verschiebt das Wetter nicht –
 die Entscheidung bleibt beim Imker.
 
 ## Was bewusst noch fehlt

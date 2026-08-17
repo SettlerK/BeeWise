@@ -857,15 +857,55 @@ export const en = {
   'Wetter nur mäßig': 'Weather only fair',
   'besser {wann}': 'better {wann}',
   'Günstiger wäre es {wann}.': 'It would be better {wann}.',
-  'Das Wetter passt.': 'The weather is right.',
-  'Das Wetter ist nur mäßig geeignet.': 'The weather is only moderately suitable.',
-  'Das Wetter passt gerade nicht.': 'The weather is not right at the moment.',
-  'Gute Bedingungen für Arbeiten am Volk.': 'Good conditions for working on the colonies.',
-  'Mäßige Bedingungen für Arbeiten am Volk.': 'Fair conditions for working on the colonies.',
-  'Ungünstige Bedingungen für Arbeiten am Volk.': 'Poor conditions for working on the colonies.',
-  'Die Bienen sind wahrscheinlich gereizt: {gruende}. Ruhig arbeiten, Schleier auf, Rauch bereithalten.':
-    'The bees are likely to be edgy: {gruende}. Work calmly, veil on, smoker at hand.',
-  'Bienen wahrscheinlich gereizt: {gruende}.': 'Bees likely to be edgy: {gruende}.',
+  'Gute Bedingungen für diese Arbeit.': 'Good conditions for this job.',
+  'Nur mäßig geeignet.': 'Only moderately suitable.',
+  'Das Wetter passt für diese Arbeit gerade nicht.':
+    'The weather is not right for this job at the moment.',
+  'Ungünstig – und die Bienen dürften gereizt sein.':
+    'Unsuitable – and the bees are likely to be edgy.',
+  'Das Wetter selbst wäre in Ordnung – die Bienen dürften aber gereizt sein.':
+    'The weather itself would be fine – but the bees are likely to be edgy.',
+  'Nur mäßig geeignet, dazu dürften die Bienen gereizt sein.':
+    'Only moderately suitable, and the bees are likely to be edgy on top of that.',
+  'Grund für die Reizlage: {gruende}. Ruhig arbeiten, Schleier auf, Rauch bereithalten.':
+    'Why they are edgy: {gruende}. Work calmly, veil on, smoker at hand.',
+  'Das gibt sich in den nächsten Tagen nicht – kurz arbeiten, nichts offen stehen lassen, keine Waben herumtragen.':
+    'This will not pass in the next few days – work briefly, leave nothing open, do not carry combs around.',
+  'Pollen': 'Pollen',
+  'Pollen in der Zelle': 'Pollen in the cell',
+  'kein Pollen – Honigtau wird von Läusen abgegeben und nur als Nektar eingetragen.':
+    'no pollen – honeydew is excreted by aphids and brought in as nectar only.',
+  'Die Pollenfarben folgen den gängigen Bestimmungstafeln und schwanken mit Alter und Feuchte des Höschens – als Anhaltspunkt auf der Wabe und am Flugloch reichen sie.':
+    'The pollen colours follow the usual identification charts and vary with the age and moisture '
+    + 'of the pellet – as a pointer on the comb and at the entrance they are good enough.',
+  // Pollenfarben je Art
+  'blassgelb bis grünlichgelb. Meist die erste Farbe des Jahres, in schmalen Kränzen am Rand des Brutnestes.':
+    'pale yellow to greenish yellow. Usually the first colour of the year, in narrow rims at the '
+    + 'edge of the brood nest.',
+  'ockergelb bis gelbbraun, oft direkt neben dem helleren Haselpollen in derselben Wabe.':
+    'ochre to yellow-brown, often right next to the paler hazel pollen in the same comb.',
+  'kräftig chromgelb – das erste satte Gelb im Kranz um die Brut. Wird sofort verfüttert, liegt also selten lange.':
+    'strong chrome yellow – the first rich yellow in the rim around the brood. It is fed straight '
+    + 'away, so it rarely sits for long.',
+  'gelblich-grün bei Apfel, graubraun bei Kirsche und Pflaume. In der Obstblüte liegen deshalb oft mehrere Farben nebeneinander.':
+    'yellowish green from apple, greyish brown from cherry and plum. During the fruit bloom you '
+    + 'will often see several colours side by side.',
+  'leuchtend orange – die auffälligste Frühjahrsfarbe. Ganze Wabenseiten können orange leuchten, die Höschen an den Bienen ebenso.':
+    'bright orange – the most conspicuous spring colour. Whole comb faces can glow orange, and so '
+    + 'do the pellets on the bees.',
+  'kräftig gelb, feucht glänzend. Kommt in Massen herein, wird zügig festgestampft und verdeckelt.':
+    'strong yellow with a moist sheen. It comes in by the load, is packed down quickly and capped.',
+  'blass bräunlich-weiß und unauffällig – Robinie liefert vor allem Nektar, wenig Pollen.':
+    'pale brownish white and inconspicuous – black locust yields mostly nectar, little pollen.',
+  'blassgelb bis hellgrün, meist nur in kleinen Mengen zwischen dem vielen Nektar.':
+    'pale yellow to light green, usually only in small amounts amid all the nectar.',
+  'Phacelia dunkelblau bis graublau-violett – die auffälligste Pollenfarbe überhaupt, in der Zelle fast schiefergrau. Senf dagegen hellgelb.':
+    'Phacelia is dark blue to greyish blue-violet – the most striking pollen colour there is, almost '
+    + 'slate grey in the cell. Mustard, by contrast, is pale yellow.',
+  'gelbbraun bis rotbraun, spät im Jahr eingetragen und oft die letzte frische Farbe vor dem Winter.':
+    'yellow-brown to red-brown, brought in late in the year and often the last fresh colour before winter.',
+  'weiß bis hellgrau. Am sichersten am Flugloch zu erkennen: die Bienen kommen weiß bestäubt heim.':
+    'white to light grey. Easiest to spot at the entrance: the bees come home dusted white.',
   // Zeitfenster
   früh: 'morning',
   mittags: 'midday',

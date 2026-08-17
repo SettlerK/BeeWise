@@ -426,6 +426,32 @@ function wetterZeileHTML(st, { mitName = false } = {}) {
   </div>`;
 }
 
+/**
+ * Überschrift der Wetterlage. Bewusst EIN Satz, der Eignung und Reizlage
+ * zusammen bewertet – sonst stünde „das Wetter passt" direkt über „die Bienen
+ * sind gereizt", und der Imker müsste sich aussuchen, was gilt.
+ */
+function lageKopf(l) {
+  if (l.stufe === 'schlecht') {
+    return l.gereizt ? 'Ungünstig – und die Bienen dürften gereizt sein.'
+      : 'Das Wetter passt für diese Arbeit gerade nicht.';
+  }
+  if (l.gereizt) {
+    return l.stufe === 'gut'
+      ? 'Das Wetter selbst wäre in Ordnung – die Bienen dürften aber gereizt sein.'
+      : 'Nur mäßig geeignet, dazu dürften die Bienen gereizt sein.';
+  }
+  return l.stufe === 'gut' ? 'Gute Bedingungen für diese Arbeit.'
+    : 'Nur mäßig geeignet.';
+}
+
+/** Kurzfassung für das Aufgabenkärtchen. */
+function lageKurz(l) {
+  if (l.stufe === 'schlecht') return t2('Wetter ungünstig');
+  if (l.gereizt) return t2('Bienen wahrscheinlich gereizt');
+  return t2('Wetter nur mäßig');
+}
+
 /** Wetterhinweis zu einer Aufgabe – nur wenn es etwas zu sagen gibt. */
 function wetterWink(a) {
   if (!a.wetterbedarf) return null;
@@ -434,15 +460,15 @@ function wetterWink(a) {
   const l = lage(stId, a.wetterbedarf);
   if (!l) return null;
   if (l.stufe === 'gut' && !l.gereizt) return null;
-  const kurz = l.stufe === 'schlecht' ? t2('Wetter ungünstig')
-    : l.gereizt ? t2('Bienen wahrscheinlich gereizt') : t2('Wetter nur mäßig');
-  return { l, kurz };
+  return { l, kurz: lageKurz(l) };
 }
 
 function wetterWinkHTML(a, { mitName = false } = {}) {
   if (!a || !['faellig', 'ueberfaellig'].includes(a.zustand)) return '';
   const w = wetterWink(a);
   if (!w) return '';
+  // Ein besserer Zeitpunkt wird nur genannt, wenn er die Lage auch wirklich
+  // verbessert – bei einer Trachtlücke hilft Warten nicht.
   const besser = w.l.bestes ? ' · ' + t2('besser {wann}', { wann: fensterText(w.l.bestes) }) : '';
   const name = mitName ? esc((standortName(a.ziel.standortId) || '') + ': ') : '';
   return `<div class="wetterwink"><span>${w.l.zeichen}</span><span>${name}${esc(w.kurz + besser)}</span></div>`;
@@ -457,26 +483,37 @@ function wetterWinkGruppeHTML(g) {
     .join('');
 }
 
-/** Ausführlicher Block für das Aufgabenfenster. */
+/**
+ * Der ausführliche Block. Wird für das Aufgabenfenster und für das Wetterfenster
+ * verwendet, damit beide dasselbe sagen.
+ */
+function lageBlockHTML(l, name = null) {
+  const zeilen = [];
+  if (name) zeilen.push(`<b>${esc(name)}:</b>`);
+  zeilen.push(`<b>${esc(t2(lageKopf(l)))}</b>`);
+  // Bei guter Eignung die Einzelabzüge weglassen – sie widersprächen sonst
+  // scheinbar der Überschrift.
+  if (l.gruende.length && l.stufe !== 'gut') zeilen.push(esc(l.gruende.join(', ') + '.'));
+  if (l.gereizt) {
+    zeilen.push(esc(t2('Grund für die Reizlage: {gruende}. Ruhig arbeiten, Schleier auf, '
+      + 'Rauch bereithalten.', { gruende: l.reizGruende.join(', ') })));
+  }
+  if (l.bestes) {
+    zeilen.push(esc(t2('Günstiger wäre es {wann}.', { wann: fensterText(l.bestes) })));
+  } else if (l.gereizt) {
+    zeilen.push(esc(t2('Das gibt sich in den nächsten Tagen nicht – kurz arbeiten, nichts offen '
+      + 'stehen lassen, keine Waben herumtragen.')));
+  }
+  return `<div class="wetterhinweis"><span style="font-size:17px">${l.zeichen}</span>
+    <span>${zeilen.join(' ')}</span></div>`;
+}
+
 function wetterBlockHTML(a, { mitName = false } = {}) {
   if (!a?.wetterbedarf) return '';
   const stId = a.ziel?.standortId;
   const l = stId ? lage(stId, a.wetterbedarf) : null;
   if (!l) return '';
-  const zeilen = [];
-  if (mitName) zeilen.push(`<b>${esc(standortName(stId) || '')}:</b>`);
-  zeilen.push(`<b>${esc(t2({ gut: 'Das Wetter passt.', maessig: 'Das Wetter ist nur mäßig geeignet.',
-    schlecht: 'Das Wetter passt gerade nicht.' }[l.stufe]))}</b>`);
-  if (l.gruende.length) zeilen.push(esc(l.gruende.join(', ') + '.'));
-  if (l.gereizt) {
-    zeilen.push(esc(t2('Die Bienen sind wahrscheinlich gereizt: {gruende}. Ruhig arbeiten, '
-      + 'Schleier auf, Rauch bereithalten.', { gruende: l.reizGruende.join(', ') })));
-  }
-  if (l.bestes && l.stufe !== 'gut') {
-    zeilen.push(esc(t2('Günstiger wäre es {wann}.', { wann: fensterText(l.bestes) })));
-  }
-  return `<div class="wetterhinweis"><span style="font-size:17px">${l.zeichen}</span>
-    <span>${zeilen.join(' ')}</span></div>`;
+  return lageBlockHTML(l, mitName ? standortName(stId) : null);
 }
 
 /** Sammelaufgabe: je betroffenem Stand ein Block. */
@@ -526,7 +563,7 @@ function wetterSheet(standortId) {
       <div class="stundenband">${band}</div>
       <div class="mini" style="margin:-4px 0 12px">Der Balken zeigt, wie gut sich in dieser Stunde
         am offenen Volk arbeiten lässt: Temperatur, Wind, Niederschlag, Bewölkung und Tageslicht.</div>
-      ${wetterLageBlock(l)}
+      ${lageBlockHTML(l)}
       ${(sw?.tage || []).length ? `<h4 style="margin:14px 0 6px;font-size:14px">Die nächsten Tage</h4>
         <div class="karte" style="box-shadow:none;border:1px solid var(--rand)">
         ${sw.tage.filter((x) => x.datum >= iso(heute())).map((x) => `<div class="wetterzeile">
@@ -549,20 +586,6 @@ function wetterSheet(standortId) {
       });
     },
   });
-}
-
-function wetterLageBlock(l) {
-  const zeilen = [];
-  zeilen.push(`<b>${esc(t2({ gut: 'Gute Bedingungen für Arbeiten am Volk.',
-    maessig: 'Mäßige Bedingungen für Arbeiten am Volk.',
-    schlecht: 'Ungünstige Bedingungen für Arbeiten am Volk.' }[l.stufe]))}</b>`);
-  if (l.gruende.length) zeilen.push(esc(l.gruende.join(', ') + '.'));
-  if (l.gereizt) {
-    zeilen.push(esc(t2('Bienen wahrscheinlich gereizt: {gruende}.', { gruende: l.reizGruende.join(', ') })));
-  }
-  if (l.bestes && l.stufe !== 'gut') zeilen.push(esc(t2('Günstiger wäre es {wann}.', { wann: fensterText(l.bestes) })));
-  return `<div class="wetterhinweis"><span style="font-size:17px">${l.zeichen}</span>
-    <span>${zeilen.join(' ')}</span></div>`;
 }
 
 // ---------------------------------------------------------------- Kalender
@@ -850,6 +873,25 @@ const datenKurz = (d, regelId) => {
 
 // ------------------------------------------------------------------ Tracht
 
+/**
+ * Wie sieht der Pollen dieser Art in der Zelle aus?
+ * Fotos einzelner Pollenfarben in der Wabe gibt es frei lizenziert praktisch
+ * nicht – und ein falsch zugeordnetes Foto wäre schlimmer als keines. Deshalb
+ * der Farbwert aus den Bestimmungstafeln plus eine Beschreibung zum Wiedererkennen.
+ */
+function pollenHTML(meta) {
+  if (!meta) return '';
+  if (!meta.pollen) {
+    return `<div class="pollenzeile"><span class="pollenklecks leer"></span>
+      <div><b>${esc(t2('Pollen'))}:</b> ${esc(t2('kein Pollen – Honigtau wird von Läusen '
+      + 'abgegeben und nur als Nektar eingetragen.'))}</div></div>`;
+  }
+  return `<div class="pollenzeile">
+    <span class="pollenklecks" style="background:${meta.pollen.farbe}"></span>
+    <div><b>${esc(t2('Pollen in der Zelle'))}:</b> ${esc(t2(meta.pollen.text))}</div>
+  </div>`;
+}
+
 function ansichtTracht() {
   if (!S.standorte.length) return '<div class="leer">Erst einen Standort anlegen.</div>';
   const t = [];
@@ -861,7 +903,6 @@ function ansichtTracht() {
       <div class="klapper" data-klapp="tracht:${st.id}">
         <span><b>${esc(st.name)}</b>${bluehen.length ? `<br><small class="mini">${t2('blüht: {liste}', { liste: esc(bluehen.slice(0, 3).map((x) => t2(x)).join(', ')) })}${bluehen.length > 3 ? ' …' : ''}</small>` : ''}</span>
         <span class="pfeil">${auf ? '⌄' : '›'}</span></div>`);
-    t.push(wetterZeileHTML(st));
     if (auf) {
       if (!tr) t.push('<div class="karte-inhalt mini">Wird geladen …</div>');
       else {
@@ -905,6 +946,7 @@ function ansichtTracht() {
                   : meta?.art === 'nektar' ? t2('liefert Nektar') : t2('liefert Nektar und Pollen')}
                 ${wikiSeite(a.art) ? ` · <a href="${wikiSeite(a.art)}" target="_blank" rel="noopener">Wikipedia</a>` : ''}
               </div>
+              ${pollenHTML(meta)}
               <label class="feld" data-typ="wert"><span>Datum</span>
                 <input type="date" id="td-${a.art}-${st.id}" value="${iso(heute())}"></label>
               <div class="knopfreihe">
@@ -925,7 +967,9 @@ function ansichtTracht() {
   t.push(`<div class="mini" style="padding:4px 6px 0">
     Quelle: Open-Meteo (Archiv und Vorhersage, kostenfrei, ohne Schlüssel). Das Modell kalibriert
     sich pro Standort an zehn Jahren örtlicher Klimatologie und lernt aus jeder Blüte, die du
-    bestätigst. Bilder und Beschreibungen: Wikipedia.</div>`);
+    bestätigst. Bilder und Beschreibungen: Wikipedia.
+    Die Pollenfarben folgen den gängigen Bestimmungstafeln und schwanken mit Alter und
+    Feuchte des Höschens – als Anhaltspunkt auf der Wabe und am Flugloch reichen sie.</div>`);
   return t.join('');
 }
 

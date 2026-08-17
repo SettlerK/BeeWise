@@ -29,19 +29,35 @@ const KLIMA_JAHRE = 10;
 const CACHE_STUNDEN = 6;
 
 /** Trachtpflanzen. `doyMittel` = typischer Blühbeginn im deutschen Tiefland. */
+// `pollen` beschreibt, wie der eingetragene Pollen in der Zelle aussieht: Farbwert
+// für den Farbtupfer in der App und ein Satz zum Wiedererkennen. Die Farben folgen
+// den gängigen Pollenbestimmungstafeln; sie schwanken mit Alter, Feuchte und Herkunft
+// des Höschens – als Anhaltspunkt am Flugloch und auf der Wabe reichen sie gut.
 export const ARTEN = [
-  { id: 'hasel', name: 'Hasel', doyMittel: 41, dauer: 30, art: 'pollen', keinModell: true, hinweis: 'erster Pollen – Blüte steuert die Tageslänge, nicht die Wärme' },
-  { id: 'erle', name: 'Erle', doyMittel: 46, dauer: 28, art: 'pollen', keinModell: true },
-  { id: 'salweide', name: 'Salweide', doyMittel: 84, dauer: 20, art: 'beides', hinweis: 'Startschuss für die Entwicklung' },
-  { id: 'obstbluete', name: 'Obstblüte', doyMittel: 108, dauer: 21, art: 'beides' },
-  { id: 'loewenzahn', name: 'Löwenzahn', doyMittel: 110, dauer: 30, art: 'beides', hinweis: 'Signal zum Erweitern' },
-  { id: 'raps', name: 'Raps', doyMittel: 118, dauer: 28, art: 'nektar', hinweis: 'Frühtracht – zügig ernten' },
-  { id: 'robinie', name: 'Robinie', doyMittel: 145, dauer: 16, art: 'nektar' },
-  { id: 'linde', name: 'Linde', doyMittel: 173, dauer: 20, art: 'nektar', hinweis: 'Ende = letzte Ernte' },
-  { id: 'phacelia', name: 'Phacelia / Senf', doyMittel: 201, dauer: 35, art: 'beides', unsicher: true, hinweis: 'nur wo ausgesät wurde' },
-  { id: 'heide', name: 'Heide', doyMittel: 217, dauer: 35, art: 'nektar', unsicher: true },
-  { id: 'springkraut', name: 'Springkraut', doyMittel: 222, dauer: 40, art: 'beides', unsicher: true },
-  { id: 'waldtracht', name: 'Waldtracht / Honigtau', doyMittel: 165, dauer: 45, art: 'nektar', unsicher: true, keinModell: true, hinweis: 'Läusehonig – nicht vorhersagbar, nie fest einplanen' },
+  { id: 'hasel', name: 'Hasel', doyMittel: 41, dauer: 30, art: 'pollen', keinModell: true, hinweis: 'erster Pollen – Blüte steuert die Tageslänge, nicht die Wärme',
+    pollen: { farbe: '#D9CE72', text: 'blassgelb bis grünlichgelb. Meist die erste Farbe des Jahres, in schmalen Kränzen am Rand des Brutnestes.' } },
+  { id: 'erle', name: 'Erle', doyMittel: 46, dauer: 28, art: 'pollen', keinModell: true,
+    pollen: { farbe: '#BFA14A', text: 'ockergelb bis gelbbraun, oft direkt neben dem helleren Haselpollen in derselben Wabe.' } },
+  { id: 'salweide', name: 'Salweide', doyMittel: 84, dauer: 20, art: 'beides', hinweis: 'Startschuss für die Entwicklung',
+    pollen: { farbe: '#E8B923', text: 'kräftig chromgelb – das erste satte Gelb im Kranz um die Brut. Wird sofort verfüttert, liegt also selten lange.' } },
+  { id: 'obstbluete', name: 'Obstblüte', doyMittel: 108, dauer: 21, art: 'beides',
+    pollen: { farbe: '#C7C25E', text: 'gelblich-grün bei Apfel, graubraun bei Kirsche und Pflaume. In der Obstblüte liegen deshalb oft mehrere Farben nebeneinander.' } },
+  { id: 'loewenzahn', name: 'Löwenzahn', doyMittel: 110, dauer: 30, art: 'beides', hinweis: 'Signal zum Erweitern',
+    pollen: { farbe: '#E8952A', text: 'leuchtend orange – die auffälligste Frühjahrsfarbe. Ganze Wabenseiten können orange leuchten, die Höschen an den Bienen ebenso.' } },
+  { id: 'raps', name: 'Raps', doyMittel: 118, dauer: 28, art: 'beides', hinweis: 'Frühtracht – zügig ernten',
+    pollen: { farbe: '#EBC53A', text: 'kräftig gelb, feucht glänzend. Kommt in Massen herein, wird zügig festgestampft und verdeckelt.' } },
+  { id: 'robinie', name: 'Robinie', doyMittel: 145, dauer: 16, art: 'nektar',
+    pollen: { farbe: '#CFC4A0', text: 'blass bräunlich-weiß und unauffällig – Robinie liefert vor allem Nektar, wenig Pollen.' } },
+  { id: 'linde', name: 'Linde', doyMittel: 173, dauer: 20, art: 'nektar', hinweis: 'Ende = letzte Ernte',
+    pollen: { farbe: '#D5D57A', text: 'blassgelb bis hellgrün, meist nur in kleinen Mengen zwischen dem vielen Nektar.' } },
+  { id: 'phacelia', name: 'Phacelia / Senf', doyMittel: 201, dauer: 35, art: 'beides', unsicher: true, hinweis: 'nur wo ausgesät wurde',
+    pollen: { farbe: '#6E7BA8', text: 'Phacelia dunkelblau bis graublau-violett – die auffälligste Pollenfarbe überhaupt, in der Zelle fast schiefergrau. Senf dagegen hellgelb.' } },
+  { id: 'heide', name: 'Heide', doyMittel: 217, dauer: 35, art: 'nektar', unsicher: true,
+    pollen: { farbe: '#B98A50', text: 'gelbbraun bis rotbraun, spät im Jahr eingetragen und oft die letzte frische Farbe vor dem Winter.' } },
+  { id: 'springkraut', name: 'Springkraut', doyMittel: 222, dauer: 40, art: 'beides', unsicher: true,
+    pollen: { farbe: '#EFECE5', text: 'weiß bis hellgrau. Am sichersten am Flugloch zu erkennen: die Bienen kommen weiß bestäubt heim.' } },
+  { id: 'waldtracht', name: 'Waldtracht / Honigtau', doyMittel: 165, dauer: 45, art: 'nektar', unsicher: true, keinModell: true, hinweis: 'Läusehonig – nicht vorhersagbar, nie fest einplanen',
+    pollen: null },
 ];
 
 export const artNach = (id) => ARTEN.find((a) => a.id === id);
@@ -427,6 +443,9 @@ export function stundeBewerten(s, profil = 'oeffnen') {
   if (profil === 'oeffnen' && s.wolken != null && s.wolken > 85 && punkte > 40) {
     weg(10, t('bedeckt – die Flugbienen sitzen zu Hause'));
   }
+  if (profil === 'oeffnen' && (s.temp ?? 0) >= 22 && (s.feuchte ?? 0) >= 75) {
+    weg(14, t('schwül'));
+  }
   return { punkte: Math.max(0, Math.min(100, punkte)), gruende };
 }
 
@@ -449,7 +468,7 @@ function jetztIndex(stunden, jetzt) {
  */
 export function gereiztheit(sw, { jetzt = new Date(), trachtluecke = false } = {}) {
   const gruende = [];
-  if (!sw?.stunden?.length) return { gereizt: false, gruende };
+  if (!sw?.stunden?.length) return { gereizt: false, gruende, wetterbedingt: false };
   const i = jetztIndex(sw.stunden, jetzt);
   const s = sw.stunden[i];
   const naechste = sw.stunden.slice(i, i + 7);
@@ -466,21 +485,56 @@ export function gereiztheit(sw, { jetzt = new Date(), trachtluecke = false } = {
   if ((s.wind ?? 0) > 25) gruende.push(t('starker Wind'));
   if (s.regen > 0.2 || (s.regenP ?? 0) >= 70) gruende.push(t('Regen'));
   if ((s.temp ?? 0) >= 22 && (s.feuchte ?? 0) >= 75) gruende.push(t('schwül'));
+  // Die Trachtlücke steht bewusst am Ende: sie geht nicht mit dem nächsten
+  // Wetterumschwung vorbei, also darf die App deswegen auch keinen besseren
+  // Zeitpunkt versprechen.
+  const wetterbedingt = gruende.length > 0;
   if (trachtluecke) gruende.push(t('Trachtlücke – Räubereigefahr'));
 
-  return { gereizt: gruende.length > 0, gruende };
+  return { gereizt: gruende.length > 0, gruende, wetterbedingt };
+}
+
+/**
+ * Steht in dieser Stunde eine Reizlage an? Dieselben Kriterien wie in
+ * `gereiztheit`, nur auf eine beliebige Stunde der Vorhersage angewandt –
+ * damit die App als „besser" nur Zeiten vorschlägt, in denen die Völker
+ * voraussichtlich auch umgänglich sind.
+ */
+function stundeGereizt(alle, i) {
+  const s = alle[i];
+  if (!s) return false;
+  if (alle.slice(Math.max(0, i - 2), i + 3).some((x) => x.code >= 95)) return true;
+  if ((s.temp ?? 0) >= 22 && (s.feuchte ?? 0) >= 75) return true;
+  if ((s.wind ?? 0) > 25) return true;
+  if (s.regen > 0.2 || (s.regenP ?? 0) >= 70) return true;
+  if (s.temp != null && s.temp < 14 && (s.wolken ?? 0) > 70) return true;
+  const vorher = alle.slice(Math.max(0, i - 6), i + 1).map((x) => x.druck).filter((x) => x != null);
+  if (vorher.length >= 4 && vorher[0] - vorher[vorher.length - 1] >= 3) return true;
+  return false;
 }
 
 /**
  * Bestes Arbeitsfenster in den nächsten Tagen: der früheste zusammenhängende
  * Abschnitt von mindestens zwei Stunden mit guter Bewertung.
+ * `ohneReiz` schließt zusätzlich alle Stunden aus, in denen mit gereizten
+ * Völkern zu rechnen ist.
  */
-export function bestesFenster(sw, { jetzt = new Date(), profil = 'oeffnen', minPunkte = 70 } = {}) {
+export function bestesFenster(sw, {
+  jetzt = new Date(), profil = 'oeffnen', minPunkte = 70, ohneReiz = false,
+} = {}) {
   if (!sw?.stunden?.length) return null;
-  const ab = sw.stunden.slice(jetztIndex(sw.stunden, jetzt));
+  const alle = sw.stunden;
+  const start = jetztIndex(alle, jetzt);
+  const ab = alle.slice(start);
+  // Eine Stunde taugt nur dann als Fenster, wenn auch zwei Stunden davor und
+  // danach kein Gewitter steht – vor und nach einem Gewitter sind die Völker
+  // erfahrungsgemäß am wehrhaftesten.
+  const gewitterNah = (i) => alle.slice(Math.max(0, i - 2), i + 3).some((x) => x.code >= 95);
   let lauf = null; let bestes = null;
-  for (const s of ab) {
-    const p = stundeBewerten(s, profil).punkte;
+  for (let k = 0; k < ab.length; k++) {
+    const s = ab[k];
+    const raus = gewitterNah(start + k) || (ohneReiz && stundeGereizt(alle, start + k));
+    const p = raus ? 0 : stundeBewerten(s, profil).punkte;
     if (p >= minPunkte) {
       if (!lauf) lauf = { von: zeitVon(s), bis: zeitVon(s), summe: 0, n: 0 };
       lauf.bis = new Date(zeitVon(s).getTime() + 3600e3);
@@ -508,7 +562,11 @@ export function wetterlage(sw, { jetzt = new Date(), profil = 'oeffnen', trachtl
   const heuteIso = iso(jetzt);
   const tag = (sw.tage || []).find((x) => x.datum === heuteIso) || null;
   const g = gereiztheit(sw, { jetzt, trachtluecke });
-  const bestes = b.punkte >= 70 ? null : bestesFenster(sw, { jetzt, profil });
+  // Auch bei formal gutem Wetter lohnt der Blick auf einen besseren Zeitpunkt,
+  // wenn die Bienen gerade wetterbedingt gereizt sind.
+  const bestes = (b.punkte >= 70 && !g.wetterbedingt)
+    ? null
+    : bestesFenster(sw, { jetzt, profil, ohneReiz: g.wetterbedingt });
 
   return {
     jetzt: s,
@@ -521,6 +579,7 @@ export function wetterlage(sw, { jetzt = new Date(), profil = 'oeffnen', trachtl
     gruende: b.gruende,
     gereizt: g.gereizt,
     reizGruende: g.gruende,
+    reizWetterbedingt: g.wetterbedingt,
     bestes,
     stunden: sw.stunden.slice(i, i + 24),
   };
