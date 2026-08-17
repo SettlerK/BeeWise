@@ -33,7 +33,7 @@ export async function ausloeserPruefen({ daten, zielTyp, zielId, zielName, datum
     await db.schreibe('aufgaben', {
       id: uid(),
       titel: v.titel, info: v.info, kategorie: v.kategorie || 'eigene',
-      wichtig: !!v.wichtig, hilfe: v.hilfe || null,
+      wichtig: !!v.wichtig, hilfe: v.hilfe || null, wetterbedarf: v.wetterbedarf || null,
       zielTyp, zielId, zielName,
       von: iso(addDays(d, v.fenster?.[0] ?? 0)),
       bis: iso(addDays(d, v.fenster?.[1] ?? 14)),

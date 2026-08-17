@@ -3,7 +3,11 @@ import {
   iso, parseISO, heute, addDays, diffTage, fmtDatum, fmtRelativ, esc, uid, MON_LANG,
 } from './util.js';
 import * as db from './db.js';
-import { ARTEN, trachtFuerStandort, wetterEreignisse, waermesummeAm } from './tracht.js';
+import {
+  ARTEN, trachtFuerStandort, wetterEreignisse, waermesummeAm,
+  stundenWetter, wetterlage, stundeBewerten, stufeVon,
+  wetterZeichen as wetterZeichenVon, wetterText as wetterTextVon,
+} from './tracht.js';
 import { REGELN, KATEGORIEN, regelNach, futterBedarf, varroaSchwelle } from './regeln.js';
 import { planBerechnen, trachtFragen, zusammenfassung } from './engine.js';
 import { ausloeserPruefen, eigeneAnlegen, abhaken as eigenAbhaken } from './aufgaben.js';
@@ -15,6 +19,7 @@ import { behandlungsprotokoll, volkHistorie, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
   uiInit, sheetAuf, sheetZu, toast, bestaetige, feldHTML, felderVerdrahten, werteLesen,
+  zurueckFallbackSetzen, sheetIstAuf,
 } from './ui.js';
 import {
   SPRACHEN, t, uebersetzeDom, spracheErmitteln, spracheSetzen, sprache, spracheName, gebietsschema,
@@ -24,12 +29,12 @@ const S = {
   ansicht: 'heute', volkId: null,
   standorte: [], voelker: [], durchsichten: [], erledigungen: [], trachtObs: [], eigene: [],
   wanderungen: [],
-  tracht: {}, wetter: {}, plan: [], fragen: [],
+  tracht: {}, wetter: {}, stunden: {}, plan: [], fragen: [],
   filter: null,                 // Kategorie-Filter
   monat: new Date(),            // Kalenderansicht
   tag: null,                    // gewählter Tag im Kalender
   offen: {},                    // aufgeklappte Bereiche
-  ladeTracht: false,
+  ladeTracht: false, ladeWetter: false,
 };
 
 // Nichts darf mehr still scheitern: jeder unbehandelte Fehler wird angezeigt
@@ -53,6 +58,7 @@ const t2 = (s, v) => (s == null ? s : t(s, v));
 
 const AN = document.getElementById('ansicht');
 const KOPF = document.getElementById('kopf-titel');
+const ZURUECK = document.getElementById('kopf-zurueck');
 
 // ================================================================== Laden
 
@@ -94,6 +100,23 @@ async function trachtLaden({ still = false } = {}) {
   S.ladeTracht = false;
   neuRechnen();
   render();
+  wetterLaden();
+}
+
+/**
+ * Stundenvorhersage je Standort. Läuft getrennt von der Tracht, weil sie
+ * stündlich frisch sein soll, während die Trachtdaten den ganzen Tag halten.
+ */
+async function wetterLaden({ still = true } = {}) {
+  if (!S.standorte.length) return;
+  S.ladeWetter = true;
+  if (!still) render();
+  await Promise.all(S.standorte.map(async (st) => {
+    try { S.stunden[st.id] = await stundenWetter(st); } catch { S.stunden[st.id] = null; }
+  }));
+  S.ladeWetter = false;
+  lageLeeren();
+  render();
 }
 
 // ================================================================== Rendern
@@ -104,10 +127,12 @@ const TITEL = {
 };
 
 function render() {
+  lageLeeren();
   KOPF.textContent = S.ansicht === 'volk'
     ? (S.voelker.find((v) => v.id === S.volkId)?.name || t('Volk')) : t(TITEL[S.ansicht]);
   document.getElementById('kopf-datum').textContent =
     heute().toLocaleDateString(gebietsschema(), { weekday: 'short', day: 'numeric', month: 'long' });
+  if (ZURUECK) ZURUECK.hidden = !UNTERANSICHT[S.ansicht];
   document.querySelectorAll('#tabbar button').forEach((b) =>
     b.classList.toggle('an', b.dataset.tab === (S.ansicht === 'volk' ? 'voelker' : S.ansicht)));
   const warnung = db.nurFluechtig?.()
@@ -127,8 +152,28 @@ function render() {
   nachladen();
 }
 
+/** Ansichten, die „unter" einem Tab liegen und einen Zurück-Weg brauchen. */
+const UNTERANSICHT = { volk: 'voelker' };
+
 function gehe(tab, volkId = null) {
-  S.ansicht = tab; S.volkId = volkId; render(); window.scrollTo(0, 0);
+  const vorher = S.ansicht;
+  S.ansicht = tab; S.volkId = volkId;
+  // Für Unteransichten einen Verlaufseintrag anlegen, damit die Zurück-Taste
+  // des Geräts zur Liste zurückführt und nicht die App verlässt.
+  if (UNTERANSICHT[tab] && !UNTERANSICHT[vorher]) {
+    try { history.pushState({ beewise: 'ansicht' }, ''); } catch { /* file:// */ }
+  }
+  render(); window.scrollTo(0, 0);
+}
+
+/** Eine Ebene zurück: Unteransicht schließen, sonst auf „Heute". */
+function zurueck({ ausVerlauf = false } = {}) {
+  const ziel = UNTERANSICHT[S.ansicht];
+  if (!ziel) return false;
+  S.ansicht = ziel; S.volkId = null;
+  render(); window.scrollTo(0, 0);
+  if (!ausVerlauf) { try { history.back(); } catch { /* egal */ } }
+  return true;
 }
 
 const offeneAufgaben = () => S.plan.filter((a) =>
@@ -160,6 +205,7 @@ function ansichtHeute() {
     <div><b>${S.voelker.length}</b><span>Völker</span></div>
   </div>`);
 
+  t.push(wetterUebersichtHTML());
   t.push(filterLeiste());
 
   if (S.fragen.length && !S.filter) {
@@ -275,6 +321,7 @@ function aufgabeHTML(a, kompakt = false) {
       </div>
       ${a.bezug && !kompakt ? `<div class="warum">${esc(a.wartetAuf
         ? t2('wartet auf: {was}', { was: t2(a.wartetAuf) }) : t2(a.bezug))}</div>` : ''}
+      ${wetterWinkHTML(a)}
     </div>
   </div>`;
 }
@@ -301,11 +348,239 @@ function gruppeHTML(g) {
         <span class="z-${a.zustand === 'ueberfaellig' ? 'ueberfaellig' : a.zustand === 'faellig' ? 'faellig' : ''}">${esc(zeit)}</span>
       </div>
       <div class="warum">${esc(g.map((x) => x.ziel.name).join(', '))}</div>
+      ${wetterWinkGruppeHTML(g)}
     </div>
   </div>`;
 }
 
+
+// ------------------------------------------------------------------- Wetter
+// Die Bewertung hängt am Zeitpunkt und an der Art der Arbeit. Sie wird deshalb
+// nicht gespeichert, sondern bei Bedarf gerechnet und nur innerhalb eines
+// Bildaufbaus zwischengehalten.
+
+let lageCache = new Map();
+const lageLeeren = () => { lageCache = new Map(); };
+
+const EIGNUNG = { gut: 'gut', maessig: 'mäßig', schlecht: 'ungünstig' };
+
+/** Blüht am Standort gerade etwas Nektarträchtiges? Sonst: Trachtlücke. */
+function trachtluecke(standortId) {
+  const tr = S.tracht[standortId];
+  if (!tr) return false;
+  return !tr.arten.some((a) => a.status === 'blueht' && a.typ !== 'pollen' && !a.unsicher);
+}
+
+function lage(standortId, profil = 'oeffnen') {
+  const k = standortId + '|' + profil;
+  if (lageCache.has(k)) return lageCache.get(k);
+  const sw = S.stunden[standortId];
+  const l = sw ? wetterlage(sw, { profil, trachtluecke: standortId ? trachtluecke(standortId) : false }) : null;
+  lageCache.set(k, l);
+  return l;
+}
+
+const grad = (x) => (x == null ? '–' : `${Math.round(x)} °C`);
+
+/** „morgen früh, 9–12 Uhr" */
+function fensterText(f) {
+  if (!f) return '';
+  const tage = diffTage(f.von, heute());
+  const tag = tage === 0 ? t2('heute') : tage === 1 ? t2('morgen')
+    : f.von.toLocaleDateString(gebietsschema(), { weekday: 'long' });
+  const h = f.von.getHours();
+  const teil = h < 11 ? t2('früh') : h < 14 ? t2('mittags') : h < 18 ? t2('nachmittags') : t2('abends');
+  // Ein sehr langes Fenster als „6–21 Uhr" zu nennen hilft niemandem – dann
+  // genügt der Beginn.
+  const stunden = Math.round((f.bis - f.von) / 3600e3);
+  if (stunden > 5) return t('{tag} {teil}, ab {von} Uhr', { tag, teil, von: h });
+  return t('{tag} {teil}, {von}–{bis} Uhr',
+    { tag, teil, von: f.von.getHours(), bis: f.bis.getHours() });
+}
+
+const eignungMarke = (l) => (l.stufe === 'gut' && l.gereizt
+  ? `<span class="eignung gereizt">${esc(t2('gereizt'))}</span>`
+  : `<span class="eignung ${l.stufe}">${esc(t2(EIGNUNG[l.stufe]))}</span>`);
+
+/** Eine Zeile Wetter für einen Bienenstand – kompakt, antippbar. */
+function wetterZeileHTML(st, { mitName = false } = {}) {
+  const l = lage(st.id);
+  if (!l) {
+    if (st.lat == null) return '';
+    return `<div class="wetterzeile"><span class="zeichen">·</span><span class="rest">${
+      esc(mitName ? st.name + ' · ' : '')}${
+      esc(S.ladeWetter ? t2('Wetter wird geladen …') : t2('Wetter nicht verfügbar'))}</span></div>`;
+  }
+  const j = l.jetzt;
+  const teile = [];
+  if (mitName) teile.push(st.name);
+  teile.push(t2(l.text));
+  if (j.wind != null) teile.push(t2('Wind {n} km/h', { n: Math.round(j.wind) }));
+  if (l.tag?.max != null) teile.push(`${Math.round(l.tag.min)}/${Math.round(l.tag.max)} °C`);
+  return `<div class="wetterzeile" data-wetter="${st.id}">
+    <span class="zeichen">${l.zeichen}</span>
+    <span class="grad">${grad(j.temp)}</span>
+    <span class="rest">${esc(teile.join(' · '))}</span>
+    ${eignungMarke(l)}
+    <span class="pfeil">›</span>
+  </div>`;
+}
+
+/** Wetterhinweis zu einer Aufgabe – nur wenn es etwas zu sagen gibt. */
+function wetterWink(a) {
+  if (!a.wetterbedarf) return null;
+  const stId = a.ziel?.standortId;
+  if (!stId) return null;
+  const l = lage(stId, a.wetterbedarf);
+  if (!l) return null;
+  if (l.stufe === 'gut' && !l.gereizt) return null;
+  const kurz = l.stufe === 'schlecht' ? t2('Wetter ungünstig')
+    : l.gereizt ? t2('Bienen wahrscheinlich gereizt') : t2('Wetter nur mäßig');
+  return { l, kurz };
+}
+
+function wetterWinkHTML(a, { mitName = false } = {}) {
+  if (!a || !['faellig', 'ueberfaellig'].includes(a.zustand)) return '';
+  const w = wetterWink(a);
+  if (!w) return '';
+  const besser = w.l.bestes ? ' · ' + t2('besser {wann}', { wann: fensterText(w.l.bestes) }) : '';
+  const name = mitName ? esc((standortName(a.ziel.standortId) || '') + ': ') : '';
+  return `<div class="wetterwink"><span>${w.l.zeichen}</span><span>${name}${esc(w.kurz + besser)}</span></div>`;
+}
+
+/** Bei Sammelaufgaben je betroffenem Stand eine Zeile – das Wetter ist örtlich. */
+function wetterWinkGruppeHTML(g) {
+  const ids = [...new Set(g.map((x) => x.ziel.standortId).filter(Boolean))];
+  if (ids.length <= 1) return wetterWinkHTML(g[0]);
+  return ids.slice(0, 3)
+    .map((id) => wetterWinkHTML(g.find((x) => x.ziel.standortId === id), { mitName: true }))
+    .join('');
+}
+
+/** Ausführlicher Block für das Aufgabenfenster. */
+function wetterBlockHTML(a, { mitName = false } = {}) {
+  if (!a?.wetterbedarf) return '';
+  const stId = a.ziel?.standortId;
+  const l = stId ? lage(stId, a.wetterbedarf) : null;
+  if (!l) return '';
+  const zeilen = [];
+  if (mitName) zeilen.push(`<b>${esc(standortName(stId) || '')}:</b>`);
+  zeilen.push(`<b>${esc(t2({ gut: 'Das Wetter passt.', maessig: 'Das Wetter ist nur mäßig geeignet.',
+    schlecht: 'Das Wetter passt gerade nicht.' }[l.stufe]))}</b>`);
+  if (l.gruende.length) zeilen.push(esc(l.gruende.join(', ') + '.'));
+  if (l.gereizt) {
+    zeilen.push(esc(t2('Die Bienen sind wahrscheinlich gereizt: {gruende}. Ruhig arbeiten, '
+      + 'Schleier auf, Rauch bereithalten.', { gruende: l.reizGruende.join(', ') })));
+  }
+  if (l.bestes && l.stufe !== 'gut') {
+    zeilen.push(esc(t2('Günstiger wäre es {wann}.', { wann: fensterText(l.bestes) })));
+  }
+  return `<div class="wetterhinweis"><span style="font-size:17px">${l.zeichen}</span>
+    <span>${zeilen.join(' ')}</span></div>`;
+}
+
+/** Sammelaufgabe: je betroffenem Stand ein Block. */
+function wetterBlockGruppeHTML(g) {
+  const ids = [...new Set(g.map((x) => x.ziel.standortId).filter(Boolean))];
+  if (ids.length <= 1) return wetterBlockHTML(g[0]);
+  return ids.slice(0, 3)
+    .map((id) => wetterBlockHTML(g.find((x) => x.ziel.standortId === id), { mitName: true }))
+    .join('');
+}
+
+/** Alle Bienenstände auf einen Blick – Kopf der Heute-Ansicht. */
+function wetterUebersichtHTML() {
+  const mit = S.standorte.filter((st) => st.lat != null);
+  if (!mit.length) return '';
+  const zeilen = mit.map((st) => wetterZeileHTML(st, { mitName: mit.length > 1 }))
+    .filter(Boolean).join('');
+  if (!zeilen) return '';
+  return `<div class="karte" style="margin-bottom:12px">${zeilen}</div>`;
+}
+
+function wetterSheet(standortId) {
+  const st = S.standorte.find((x) => x.id === standortId);
+  const sw = S.stunden[standortId];
+  const l = lage(standortId);
+  if (!st || !l) { toast('Für diesen Standort liegen keine Wetterdaten vor.'); return; }
+
+  const band = l.stunden.slice(0, 24).map((h) => {
+    const p = stundeBewerten(h, 'oeffnen').punkte;
+    const d = new Date(h.zeit);
+    return `<div class="h"><div>${String(d.getHours()).padStart(2, '0')}</div>
+      <div class="z">${wetterZeichenVon(h.code)}</div>
+      <b>${Math.round(h.temp)}°</b>
+      <div>${h.regenP != null ? h.regenP + '%' : ''}</div>
+      <div class="balken ${stufeVon(p)}"></div></div>`;
+  }).join('');
+
+  const betroffen = S.plan.filter((x) => x.wetterbedarf && x.ziel.standortId === standortId
+    && ['faellig', 'ueberfaellig'].includes(x.zustand));
+
+  sheetAuf({
+    titel: t2('Wetter · {ort}', { ort: st.name }),
+    unter: t2('{was}, {grad} · Wind {wind} km/h, Böen {boen} km/h',
+      { was: t2(l.text), grad: grad(l.jetzt.temp),
+        wind: Math.round(l.jetzt.wind ?? 0), boen: Math.round(l.jetzt.boen ?? 0) }),
+    inhalt: `
+      <div class="stundenband">${band}</div>
+      <div class="mini" style="margin:-4px 0 12px">Der Balken zeigt, wie gut sich in dieser Stunde
+        am offenen Volk arbeiten lässt: Temperatur, Wind, Niederschlag, Bewölkung und Tageslicht.</div>
+      ${wetterLageBlock(l)}
+      ${(sw?.tage || []).length ? `<h4 style="margin:14px 0 6px;font-size:14px">Die nächsten Tage</h4>
+        <div class="karte" style="box-shadow:none;border:1px solid var(--rand)">
+        ${sw.tage.filter((x) => x.datum >= iso(heute())).map((x) => `<div class="wetterzeile">
+          <span class="zeichen">${wetterZeichenVon(x.code)}</span>
+          <span class="grad">${Math.round(x.max)}°</span>
+          <span class="rest">${esc(fmtDatum(x.datum, true))} · ${esc(t2(wetterTextVon(x.code)))}${
+            x.regen ? ' · ' + x.regen + ' mm' : ''}</span></div>`).join('')}</div>` : ''}
+      ${betroffen.length ? `<h4 style="margin:14px 0 6px;font-size:14px">${
+        esc(t2('Betroffene Aufgaben ({n})', { n: betroffen.length }))}</h4>
+        <div class="karte" style="box-shadow:none;border:1px solid var(--rand)">
+        ${betroffen.map((x) => aufgabeHTML(x, true)).join('')}</div>` : ''}
+      <div class="mini" style="margin-top:10px">Quelle: Open-Meteo, stündlich aktualisiert.
+        Die Bewertung ist eine Faustregel – der Blick zum Flugloch bleibt die bessere Auskunft.</div>`,
+    danach(root) {
+      root.querySelectorAll('[data-auf]').forEach((n) => {
+        n.addEventListener('click', () => {
+          const a = S.plan.find((x) => x.schluessel === n.dataset.auf);
+          if (a) { sheetZu(); setTimeout(() => aufgabeOeffnen(a), 60); }
+        });
+      });
+    },
+  });
+}
+
+function wetterLageBlock(l) {
+  const zeilen = [];
+  zeilen.push(`<b>${esc(t2({ gut: 'Gute Bedingungen für Arbeiten am Volk.',
+    maessig: 'Mäßige Bedingungen für Arbeiten am Volk.',
+    schlecht: 'Ungünstige Bedingungen für Arbeiten am Volk.' }[l.stufe]))}</b>`);
+  if (l.gruende.length) zeilen.push(esc(l.gruende.join(', ') + '.'));
+  if (l.gereizt) {
+    zeilen.push(esc(t2('Bienen wahrscheinlich gereizt: {gruende}.', { gruende: l.reizGruende.join(', ') })));
+  }
+  if (l.bestes && l.stufe !== 'gut') zeilen.push(esc(t2('Günstiger wäre es {wann}.', { wann: fensterText(l.bestes) })));
+  return `<div class="wetterhinweis"><span style="font-size:17px">${l.zeichen}</span>
+    <span>${zeilen.join(' ')}</span></div>`;
+}
+
 // ---------------------------------------------------------------- Kalender
+
+/**
+ * Der eine Tag, an dem eine offene Aufgabe im Kalender steht.
+ * Bewusst nicht das ganze Zeitfenster: sonst klebt jede offene Aufgabe an jedem
+ * Tag und der Monat ist zugepflastert. Stattdessen der nächste Arbeitstag –
+ * frühestens morgen, denn der heutige Tag läuft schon. Wird die Aufgabe nicht
+ * erledigt, wandert sie von selbst einen Tag weiter, weil sich „morgen" jeden
+ * Tag neu berechnet.
+ */
+function aktionstag(a) {
+  const von = a.von || a.bis;
+  if (!von) return null;
+  const morgen = addDays(heute(), 1);
+  return von > morgen ? von : morgen;
+}
 
 function ansichtKalender() {
   const jahr = S.monat.getFullYear(); const monat = S.monat.getMonth();
@@ -316,15 +591,11 @@ function ansichtKalender() {
 
   const proTag = new Map();
   for (const a of liste) {
-    const von = a.von || a.bis; const bis = a.bis || a.von;
-    if (!von || !bis) continue;
-    let d = new Date(Math.max(von.getTime(), erster.getTime()));
-    d.setHours(0, 0, 0, 0);
-    for (; d <= bis && d.getMonth() === monat && d.getFullYear() === jahr; d = addDays(d, 1)) {
-      const k = d.getDate();
-      if (!proTag.has(k)) proTag.set(k, []);
-      proTag.get(k).push(a);
-    }
+    const d = aktionstag(a);
+    if (!d || d.getMonth() !== monat || d.getFullYear() !== jahr) continue;
+    const k = d.getDate();
+    if (!proTag.has(k)) proTag.set(k, []);
+    proTag.get(k).push(a);
   }
 
   const rang = { ueberfaellig: 0, faellig: 1, bald: 2, wartet: 3 };
@@ -341,8 +612,8 @@ function ansichtKalender() {
   }
 
   const gewaehlt = S.tag ? liste.filter((a) => {
-    const von = a.von || a.bis; const bis = a.bis || a.von;
-    return von && parseISO(S.tag) >= von && parseISO(S.tag) <= bis;
+    const d = aktionstag(a);
+    return d && iso(d) === S.tag;
   }) : [];
 
   return `
@@ -355,8 +626,9 @@ function ansichtKalender() {
       </div>
       <div class="wochentage">${['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'].map((w) => `<span>${w}</span>`).join('')}</div>
       <div class="monat">${zellen}</div>
-      <div class="mini" style="margin-top:8px">Die Zahl zeigt, wie viele Aufgaben an diesem Tag
-        im Zeitfenster liegen. Tippen für die Liste.</div>
+      <div class="mini" style="margin-top:8px">Jede offene Aufgabe steht genau einmal im Kalender:
+        an ihrem nächsten Arbeitstag. Bleibt sie liegen, rückt sie mit jedem vergangenen Tag
+        einen Tag weiter. Tippen für die Liste.</div>
     </div></div>
     ${S.tag ? `<h2 class="abschnitt">${fmtDatum(parseISO(S.tag), true)} · ${gewaehlt.length}</h2>
       <div class="karte">${gewaehlt.length
@@ -392,6 +664,7 @@ function ansichtVoelker() {
         ${offen ? `<span class="marke" style="background:#F3DAD5;color:#8E2E22">${t2('{n} offen', { n: offen })}</span>` : ''}
         <span class="pfeil">›</span></div>`);
     }
+    t.push(wetterZeileHTML(st));
     t.push('</div>');
   }
   const ohne = S.voelker.filter((v) => !S.standorte.some((s) => s.id === v.standortId));
@@ -588,6 +861,7 @@ function ansichtTracht() {
       <div class="klapper" data-klapp="tracht:${st.id}">
         <span><b>${esc(st.name)}</b>${bluehen.length ? `<br><small class="mini">${t2('blüht: {liste}', { liste: esc(bluehen.slice(0, 3).map((x) => t2(x)).join(', ')) })}${bluehen.length > 3 ? ' …' : ''}</small>` : ''}</span>
         <span class="pfeil">${auf ? '⌄' : '›'}</span></div>`);
+    t.push(wetterZeileHTML(st));
     if (auf) {
       if (!tr) t.push('<div class="karte-inhalt mini">Wird geladen …</div>');
       else {
@@ -853,6 +1127,7 @@ function verdrahten() {
     S.tag = S.tag === e.currentTarget.dataset.tag ? null : e.currentTarget.dataset.tag;
     render();
   });
+  on('[data-wetter]', 'click', (e) => { e.stopPropagation(); wetterSheet(e.currentTarget.dataset.wetter); });
   on('[data-volk]', 'click', (e) => gehe('volk', e.currentTarget.dataset.volk));
   on('[data-neu-volk]', 'click', () => volkSheet());
   on('[data-volk-bearbeiten]', 'click', (e) => {
@@ -904,6 +1179,9 @@ function verdrahten() {
   on('[data-benachrichtigung]', 'click', benachrichtigungenAnfragen);
   on('[data-sprache]', 'click', async (e) => {
     spracheSetzen(e.currentTarget.dataset.sprache);
+    // Bezugstexte („zuletzt am …", „hängt an …") entstehen beim Rechnen des
+    // Plans. Ohne Neuberechnung blieben sie in der vorherigen Sprache stehen.
+    neuRechnen();
     render();
     toast('Sprache geändert.');
   });
@@ -1054,6 +1332,7 @@ function aufgabeOeffnen(a) {
     unter: `${a.ziel.typ === 'imkerei' ? t2('Ganze Imkerei') : a.ziel.name}${a.ziel.typ === 'volk' && a.ziel.standortName ? ' · ' + a.ziel.standortName : ''} · ${zeit}`,
     inhalt: `
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
+      ${wetterBlockHTML(a)}
       ${hilfeBlock(a)}
       ${a.bezug ? `<div class="mini" style="margin:2px 0 12px">Terminbezug: ${esc(a.bezug)}</div>` : ''}
       ${a.wartetAuf ? `<div class="hinweis" style="border-color:var(--wartet)">Wartet auf: ${esc(a.wartetAuf)}.
@@ -1121,6 +1400,7 @@ function gruppeOeffnen(gruppe) {
       : t2('{n} Völker betroffen', { n: gruppe.length }),
     inhalt: `
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
+      ${wetterBlockGruppeHTML(gruppe)}
       ${hilfeBlock(a)}
       ${a.checkliste.length ? `<ul class="checkliste">${a.checkliste.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
       ${a.rechner === 'futter' ? `<div class="hinweis" style="border-color:var(--faellig)">
@@ -1404,10 +1684,18 @@ function syncSheet() {
       unter: 'Über ein privates GitHub-Repository – kostenlos, ohne eigenen Server.',
       inhalt: `
         <div class="hinweis">So richtest du es ein:<br>
-          1. Auf github.com ein <b>privates</b> Repository anlegen, z. B. <code>beewise-daten</code>.<br>
-          2. Settings → Developer settings → <b>Fine-grained personal access token</b>:
-             nur dieses Repository, Berechtigung <b>Contents: Read and write</b>.<br>
-          3. Schlüssel hier eintragen. Danach auf jedem Gerät dasselbe eintragen.</div>
+          <b>1.</b> Auf github.com ein <b>privates</b> Repository anlegen, z. B. <code>beewise-daten</code>.
+          Nicht dasselbe wie die veröffentlichte App – dort lägen deine Daten sonst offen.<br>
+          <b>2.</b> Schlüssel erzeugen. Achtung: das geschieht in den <b>Kontoeinstellungen</b>,
+          nicht im Repository. Direkter Weg:
+          <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
+          github.com/settings/personal-access-tokens/new</a> – oder Profilbild oben rechts →
+          Settings → ganz unten <b>Developer settings</b> → Personal access tokens →
+          <b>Fine-grained tokens</b> → Generate new token.<br>
+          Dort einstellen: <b>Only select repositories</b> → dein Datenrepository,
+          und unter Repository permissions <b>Contents: Read and write</b>.<br>
+          <b>3.</b> Schlüssel hier eintragen, Verbindung prüfen, speichern.
+          Danach auf dem zweiten Gerät dasselbe eintragen.</div>
         ${feldHTML({ key: 'repo', label: 'Repository', platzhalter: 'benutzername/beewise-daten' }, e.repo)}
         ${feldHTML({ key: 'token', label: 'Zugriffsschlüssel', platzhalter: 'github_pat_…' }, e.token)}
         ${feldHTML({ key: 'geraet', label: 'Name dieses Geräts', platzhalter: 'Handy oder PC' }, e.geraet)}
@@ -1899,10 +2187,19 @@ window.addEventListener('beforeinstallprompt', (e) => {
   if (S.ansicht === 'mehr') render();
 });
 
+// Kommt die App nach längerer Pause wieder in den Vordergrund, ist die
+// Stundenvorhersage meist veraltet. Der Abruf selbst ist billig: liegt ein
+// frischer Stand im Zwischenspeicher, geht gar keine Anfrage ins Netz.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && S.standorte.length) wetterLaden();
+});
+
 document.getElementById('tabbar').addEventListener('click', (e) => {
   const b = e.target.closest('button[data-tab]');
   if (b) gehe(b.dataset.tab);
 });
+
+ZURUECK?.addEventListener('click', () => zurueck());
 
 /** Beim allerersten Start nach der Sprache fragen – zweisprachig beschriftet. */
 function spracheAbfragen() {
@@ -1932,6 +2229,8 @@ function spracheAbfragen() {
   const { code, gewaehlt } = spracheErmitteln();
   document.documentElement.lang = code;
   uiInit();
+  // Zurück-Taste: erst Fenster schließen (macht ui.js selbst), dann Unteransicht.
+  zurueckFallbackSetzen(() => zurueck({ ausVerlauf: true }));
   if (!gewaehlt) await spracheAbfragen();
   await datenLaden();
   render();
@@ -1941,4 +2240,5 @@ function spracheAbfragen() {
   }
 })();
 
-window.__beewise = { S, db, planBerechnen, datenLaden, render, trachtLaden };
+window.__beewise = { S, db, planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
+  gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText };

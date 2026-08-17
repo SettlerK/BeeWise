@@ -184,8 +184,10 @@ nebenbei eine Versionsgeschichte mit Wiederherstellungspunkten.
 
 1. **Zweites, privates Repository anlegen**, z. B. `beewise-daten`.
    Wichtig: **Private**, nicht Public – da liegen deine Betriebsdaten drin.
-2. **Zugriffsschlüssel erzeugen:** github.com → Settings (dein Profil, nicht das Repo) →
-   Developer settings → Personal access tokens → **Fine-grained tokens** → *Generate new token*
+2. **Zugriffsschlüssel erzeugen.** Wichtig: das passiert in den **Kontoeinstellungen**, nicht
+   im Repository. Direkter Weg: `github.com/settings/personal-access-tokens/new` – oder
+   Profilbild oben rechts → Settings → linke Spalte ganz unten **Developer settings** →
+   Personal access tokens → **Fine-grained tokens** → *Generate new token*
    * Repository access: **Only select repositories** → `beewise-daten`
    * Permissions → Repository permissions → **Contents: Read and write**
    * Ablaufdatum nach Geschmack (bei Ablauf einfach einen neuen erzeugen)

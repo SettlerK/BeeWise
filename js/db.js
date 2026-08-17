@@ -226,6 +226,10 @@ export async function metaSchreibe(key, wert) {
 export async function exportAlles() {
   const daten = {};
   for (const s of STORES) daten[s] = await alle(s, { mitGeloeschten: true });
+  // Wetter- und Klimazwischenspeicher gehören nicht in die Sicherung: sie sind
+  // jederzeit neu abrufbar, ändern sich stündlich und würden den Abgleich
+  // unnötig aufblähen.
+  daten.meta = (daten.meta || []).filter((r) => !String(r.id).startsWith('wetter:'));
   return {
     format: 'beewise-export',
     version: 1,

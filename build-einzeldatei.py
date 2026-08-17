@@ -18,16 +18,37 @@ def entkerne(text):
     text = re.sub(r'^export\s*\{[^}]*\};\s*$', '', text, flags=re.M)
     return text
 
+# Umbenennende Einfuhren (`import { a as b }`) überleben das Entkernen nicht –
+# die Einfuhrzeile fällt ja weg. Deshalb werden sie eingesammelt und nach dem
+# Modul, das den Namen bereitstellt, als schlichte Zuweisung ergänzt.
+def aliase():
+    treffer = {}
+    for datei in W.glob('js/**/*.js'):
+        text = datei.read_text(encoding='utf-8')
+        for block in re.finditer(r'import\s*\{([^}]*)\}\s*from\s+[\'"]\./([^\'"]+)[\'"]', text):
+            quelle = block.group(2).replace('./', '')
+            for teil in block.group(1).split(','):
+                if ' as ' not in teil:
+                    continue
+                a, b = (x.strip() for x in teil.split(' as '))
+                treffer.setdefault(quelle, []).append((a, b))
+    return treffer
+
+ALIASE = aliase()
+
 js = []
 for m in MODULE:
     js.append(f'\n// ===== {m} ' + '=' * (66 - len(m)) + '\n')
     js.append(entkerne((W / 'js' / m).read_text(encoding='utf-8')))
+    for a, b in ALIASE.get(m, []):
+        js.append(f'\nconst {b} = {a};\n')
     if m == 'lang/en.js':
         js.append('\n')
     if m == 'db.js':
         # app.js spricht die Datenschicht als Namensraum `db` an
         js.append('\nconst db = { STORES, open, alle, hole, schreibe, loesche, entferne, leere,'
-                  ' metaLies, metaSchreibe, exportAlles, importAlles, mischeEin, Sync };\n')
+                  ' metaLies, metaSchreibe, exportAlles, importAlles, mischeEin, Sync,'
+                  ' nurFluechtig, letzterFehler, zuruecksetzen };\n')
     if m == 'sync.js':
         js.append('\nconst sync = { einstellungen, einstellungenSpeichern, pruefen, abgleichen };\n')
 

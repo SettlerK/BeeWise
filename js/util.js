@@ -30,8 +30,13 @@ export function addDays(d, n) {
 }
 
 export function diffTage(a, b) {
-  const A = (a instanceof Date ? a : parseISO(a)); const B = (b instanceof Date ? b : parseISO(b));
-  return Math.round((A.setHours(12, 0, 0, 0) - B.setHours(12, 0, 0, 0)) / 86400000);
+  // Wichtig: mit Kopien rechnen. setHours verändert das Datum an Ort und Stelle –
+  // ohne Kopie würde jeder Abstandsvergleich die übergebenen Zeitpunkte
+  // verstellen (etwa eine Uhrzeit im Wetterfenster auf 12 Uhr mittags).
+  const A = new Date(a instanceof Date ? a.getTime() : parseISO(a).getTime());
+  const B = new Date(b instanceof Date ? b.getTime() : parseISO(b).getTime());
+  A.setHours(12, 0, 0, 0); B.setHours(12, 0, 0, 0);
+  return Math.round((A - B) / 86400000);
 }
 
 /** Tag im Jahr, 1 = 1. Januar */

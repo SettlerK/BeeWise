@@ -4,21 +4,73 @@ import { t, uebersetzeDom } from './i18n.js';
 
 let sheetEl; let dunkelEl; let toastEl; let toastTimer; let aufSchliessen = null;
 
+// ------------------------------------------------------------------ Zurück
+// Ein geöffnetes Fenster muss man wieder verlassen können – und zwar auf allen
+// Wegen, die jemand erwartet: sichtbarer Knopf, Escape, Tippen daneben, nach
+// unten wischen und die Zurück-Taste des Geräts. Letzteres ist am Handy der
+// wichtigste: ohne eigenen Eintrag im Verlauf würde sie die App beenden.
+let sheetOffen = false;
+let ausPopstate = false;      // Schließen kam von der Zurück-Taste
+let erwarteterPop = false;    // wir haben selbst history.back() ausgelöst
+let zurueckFallback = null;   // greift, wenn kein Fenster offen ist (z. B. Volk-Ansicht)
+
+const verlaufSchieben = () => { try { history.pushState({ beewise: 'sheet' }, ''); } catch { /* file:// */ } };
+
+/** Wird von der Anwendung gesetzt: was passiert bei „zurück" ohne offenes Fenster? */
+export function zurueckFallbackSetzen(fn) { zurueckFallback = fn; }
+
+export const sheetIstAuf = () => sheetOffen;
+
 export function uiInit() {
   dunkelEl = document.getElementById('abdunkeln');
   sheetEl = document.getElementById('sheet');
   toastEl = document.getElementById('toast');
   dunkelEl.addEventListener('click', () => sheetZu());
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sheetOffen) { e.preventDefault(); sheetZu(); }
+  });
+
+  window.addEventListener('popstate', () => {
+    if (erwarteterPop) { erwarteterPop = false; return; }
+    if (sheetOffen) {
+      ausPopstate = true;
+      try { sheetZu(); } finally { ausPopstate = false; }
+      return;
+    }
+    if (zurueckFallback) zurueckFallback();
+  });
+
+  // Nach unten wischen schließt ebenfalls – das erwartet man bei einem Fenster,
+  // das von unten hereinfährt.
+  let start = null;
+  sheetEl.addEventListener('touchstart', (e) => {
+    start = sheetEl.scrollTop <= 0 ? e.touches[0].clientY : null;
+  }, { passive: true });
+  sheetEl.addEventListener('touchend', (e) => {
+    if (start != null && e.changedTouches[0].clientY - start > 90) sheetZu();
+    start = null;
+  });
 }
 
 export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSchliessen = null }) {
-  sheetEl.innerHTML = `<div class="griff"></div><h3>${esc(t(titel))}</h3>`
+  sheetEl.innerHTML = `<div class="sheetkopf">
+      <button type="button" class="sheetzurueck" data-sheet-zu aria-label="${esc(t('Zurück'))}">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>
+        <span>${esc(t('Zurück'))}</span>
+      </button>
+      <div class="griff"></div>
+      <button type="button" class="sheetschliessen" data-sheet-zu aria-label="${esc(t('Schließen'))}">✕</button>
+    </div>
+    <h3>${esc(t(titel))}</h3>`
     + (unter ? `<div class="unter">${esc(t(unter))}</div>` : '')
     + inhalt;
   uebersetzeDom(sheetEl);
+  sheetEl.querySelectorAll('[data-sheet-zu]').forEach((b) => { b.onclick = () => sheetZu(); });
   sheetEl.classList.add('auf');
   dunkelEl.classList.add('auf');
   sheetEl.scrollTop = 0;
+  if (!sheetOffen) { sheetOffen = true; verlaufSchieben(); }
   aufSchliessen = beimSchliessen;
   if (danach) {
     try {
@@ -33,8 +85,16 @@ export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSc
 }
 
 export function sheetZu() {
+  const warOffen = sheetOffen;
+  sheetOffen = false;
   sheetEl.classList.remove('auf');
   dunkelEl.classList.remove('auf');
+  // Der eigene Verlaufseintrag muss wieder weg, sonst bräuchte es später zwei
+  // Betätigungen der Zurück-Taste, um die App zu verlassen.
+  if (warOffen && !ausPopstate) {
+    erwarteterPop = true;
+    try { history.back(); } catch { erwarteterPop = false; }
+  }
   if (aufSchliessen) { const f = aufSchliessen; aufSchliessen = null; f(); }
 }
 

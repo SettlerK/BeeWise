@@ -22,6 +22,7 @@
 
 import { iso, parseISO, doy, vonDoy, addDays, heute, diffTage } from './util.js';
 import { metaLies, metaSchreibe } from './db.js';
+import { t } from './i18n.js';
 
 const GDD_BASIS = 5;            // °C – übliche Basis für phänologische Wärmesummen
 const KLIMA_JAHRE = 10;
@@ -308,6 +309,222 @@ export async function wetterEreignisse(standort, datum = heute()) {
   };
 }
 
+
+// ============================================================================
+// Stundenwetter und imkerliche Bewertung
+// ----------------------------------------------------------------------------
+// Zwei Fragen beantwortet dieser Abschnitt:
+//   1. Wie ist das Wetter am Bienenstand gerade und in den nächsten Stunden?
+//   2. Taugt es für die anstehende Arbeit – und wenn nicht, wann wäre es besser?
+//
+// Die zweite Frage ist die eigentlich imkerliche. Bienen sind bei Gewitterneigung,
+// fallendem Luftdruck, Kälte, Wind und in der Trachtlücke wehrhafter; bei
+// bedecktem, kühlem Wetter sitzt die gesamte Flugbiene im Stock, was jeden
+// Eingriff unangenehmer macht. Diese Zusammenhänge stecken unten in Zahlen.
+
+const STUNDEN_CACHE = 1;    // Stunden – die Vorhersage wird stündlich neu geholt
+
+/** Weltwetter-Schlüssel (WMO) → Klartext und Zeichen. */
+const WMO = {
+  0: ['klar', '☀'], 1: ['überwiegend klar', '🌤'], 2: ['teils bewölkt', '⛅'], 3: ['bedeckt', '☁'],
+  45: ['Nebel', '🌫'], 48: ['Reifnebel', '🌫'],
+  51: ['leichter Niesel', '🌦'], 53: ['Niesel', '🌦'], 55: ['starker Niesel', '🌦'],
+  56: ['gefrierender Niesel', '🌧'], 57: ['gefrierender Niesel', '🌧'],
+  61: ['leichter Regen', '🌧'], 63: ['Regen', '🌧'], 65: ['starker Regen', '🌧'],
+  66: ['gefrierender Regen', '🌧'], 67: ['gefrierender Regen', '🌧'],
+  71: ['leichter Schneefall', '🌨'], 73: ['Schneefall', '🌨'], 75: ['starker Schneefall', '🌨'],
+  77: ['Schneegriesel', '🌨'], 80: ['Regenschauer', '🌦'], 81: ['Regenschauer', '🌦'],
+  82: ['kräftige Schauer', '🌧'], 85: ['Schneeschauer', '🌨'], 86: ['Schneeschauer', '🌨'],
+  95: ['Gewitter', '⛈'], 96: ['Gewitter mit Hagel', '⛈'], 99: ['Gewitter mit Hagel', '⛈'],
+};
+export const wetterText = (code) => (WMO[code] || ['unbestimmt', '·'])[0];
+export const wetterZeichen = (code) => (WMO[code] || ['unbestimmt', '·'])[1];
+
+/** Stundenvorhersage für einen Standort (Open-Meteo, kostenfrei, ohne Schlüssel). */
+export async function stundenWetter(standort) {
+  if (standort?.lat == null || standort?.lon == null) return null;
+  const k = key(standort, 'stunden');
+  const cached = await ausCache(k, STUNDEN_CACHE);
+  if (cached) return cached;
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${standort.lat}`
+    + `&longitude=${standort.lon}`
+    + '&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,'
+    + 'cloud_cover,wind_speed_10m,wind_gusts_10m,weather_code,surface_pressure,is_day'
+    + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum'
+    + '&past_days=1&forecast_days=3&timezone=auto';
+  const j = await holeJSON(url);
+
+  const h = j.hourly || {};
+  const stunden = (h.time || []).map((zeit, i) => ({
+    zeit,
+    temp: h.temperature_2m?.[i] ?? null,
+    feuchte: h.relative_humidity_2m?.[i] ?? null,
+    regen: h.precipitation?.[i] ?? 0,
+    regenP: h.precipitation_probability?.[i] ?? null,
+    wolken: h.cloud_cover?.[i] ?? null,
+    wind: h.wind_speed_10m?.[i] ?? null,
+    boen: h.wind_gusts_10m?.[i] ?? null,
+    code: h.weather_code?.[i] ?? null,
+    druck: h.surface_pressure?.[i] ?? null,
+    hell: h.is_day?.[i] ?? 1,
+  })).filter((s) => s.temp != null);
+  if (!stunden.length) return null;
+
+  const d = j.daily || {};
+  const tage = (d.time || []).map((datum, i) => ({
+    datum,
+    code: d.weather_code?.[i] ?? null,
+    max: d.temperature_2m_max?.[i] ?? null,
+    min: d.temperature_2m_min?.[i] ?? null,
+    regen: d.precipitation_sum?.[i] ?? null,
+  }));
+
+  const daten = { stunden, tage, geholt: new Date().toISOString() };
+  await metaSchreibe(k, { geholt: new Date().toISOString(), daten });
+  return daten;
+}
+
+/**
+ * Anforderungsprofile. Die Zahlen sind die üblichen imkerlichen Faustwerte.
+ *   oeffnen  – Volk aufmachen, Waben ziehen
+ *   as       – Ameisensäure: unter 15 °C wirkt sie kaum, über 30 °C zu scharf
+ *   os       – Oxalsäure im brutfreien Volk: kalt, aber nicht klirrend
+ *   trocken  – Arbeit an der Beute von außen, nur Regen und Sturm stören
+ */
+const PROFILE = {
+  oeffnen: { minTemp: 12, gut: [15, 30], maxTemp: 33, maxWind: 25, maxBoen: 45, tagsueber: true },
+  as: { minTemp: 12, gut: [15, 25], maxTemp: 30, maxWind: 30, maxBoen: 55, tagsueber: false },
+  os: { minTemp: -8, gut: [0, 8], maxTemp: 12, maxWind: 30, maxBoen: 55, tagsueber: false },
+  trocken: { minTemp: -30, gut: [-30, 40], maxTemp: 45, maxWind: 35, maxBoen: 65, tagsueber: true },
+};
+export const wetterProfile = () => Object.keys(PROFILE);
+
+const rund = (x) => Math.round(x);
+
+/** Punktbewertung einer einzelnen Stunde: 100 = ideal, 0 = unmöglich. */
+export function stundeBewerten(s, profil = 'oeffnen') {
+  const p = PROFILE[profil] || PROFILE.oeffnen;
+  let punkte = 100;
+  const gruende = [];
+  const weg = (n, grund) => { punkte -= n; if (grund) gruende.push(grund); };
+
+  if (p.tagsueber && !s.hell) weg(55, t('Dunkelheit'));
+  if (s.temp != null) {
+    if (s.temp < p.minTemp) weg(60, t('zu kalt ({t} °C)', { t: rund(s.temp) }));
+    else if (s.temp < p.gut[0]) weg(22, t('kühl ({t} °C)', { t: rund(s.temp) }));
+    else if (s.temp > p.maxTemp) weg(40, t('zu heiß ({t} °C)', { t: rund(s.temp) }));
+    else if (s.temp > p.gut[1]) weg(15, t('sehr warm ({t} °C)', { t: rund(s.temp) }));
+  }
+  if (s.regen > 0.2) weg(50, t('Niederschlag'));
+  else if (s.regenP != null && s.regenP >= 60) weg(18, t('Regenrisiko {n} %', { n: s.regenP }));
+  if (s.wind != null) {
+    if (s.wind > p.maxWind) weg(35, t('starker Wind ({n} km/h)', { n: rund(s.wind) }));
+    else if (s.wind > p.maxWind * 0.6) weg(12, t('windig ({n} km/h)', { n: rund(s.wind) }));
+  }
+  if (s.boen != null && s.boen > p.maxBoen) weg(18, t('Böen bis {n} km/h', { n: rund(s.boen) }));
+  if (s.code >= 95) weg(45, t('Gewitter'));
+  if (profil === 'oeffnen' && s.wolken != null && s.wolken > 85 && punkte > 40) {
+    weg(10, t('bedeckt – die Flugbienen sitzen zu Hause'));
+  }
+  return { punkte: Math.max(0, Math.min(100, punkte)), gruende };
+}
+
+export const stufeVon = (punkte) => (punkte >= 70 ? 'gut' : punkte >= 45 ? 'maessig' : 'schlecht');
+
+const zeitVon = (s) => new Date(s.zeit);
+
+/** Index der Stunde, die gerade läuft. */
+function jetztIndex(stunden, jetzt) {
+  const grenze = jetzt.getTime() - 3600e3;
+  const i = stunden.findIndex((s) => zeitVon(s).getTime() > grenze);
+  return i < 0 ? stunden.length - 1 : i;
+}
+
+/**
+ * Sind die Bienen gerade wahrscheinlich gereizt?
+ * Bewusst getrennt von der Arbeitseignung: es kann trocken und mild sein und
+ * die Völker trotzdem stechlustig, etwa vor einem Gewitter oder in der
+ * Trachtlücke.
+ */
+export function gereiztheit(sw, { jetzt = new Date(), trachtluecke = false } = {}) {
+  const gruende = [];
+  if (!sw?.stunden?.length) return { gereizt: false, gruende };
+  const i = jetztIndex(sw.stunden, jetzt);
+  const s = sw.stunden[i];
+  const naechste = sw.stunden.slice(i, i + 7);
+  const vorher = sw.stunden.slice(Math.max(0, i - 6), i + 1);
+
+  if (naechste.some((x) => x.code >= 95)) gruende.push(t('Gewitter in den nächsten Stunden'));
+  const drucke = vorher.map((x) => x.druck).filter((x) => x != null);
+  if (drucke.length >= 4 && drucke[0] - drucke[drucke.length - 1] >= 3) {
+    gruende.push(t('rasch fallender Luftdruck'));
+  }
+  if (s.temp != null && s.temp < 14 && (s.wolken ?? 0) > 70) {
+    gruende.push(t('kühl und bedeckt – die ganze Flugbiene sitzt im Stock'));
+  }
+  if ((s.wind ?? 0) > 25) gruende.push(t('starker Wind'));
+  if (s.regen > 0.2 || (s.regenP ?? 0) >= 70) gruende.push(t('Regen'));
+  if ((s.temp ?? 0) >= 22 && (s.feuchte ?? 0) >= 75) gruende.push(t('schwül'));
+  if (trachtluecke) gruende.push(t('Trachtlücke – Räubereigefahr'));
+
+  return { gereizt: gruende.length > 0, gruende };
+}
+
+/**
+ * Bestes Arbeitsfenster in den nächsten Tagen: der früheste zusammenhängende
+ * Abschnitt von mindestens zwei Stunden mit guter Bewertung.
+ */
+export function bestesFenster(sw, { jetzt = new Date(), profil = 'oeffnen', minPunkte = 70 } = {}) {
+  if (!sw?.stunden?.length) return null;
+  const ab = sw.stunden.slice(jetztIndex(sw.stunden, jetzt));
+  let lauf = null; let bestes = null;
+  for (const s of ab) {
+    const p = stundeBewerten(s, profil).punkte;
+    if (p >= minPunkte) {
+      if (!lauf) lauf = { von: zeitVon(s), bis: zeitVon(s), summe: 0, n: 0 };
+      lauf.bis = new Date(zeitVon(s).getTime() + 3600e3);
+      lauf.summe += p; lauf.n += 1;
+    } else if (lauf) {
+      if (lauf.n >= 2 && !bestes) bestes = lauf;
+      lauf = null;
+    }
+    if (bestes) break;
+  }
+  if (!bestes && lauf && lauf.n >= 2) bestes = lauf;
+  if (!bestes) return null;
+  return { von: bestes.von, bis: bestes.bis, punkte: Math.round(bestes.summe / bestes.n) };
+}
+
+/**
+ * Gesamtlage für einen Standort: aktuelles Wetter, Eignung für eine Arbeit,
+ * Reizlage und – falls es gerade nicht passt – der nächste günstige Zeitraum.
+ */
+export function wetterlage(sw, { jetzt = new Date(), profil = 'oeffnen', trachtluecke = false } = {}) {
+  if (!sw?.stunden?.length) return null;
+  const i = jetztIndex(sw.stunden, jetzt);
+  const s = sw.stunden[i];
+  const b = stundeBewerten(s, profil);
+  const heuteIso = iso(jetzt);
+  const tag = (sw.tage || []).find((x) => x.datum === heuteIso) || null;
+  const g = gereiztheit(sw, { jetzt, trachtluecke });
+  const bestes = b.punkte >= 70 ? null : bestesFenster(sw, { jetzt, profil });
+
+  return {
+    jetzt: s,
+    zeichen: wetterZeichen(s.code),
+    text: wetterText(s.code),
+    tag,
+    profil,
+    punkte: b.punkte,
+    stufe: stufeVon(b.punkte),
+    gruende: b.gruende,
+    gereizt: g.gereizt,
+    reizGruende: g.gruende,
+    bestes,
+    stunden: sw.stunden.slice(i, i + 24),
+  };
+}
 
 /**
  * Wärmesumme (Gradtage über 5 °C seit 1. Januar) an einem bestimmten Tag.

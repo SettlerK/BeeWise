@@ -278,6 +278,7 @@ export function planBerechnen(ctx) {
       info: e.info || '', checkliste: [],
       felder: [{ key: 'notiz', label: 'Notiz', typ: 'text' }],
       wichtig: !!e.wichtig, freiwillig: false, hilfe: e.hilfe || null,
+      wetterbedarf: e.wetterbedarf || null,
       ziel: {
         typ: e.zielTyp || 'imkerei', id: e.zielId || 'imkerei',
         name: e.zielName || 'Imkerei',
@@ -320,6 +321,7 @@ function bauen(regel, ziel, von, bis, zustand, extra) {
     felder: regel.felder || [],
     wichtig: !!regel.wichtig,
     freiwillig: !!regel.freiwillig,
+    wetterbedarf: regel.wetterbedarf || null,
     ziel,
     von, bis, zustand,
     ...extra,

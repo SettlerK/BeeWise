@@ -31,9 +31,18 @@ a{color:var(--honig-t)}
   position:sticky;top:0;z-index:30;background:var(--bg);
   padding:calc(10px + var(--sicher-oben)) 16px 8px;
   border-bottom:1px solid var(--rand);
-  display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
-.topbar h1{font-size:20px;margin:0;letter-spacing:-.2px}
+.topbar h1{font-size:20px;margin:0;letter-spacing:-.2px;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kopfzurueck[hidden]{display:none}
+.kopfzurueck{
+  width:34px;height:34px;margin:-4px -4px -4px -8px;border-radius:10px;flex:none;
+  display:flex;align-items:center;justify-content:center;align-self:center;color:var(--text);
+}
+.kopfzurueck svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.kopfzurueck:active{background:var(--rand)}
 .topbar .datum{font-size:12.5px;color:var(--text-schwach);white-space:nowrap}
 main{padding:12px 12px calc(var(--tab) + 28px + var(--sicher-unten));max-width:760px;margin:0 auto}
 
@@ -192,7 +201,23 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
   padding:0 16px calc(20px + var(--sicher-unten));box-shadow:0 -8px 30px rgba(0,0,0,.18);
 }
 .sheet.auf{transform:none}
-.sheet .griff{width:38px;height:4px;border-radius:99px;background:var(--rand-stark);margin:9px auto 4px}
+.sheet .griff{width:38px;height:4px;border-radius:99px;background:var(--rand-stark);margin:0 auto}
+.sheetkopf{
+  position:sticky;top:0;z-index:2;background:var(--karte);display:flex;align-items:center;
+  gap:8px;padding:9px 0 5px;margin:0 -16px;padding-left:8px;padding-right:8px;
+}
+.sheetkopf .griff{flex:1}
+.sheetzurueck{
+  display:flex;align-items:center;gap:2px;font-size:14px;color:var(--text-schwach);
+  padding:6px 8px;border-radius:10px;flex:none;
+}
+.sheetzurueck svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2.1;
+  stroke-linecap:round;stroke-linejoin:round}
+.sheetschliessen{
+  width:32px;height:32px;border-radius:99px;background:var(--bg);color:var(--text-schwach);
+  font-size:14px;flex:none;display:flex;align-items:center;justify-content:center;
+}
+.sheetzurueck:active,.sheetschliessen:active{background:var(--rand)}
 .sheet h3{font-size:18px;margin:6px 0 4px;line-height:1.25}
 .sheet .unter{font-size:13px;color:var(--text-schwach);margin-bottom:14px}
 @media (min-width:700px){
@@ -376,3 +401,42 @@ label.feld > span em{font-style:normal;opacity:.65;font-weight:400}
 }
 .schalter input[type=checkbox]:checked{background:var(--honig)}
 .schalter input[type=checkbox]:checked::after{transform:translateX(18px)}
+
+
+/* ------------------------------------------------------------------- Wetter */
+.wetterzeile{
+  display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:13px;
+  border-top:1px solid var(--rand);cursor:pointer;
+}
+.wetterzeile .zeichen{font-size:19px;line-height:1;flex:none}
+.wetterzeile .grad{font-weight:650;font-size:15px}
+.wetterzeile .rest{color:var(--text-schwach);flex:1;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.wetterzeile .pfeil{color:var(--text-zart)}
+.eignung{
+  font-size:10.5px;font-weight:650;padding:2px 7px;border-radius:99px;flex:none;
+  letter-spacing:.2px;
+}
+.eignung.gut{background:#DDEBD8;color:#3C6B34}
+.eignung.maessig{background:#F7E6C8;color:#8A6115}
+.eignung.schlecht{background:#F3DAD5;color:#8E2E22}
+.eignung.gereizt{background:#EDE3F4;color:#5F3D7A}
+.wetterhinweis{
+  display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:1.45;
+  background:var(--bg);border-radius:9px;padding:7px 9px;margin-top:6px;color:var(--text-schwach);
+}
+.wetterhinweis b{color:var(--text)}
+.aufgabe .wetterwink{
+  font-size:11.5px;color:var(--text-schwach);margin-top:3px;display:flex;gap:5px;align-items:center;
+}
+.stundenband{display:flex;gap:4px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin}
+.stundenband .h{
+  flex:none;width:52px;text-align:center;font-size:11px;color:var(--text-schwach);
+  background:var(--bg);border-radius:9px;padding:6px 2px;
+}
+.stundenband .h b{display:block;font-size:13px;color:var(--text);font-weight:600;margin:2px 0}
+.stundenband .h .z{font-size:15px;line-height:1.2}
+.stundenband .h .balken{height:4px;border-radius:99px;margin:5px 3px 0}
+.balken.gut{background:var(--ok,#5E9455)}
+.balken.maessig{background:var(--faellig,#D9A02B)}
+.balken.schlecht{background:var(--ueberfaellig,#C24B3D)}

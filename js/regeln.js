@@ -406,6 +406,27 @@ export const REGELN = [
   },
 ];
 
+/**
+ * Wetteransprüche je Aufgabe. Die Profile stecken in js/tracht.js:
+ *   oeffnen – Volk aufmachen, Waben ziehen  (12 °C aufwärts, trocken, windarm, hell)
+ *   as      – Ameisensäure                   (15–25 °C, sonst wirkungslos oder zu scharf)
+ *   os      – Oxalsäure im brutfreien Volk   (kalt, aber trocken)
+ *   trocken – Arbeit an der Beute von außen  (nur Regen und Sturm stören)
+ * Aufgaben ohne Eintrag (Werkstatt, Abfüllen, Meldungen) sind wetterunabhängig.
+ */
+const WETTERBEDARF = {
+  winterkontrolle: 'trocken', gewichtskontrolle: 'trocken',
+  erste_durchsicht: 'oeffnen', boden_waben: 'oeffnen', erweitern: 'oeffnen', baurahmen: 'oeffnen',
+  schwarmkontrolle: 'oeffnen', ableger: 'oeffnen',
+  honigraum: 'oeffnen', fruehtracht: 'oeffnen', sommertracht: 'oeffnen',
+  drohnenbrut: 'oeffnen', befallskontrolle: 'trocken',
+  sommerbehandlung1: 'as', sommerbehandlung2: 'as', behandlungserfolg: 'trocken',
+  restentmilbung: 'os',
+  auffuettern: 'trocken', auffuettern_ende: 'trocken',
+  wintersitz: 'oeffnen', mauseschutz: 'trocken',
+};
+for (const r of REGELN) if (WETTERBEDARF[r.id]) r.wetterbedarf = WETTERBEDARF[r.id];
+
 export const regelNach = (id) => REGELN.find((r) => r.id === id);
 
 // ============================================================================
@@ -431,7 +452,7 @@ export const AUSLOESER = [
       titel: nachBehandlung
         ? 'Varroa: Behandlungserfolg zu gering – nachbehandeln'
         : 'Varroa: Befall über der Schwelle – jetzt behandeln',
-      kategorie: 'varroa', wichtig: true, fenster: [0, 10],
+      kategorie: 'varroa', wichtig: true, fenster: [0, 10], wetterbedarf: 'oeffnen',
       info: t('Gemessen wurden {ist} Milben pro Tag. Die Schwelle für diesen Monat liegt bei '
         + '{soll}. Behandlungsverfahren nach Jahreszeit wählen (im Sommer Ameisensäure, im '
         + 'brutfreien Volk Oxalsäure) und danach erneut messen.',
@@ -444,7 +465,7 @@ export const AUSLOESER = [
     trifft: ({ daten }) => /weisellos/i.test(String(daten.koenigin || '')),
     aufgabe: () => ({
       titel: 'Weiselzustand klären – Volk ohne Königin',
-      kategorie: 'schwarm', wichtig: true, fenster: [0, 9],
+      kategorie: 'schwarm', wichtig: true, fenster: [0, 9], wetterbedarf: 'oeffnen',
       info: 'Weiselprobe mit offener Brut aus einem anderen Volk. Bauen die Bienen Nachschaffungszellen, '
         + 'ist das Volk weisellos: Königin zusetzen oder mit einem weiselrichtigen Volk vereinigen. '
         + 'Nicht warten – ein weiselloses Volk wird schnell drohnenbrütig.',
@@ -457,7 +478,7 @@ export const AUSLOESER = [
       || Number(daten.zellen || 0) >= 3,
     aufgabe: ({ daten }) => ({
       titel: 'Schwarmstimmung – in wenigen Tagen nachschauen',
-      kategorie: 'schwarm', wichtig: true, fenster: [4, 7],
+      kategorie: 'schwarm', wichtig: true, fenster: [4, 7], wetterbedarf: 'oeffnen',
       info: t('Bei der letzten Kontrolle: {befund}. Jetzt engmaschiger kontrollieren oder das '
         + 'Volk durch einen Ableger entlasten.',
       { befund: [daten.stimmung ? t(daten.stimmung) : '',
@@ -471,7 +492,7 @@ export const AUSLOESER = [
       && ((monat >= 11 || monat <= 3) ? Number(daten.futter) < 6 : Number(daten.futter) < 3),
     aufgabe: ({ daten }) => ({
       titel: 'Futter knapp – nachfüttern',
-      kategorie: 'winter', wichtig: true, fenster: [0, 7],
+      kategorie: 'winter', wichtig: true, fenster: [0, 7], wetterbedarf: 'trocken',
       info: t('Geschätzter Vorrat: {kg} kg. Im Winterhalbjahr Futterteig direkt über den Sitz '
         + 'legen, im Sommerhalbjahr Futtersirup geben. Ein verhungertes Volk ist der häufigste '
         + 'vermeidbare Verlust.', { kg: daten.futter }),

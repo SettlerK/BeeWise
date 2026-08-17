@@ -795,7 +795,22 @@ export const en = {
 
   // --------------------------------------------------------------- Abgleich
   'So richtest du es ein:': 'How to set this up:',
-  'Repository anlegen, z. B.': 'Create a repository, e.g.',
+  'Auf github.com ein': 'On github.com create a',
+  'Repository anlegen, z. B.': 'repository, e.g.',
+  'Nicht dasselbe wie die veröffentlichte App – dort lägen deine Daten sonst offen.':
+    'Not the same one as the published app – your data would be public there.',
+  'Schlüssel erzeugen. Achtung: das geschieht in den': 'Create a token. Note: this happens in your',
+  'Kontoeinstellungen': 'account settings',
+  ', nicht im Repository. Direkter Weg:': ', not in the repository. Direct link:',
+  '– oder Profilbild oben rechts → Settings → ganz unten':
+    '– or profile picture top right → Settings → at the very bottom',
+  '→ Personal access tokens →': '→ Personal access tokens →',
+  '→ Generate new token.': '→ Generate new token.',
+  'Dort einstellen:': 'There set:',
+  '→ dein Datenrepository, und unter Repository permissions':
+    '→ your data repository, and under Repository permissions',
+  'Schlüssel hier eintragen, Verbindung prüfen, speichern. Danach auf dem zweiten Gerät dasselbe eintragen.':
+    'Enter the token here, test the connection, save. Then enter the same on your second device.',
   privates: 'private',
   'Fine-grained personal access token': 'Fine-grained personal access token',
   'Contents: Read and write': 'Contents: Read and write',
@@ -814,4 +829,96 @@ export const en = {
   'Verbindung steht:': 'Connection works:',
   'Android/Chrome:': 'Android/Chrome:',
   'iPhone/Safari:': 'iPhone/Safari:',
+// ------------------------------------------------------------------- Wetter
+  Zurück: 'Back',
+  Schließen: 'Close',
+  'Wetter wird geladen …': 'Loading weather …',
+  'Wetter nicht verfügbar': 'Weather unavailable',
+  'Wind {n} km/h': 'wind {n} kph',
+  'Wetter · {ort}': 'Weather · {ort}',
+  '{was}, {grad} · Wind {wind} km/h, Böen {boen} km/h':
+    '{was}, {grad} · wind {wind} kph, gusts {boen} kph',
+  'Der Balken zeigt, wie gut sich in dieser Stunde am offenen Volk arbeiten lässt: Temperatur, Wind, Niederschlag, Bewölkung und Tageslicht.':
+    'The bar shows how well you can work on an open colony in that hour: temperature, wind, '
+    + 'precipitation, cloud cover and daylight.',
+  'Die nächsten Tage': 'The next few days',
+  'Betroffene Aufgaben ({n})': 'Affected tasks ({n})',
+  'Quelle: Open-Meteo, stündlich aktualisiert. Die Bewertung ist eine Faustregel – der Blick zum Flugloch bleibt die bessere Auskunft.':
+    'Source: Open-Meteo, updated hourly. The rating is a rule of thumb – watching the entrance '
+    + 'still tells you more.',
+  'Für diesen Standort liegen keine Wetterdaten vor.': 'No weather data for this apiary.',
+  // Eignung
+  gut: 'good',
+  mäßig: 'fair',
+  ungünstig: 'poor',
+  gereizt: 'edgy',
+  'Wetter ungünstig': 'Weather unsuitable',
+  'Bienen wahrscheinlich gereizt': 'Bees likely to be edgy',
+  'Wetter nur mäßig': 'Weather only fair',
+  'besser {wann}': 'better {wann}',
+  'Günstiger wäre es {wann}.': 'It would be better {wann}.',
+  'Das Wetter passt.': 'The weather is right.',
+  'Das Wetter ist nur mäßig geeignet.': 'The weather is only moderately suitable.',
+  'Das Wetter passt gerade nicht.': 'The weather is not right at the moment.',
+  'Gute Bedingungen für Arbeiten am Volk.': 'Good conditions for working on the colonies.',
+  'Mäßige Bedingungen für Arbeiten am Volk.': 'Fair conditions for working on the colonies.',
+  'Ungünstige Bedingungen für Arbeiten am Volk.': 'Poor conditions for working on the colonies.',
+  'Die Bienen sind wahrscheinlich gereizt: {gruende}. Ruhig arbeiten, Schleier auf, Rauch bereithalten.':
+    'The bees are likely to be edgy: {gruende}. Work calmly, veil on, smoker at hand.',
+  'Bienen wahrscheinlich gereizt: {gruende}.': 'Bees likely to be edgy: {gruende}.',
+  // Zeitfenster
+  früh: 'morning',
+  mittags: 'midday',
+  nachmittags: 'afternoon',
+  abends: 'evening',
+  '{tag} {teil}, {von}–{bis} Uhr': '{tag} {teil}, {von}:00–{bis}:00',
+  '{tag} {teil}, ab {von} Uhr': '{tag} {teil}, from {von}:00',
+  // Bewertungsgründe
+  Dunkelheit: 'darkness',
+  'zu kalt ({t} °C)': 'too cold ({t} °C)',
+  'kühl ({t} °C)': 'chilly ({t} °C)',
+  'zu heiß ({t} °C)': 'too hot ({t} °C)',
+  'sehr warm ({t} °C)': 'very warm ({t} °C)',
+  Niederschlag: 'precipitation',
+  'Regenrisiko {n} %': '{n} % chance of rain',
+  'starker Wind ({n} km/h)': 'strong wind ({n} kph)',
+  'windig ({n} km/h)': 'windy ({n} kph)',
+  'Böen bis {n} km/h': 'gusts up to {n} kph',
+  Gewitter: 'thunderstorm',
+  'bedeckt – die Flugbienen sitzen zu Hause': 'overcast – the foragers are all at home',
+  'Gewitter in den nächsten Stunden': 'thunderstorms in the next few hours',
+  'rasch fallender Luftdruck': 'rapidly falling air pressure',
+  'kühl und bedeckt – die ganze Flugbiene sitzt im Stock':
+    'chilly and overcast – every forager is inside the hive',
+  'starker Wind': 'strong wind',
+  Regen: 'rain',
+  schwül: 'muggy',
+  'Trachtlücke – Räubereigefahr': 'forage gap – risk of robbing',
+  // Wetterlagen (WMO)
+  klar: 'clear',
+  'überwiegend klar': 'mostly clear',
+  'teils bewölkt': 'partly cloudy',
+  bedeckt: 'overcast',
+  Nebel: 'fog',
+  Reifnebel: 'rime fog',
+  'leichter Niesel': 'light drizzle',
+  Niesel: 'drizzle',
+  'starker Niesel': 'heavy drizzle',
+  'gefrierender Niesel': 'freezing drizzle',
+  'leichter Regen': 'light rain',
+  'starker Regen': 'heavy rain',
+  'gefrierender Regen': 'freezing rain',
+  'leichter Schneefall': 'light snow',
+  Schneefall: 'snow',
+  'starker Schneefall': 'heavy snow',
+  Schneegriesel: 'snow grains',
+  Regenschauer: 'rain showers',
+  'kräftige Schauer': 'heavy showers',
+  Schneeschauer: 'snow showers',
+  'Gewitter mit Hagel': 'thunderstorm with hail',
+  unbestimmt: 'unsettled',
+  // Kalender
+  'Jede offene Aufgabe steht genau einmal im Kalender: an ihrem nächsten Arbeitstag. Bleibt sie liegen, rückt sie mit jedem vergangenen Tag einen Tag weiter. Tippen für die Liste.':
+    'Every open task appears exactly once in the calendar: on its next working day. If it is left '
+    + 'undone, it moves on by one day for every day that passes. Tap for the list.',
 };

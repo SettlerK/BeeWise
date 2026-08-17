@@ -146,7 +146,8 @@ index.html              Gerüst, Tabbar
 css/app.css             Design-Tokens, Hell/Dunkel automatisch
 js/util.js              Datums- und Formathelfer (lokale Zeit, keine UTC-Fallen)
 js/db.js                IndexedDB + Export/Import + vorbereiteter Sync
-js/tracht.js            Wetterabruf, Klimatologie, Wärmesummen-Modell
+js/tracht.js            Wetterabruf, Klimatologie, Wärmesummen-Modell,
+                        Stundenvorhersage und imkerliche Wetterbewertung
 js/regeln.js            Regelkatalog – hier steht das imkerliche Wissen
 js/engine.js            Fälligkeitsberechnung, Abhängigkeiten, Trachtfragen
 js/aufgaben.js          eigene und automatisch ausgelöste Aufgaben
@@ -215,7 +216,7 @@ zwei Imkern am selben Volk wäre feldweises Mergen besser.
 | Reiter | Inhalt |
 |---|---|
 | **Heute** | Kennzahlen, Trachtrückfragen, Aufgaben nach Dringlichkeit gruppiert, Kategorienfilter, eigene Aufgabe anlegen, Kalenderexport, aufklappbarer Aufgabenkatalog |
-| **Kalender** | Monatsraster mit Aufgabenzahl je Tag, Tag antippen zeigt die Liste |
+| **Kalender** | Monatsraster; jede offene Aufgabe steht an genau einem Tag – ihrem nächsten Arbeitstag – und rückt weiter, solange sie liegen bleibt. Tag antippen zeigt die Liste |
 | **Völker** | nach Standort gruppiert, mit Luftbild oder eigenem Foto; Detailseite mit Aufgaben, Saisonbilanz, Volksstärkekurve und vollständigem Verlauf |
 | **Tracht** | je Standort einklappbar, Art antippen zeigt Bild und Beschreibung, Blüte bestätigen |
 | **Mehr** | Stände, Völkerverwaltung, PDF-Berichte, Geräteabgleich, Sicherung, Erinnerungen |
@@ -243,6 +244,15 @@ Details, die im Alltag zählen:
   die Bestandsdokumentation und die vollständige Stockkarte eines Volkes.
 * **Kalenderexport:** ein Sammeltermin je Stichtag („Imkereiaufgaben offen (3)"), nicht ein
   Eintrag je Aufgabe – sonst wäre der Kalender unbrauchbar. Details stehen in der App.
+* **Wetter je Bienenstand:** eine kompakte Zeile mit Lage, Temperatur und Wind, dazu eine
+  Bewertung („gut / mäßig / ungünstig / gereizt"). Antippen öffnet die Stunden der nächsten
+  24 Stunden, die nächsten Tage und die betroffenen Aufgaben.
+* **Wetter terminiert mit:** Aufgaben tragen einen Wetteranspruch (`oeffnen`, `as`, `os`,
+  `trocken`). Passt die Lage nicht, steht am Kärtchen ein Hinweis wie „Bienen wahrscheinlich
+  gereizt · besser morgen früh, ab 6 Uhr"; im Aufgabenfenster stehen die Gründe.
+* **Zurück kommt man immer:** Fenster haben oben einen Zurück-Knopf und ein Kreuz, reagieren
+  auf Escape, auf Wischen nach unten, auf Tippen daneben und auf die Zurück-Taste des Geräts.
+  Aus der Volksansicht führt der Pfeil in der Kopfzeile zur Liste.
 * **Trachtbilder:** echte Fotos aus Wikipedia, klein neben dem Namen, groß beim Aufklappen.
   Botanische Zeichnungen werden automatisch aussortiert; die Bilder werden vollständig
   angezeigt statt beschnitten.
@@ -397,6 +407,31 @@ export const SCHLUESSEL = 'DEIN_SCHLUESSEL'; // nur bei maptiler
 MapTiler: kostenloses Konto, 100.000 Kacheln im Monat frei – das reicht für eine
 Imkerei-App mit einigen hundert Nutzern locker. `osm` ist der auflagenfreie Rückfall,
 allerdings ohne Luftbild.
+
+## Wetter und Aufgaben
+
+Neben der Klimatologie für die Blühtermine holt BeeWise je Standort eine **Stundenvorhersage**
+(Open-Meteo, `forecast_days=3`, stündlich neu). Daraus entstehen zwei Dinge:
+
+**Arbeitseignung.** Jede Stunde bekommt eine Punktzahl aus Temperatur, Wind und Böen,
+Niederschlag und Regenwahrscheinlichkeit, Bewölkung, Gewitter und Tageslicht. Die Schwellen
+hängen an der Art der Arbeit:
+
+| Profil | wofür | Kernwerte |
+|---|---|---|
+| `oeffnen` | Volk aufmachen, Waben ziehen | ab 12 °C, gut 15–30 °C, Wind < 25 km/h, trocken, hell |
+| `as` | Ameisensäure | gut 15–25 °C – darunter wirkt sie kaum, darüber wird sie scharf |
+| `os` | Oxalsäure im brutfreien Volk | 0–8 °C, trocken |
+| `trocken` | Arbeit von außen (Mäusegitter, Windel, Futter) | nur Regen und Sturm stören |
+
+**Reizlage.** Unabhängig davon prüft die App, ob die Bienen wahrscheinlich stechlustig sind:
+Gewitter in den nächsten Stunden, rasch fallender Luftdruck (≥ 3 hPa in sechs Stunden),
+kühl und bedeckt (die gesamte Flugbiene sitzt dann im Stock), starker Wind, Regen, Schwüle
+und Trachtlücke.
+
+Passt es gerade nicht, sucht BeeWise das nächste zusammenhängende Fenster mit guter Bewertung
+und nennt es: „besser morgen früh, ab 6 Uhr". Die Termine selbst verschiebt das Wetter nicht –
+die Entscheidung bleibt beim Imker.
 
 ## Was bewusst noch fehlt
 
