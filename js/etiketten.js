@@ -82,3 +82,47 @@ export function etikettenPDF(voelker, { basis, standortName = (v) => '' } = {}) 
 
   return p;
 }
+
+/**
+ * Kleine Aufkleber mit Los-Nummer und Mindesthaltbarkeit.
+ * Gedacht zum Ergänzen vorgedruckter Etiketten: Sorte, Füllmenge, Los und MHD
+ * sind die vier Angaben, die von Charge zu Charge wechseln – alles andere (Name,
+ * Anschrift, „Deutscher Honig") steht auf dem gekauften Etikett.
+ *
+ * Raster 4 × 12 auf A4, also 48 Stück je Bogen bei 47 × 22 mm.
+ */
+export function losEtikettenPDF(charge, stueck, { imkerei = '', mhdText = null } = {}) {
+  const p = new PDF({ schlicht: true });
+  const spalten = 4; const zeilen = 12;
+  const randX = 10 * MM; const randY = 12 * MM;
+  const breite = (595.28 - 2 * randX) / spalten;
+  const hoehe = (841.89 - 2 * randY) / zeilen;
+  const mhd = mhdText || (charge.mhd && String(charge.mhd).includes('-')
+    ? `${String(charge.mhd).slice(5, 7)}/${String(charge.mhd).slice(0, 4)}` : charge.mhd || '');
+
+  const anzahl = Math.max(1, Math.min(Number(stueck) || 1, 480));
+  for (let i = 0; i < anzahl; i++) {
+    const platz = i % (spalten * zeilen);
+    if (i && platz === 0) p.neueSeite();
+    const x = randX + (platz % spalten) * breite;
+    const y = 841.89 - randY - (Math.floor(platz / spalten) + 1) * hoehe;
+
+    p.rahmen(x, y, breite, hoehe);
+    const tx = x + 4 * MM;
+    const maxB = breite - 8 * MM;
+    p.textAn(t(charge.sorte || 'Honig'), tx, y + hoehe - 12,
+      { groesse: 8.5, fett: true, maxBreite: maxB });
+    p.textAn(`${charge.glasgroesse} g`, tx, y + hoehe - 22, { groesse: 7.5, maxBreite: maxB });
+    if (charge.losnummer) {
+      p.textAn(`${t('Los')} ${charge.losnummer}`, tx, y + hoehe - 32,
+        { groesse: 7, grau: true, maxBreite: maxB });
+    }
+    if (mhd) {
+      p.textAn(`${t('mind. haltbar bis Ende')} ${mhd}`, tx, y + 9,
+        { groesse: 7, maxBreite: maxB });
+    } else if (imkerei) {
+      p.textAn(imkerei, tx, y + 9, { groesse: 6.5, grau: true, maxBreite: maxB });
+    }
+  }
+  return p;
+}

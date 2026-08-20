@@ -1312,4 +1312,347 @@ export const en = {
   'Mäusegitter einhängen': 'Fit mouse guards',
   'Schatten und Wasser am Stand prüfen': 'Check shade and water at the apiary',
   'Standplatz nach Starkregen prüfen': 'Check the site after heavy rain',
+
+  // -------------------------------------------------------------- Kassenbuch
+  'Honig und Geld': 'Honey and money',
+  Kassenbuch: 'Cash book',
+  'voriges Jahr': 'previous year',
+  'nächstes Jahr': 'next year',
+  '{n} Gläser': '{n} jars',
+  '{kg} der Ernte sind noch nicht als Abfüllung gebucht – entweder steht der Honig noch im Eimer, oder eine Buchung fehlt.':
+    '{kg} of the harvest has not been booked as bottled yet – either the honey is still in '
+    + 'the bucket, or an entry is missing.',
+  'Noch keine Zahlen für dieses Jahr. Die Ernte kommt von selbst aus den abgehakten Ernteaufgaben; Abfüllen, Verkauf und Ausgaben buchst du hier.':
+    'No figures for this year yet. The harvest comes in by itself from the completed harvest '
+    + 'tasks; bottling, sales and expenses are booked here.',
+  'Ernte je Stand': 'Harvest per apiary',
+  '{n} Völker mit Ernte': '{n} colonies with a harvest',
+  'nach Völkern aufschlüsseln': 'break down by colony',
+  Lagerbestand: 'Stock',
+  Sorte: 'Variety',
+  Glas: 'Jar',
+  'abgefüllt': 'bottled',
+  verkauft: 'sold',
+  'im Lager': 'in stock',
+  'Zusammen {n} Gläser, das sind {kg}. Der Bestand läuft über alle Jahre – Honig vom Vorjahr steht im Januar noch im Regal.':
+    '{n} jars in total, that is {kg}. Stock runs across all years – last year’s honey is still '
+    + 'on the shelf in January.',
+  'Mindesthaltbarkeit läuft ab': 'Best-before date is approaching',
+  '{sorte} {los}: {n} Gläser bis {mhd}': '{sorte} {los}: {n} jars until {mhd}',
+  'Abgefüllt': 'Bottled',
+  'MHD {m}': 'best before {m}',
+  'Noch keine Abfüllung gebucht.': 'No bottling booked yet.',
+  'Abfüllung buchen': 'Book a bottling',
+  'Los-Etiketten (PDF)': 'Batch labels (PDF)',
+  Verkauft: 'Sold',
+  'Noch kein Verkauf gebucht.': 'No sale booked yet.',
+  'Verkauf buchen': 'Book a sale',
+  Ausgaben: 'Expenses',
+  'Noch keine Ausgabe gebucht.': 'No expense booked yet.',
+  'nach Art zusammengefasst': 'summarised by type',
+  'Ausgabe buchen': 'Book an expense',
+  Auswertung: 'Reports',
+  'Jahresübersicht (PDF)': 'Yearly summary (PDF)',
+  'Buchungen (CSV)': 'Entries (CSV)',
+  'BeeWise führt keine Buchhaltung: keine Umsatzsteuer, keine Abschreibung, kein Konto. Es sammelt die Zahlen so, dass du sie weiterreichen kannst, wenn die Imkerei einmal steuerlich zählt.':
+    'BeeWise does not do bookkeeping: no VAT, no depreciation, no accounts. It collects the '
+    + 'figures so you can hand them on if the apiary ever counts for tax.',
+  'Was ins Glas kommt – die Ernte selbst steht schon in den Aufgaben.':
+    'What goes into the jar – the harvest itself is already in the tasks.',
+  'Pflicht auf dem Glas sind Mindesthaltbarkeit und Füllmenge. Steht das Datum mit Tag, Monat und Jahr darauf, ersetzt es die Los-Nummer – mit Monat und Jahr, wie hier vorgeschlagen, brauchst du die Nummer zusätzlich.':
+    'The jar must carry a best-before date and the net weight. If that date shows day, month '
+    + 'and year, it replaces the batch number – with month and year, as suggested here, you '
+    + 'need the number as well.',
+  'Anzahl und Glasgröße fehlen.': 'Number of jars and jar size are missing.',
+  'Abfüllung gebucht: {n} × {g} g': 'Bottling booked: {n} × {g} g',
+  'Diese Abfüllung löschen?': 'Delete this bottling?',
+  'Abfüllung gelöscht.': 'Bottling deleted.',
+  'im Lager: {was}': 'in stock: {was}',
+  'Anzahl fehlt.': 'The number of jars is missing.',
+  'Verkauf gebucht: {b}': 'Sale booked: {b}',
+  'Diesen Verkauf löschen?': 'Delete this sale?',
+  'Verkauf gelöscht.': 'Sale deleted.',
+  'Betrag fehlt.': 'The amount is missing.',
+  'Ausgabe gebucht: {b}': 'Expense booked: {b}',
+  'Diese Ausgabe löschen?': 'Delete this expense?',
+  'Ausgabe gelöscht.': 'Expense deleted.',
+  'Geerntet, abgefüllt, verkauft, Ausgaben – Zahlen für das Jahr':
+    'Harvested, bottled, sold, expenses – the figures for the year',
+  '{kg} geerntet': '{kg} harvested',
+  '{n} Gläser im Lager': '{n} jars in stock',
+  'Überschuss {b}': 'surplus {b}',
+  'Keine Abfüllung in diesem Jahr.': 'No bottling this year.',
+  'Kleine Aufkleber mit Sorte, Los-Nummer, MHD und Füllmenge – zum Ergänzen vorgedruckter Etiketten.':
+    'Small stickers with variety, batch number, best-before date and net weight – to complete '
+    + 'pre-printed labels.',
+  'Bogen erzeugen': 'Create sheet',
+  '{n} Aufkleber erzeugt.': '{n} stickers created.',
+  'Jahresübersicht erstellt.': 'Yearly summary created.',
+  'Buchungen als CSV gespeichert.': 'Entries saved as CSV.',
+  'Abfülltag': 'Bottling day',
+  'Los-Nummer': 'Batch number',
+  'Damit kommst du von einem Glas zurück auf den Abfülltag.':
+    'This is what takes you from a jar back to the bottling day.',
+  'Mindestens haltbar bis': 'Best before end of',
+  'Üblich sind zwei Jahre ab Abfüllung.': 'Two years from bottling is the usual figure.',
+  'Abfüllung ändern': 'Change bottling',
+  'Verkauf ändern': 'Change sale',
+  'Ausgabe ändern': 'Change expense',
+  'Preis je Glas': 'Price per jar',
+  'Wie verkauft': 'How it was sold',
+  Kunde: 'Customer',
+  'Freiwillig. Der Name liegt auf dem Gerät und geht in den Geräteabgleich mit.':
+    'Optional. The name stays on the device and travels with the device sync.',
+  Betrag: 'Amount',
+  'Wie viele Aufkleber': 'How many stickers',
+  Charge: 'Batch',
+  'Los-Etiketten': 'Batch labels',
+  Los: 'Batch',
+  'mind. haltbar bis Ende': 'best before end of',
+
+  // Sorten, Verkaufs- und Ausgabenarten
+  'Frühtracht': 'Spring flow',
+  Sommertracht: 'Summer flow',
+  Blütenhonig: 'Blossom honey',
+  Rapshonig: 'Rapeseed honey',
+  Lindenhonig: 'Lime honey',
+  Waldhonig: 'Forest honey',
+  Mischung: 'Blend',
+  'Haustür': 'At the door',
+  Markt: 'Market',
+  Wiederverkauf: 'Resale',
+  Verschenkt: 'Given away',
+  Eigenbedarf: 'Own use',
+  'Zucker und Futter': 'Sugar and feed',
+  Behandlungsmittel: 'Treatment products',
+  'Gläser und Deckel': 'Jars and lids',
+  'Mittelwände und Wachs': 'Foundation and wax',
+  'Rähmchen und Beuten': 'Frames and hives',
+  'Geräte': 'Equipment',
+  'Gebühren und Beiträge': 'Fees and subscriptions',
+  Fahrtkosten: 'Travel costs',
+  Sonstiges: 'Other',
+
+  // Kassenbuch-PDF
+  'Honigbilanz und Kassenbuch {jahr}': 'Honey balance and cash book {jahr}',
+  'Kassenbuch {jahr}': 'Cash book {jahr}',
+  'Das Jahr in Zahlen': 'The year in figures',
+  Kennzahl: 'Figure',
+  Wert: 'Value',
+  geerntet: 'harvested',
+  'Gläser': 'jars',
+  Einnahmen: 'Income',
+  'Überschuss': 'Surplus',
+  'Erlös je Kilo': 'Return per kilo',
+  'Ernte je Volk': 'Harvest per colony',
+  'Abfüllungen ({n})': 'Bottlings ({n})',
+  MHD: 'Best before',
+  'Verkäufe ({n})': 'Sales ({n})',
+  'Ausgaben ({n})': 'Expenses ({n})',
+  'Ausgaben nach Art': 'Expenses by type',
+  'Diese Übersicht ist keine Buchhaltung und keine Steuererklärung: sie enthält keine Umsatzsteuer, keine Abschreibungen und keine Bewertung des Lagerbestands. Sie sammelt die Zahlen so, wie sie beim Imkern anfallen.':
+    'This summary is not bookkeeping and not a tax return: it contains no VAT, no depreciation '
+    + 'and no valuation of the stock. It collects the figures as they arise in beekeeping.',
+  'Gläser abgefüllt': 'jars bottled',
+  eingenommen: 'taken in',
+  ausgegeben: 'spent',
+  'je Kilo verkauft': 'per kilo sold',
+
+  // -------------------------------------------------------------- Wabenalter
+  Waben: 'Combs',
+  'Rähmchen buchen': 'Book frames',
+  'Noch keine Rähmchen erfasst. Sobald du beim Erweitern oder bei der Wabenhygiene die Stückzahl mit einträgst, rechnet BeeWise das Wabenalter mit – und schlägt zu alte Waben zum Ausschmelzen vor.':
+    'No frames recorded yet. As soon as you enter the number when adding a box or renewing '
+    + 'combs, BeeWise tracks comb age – and suggests which combs to melt down.',
+  '{n} Jahre alt': '{n} years old',
+  ausschmelzen: 'melt down',
+  'Rähmchen je Jahrgang, {n} insgesamt': 'Frames per vintage, {n} in total',
+  '{n} Waben wurden bisher ausgeschmolzen – abgezogen werden immer die ältesten Jahrgänge.':
+    '{n} combs have been melted down so far – always deducted from the oldest vintages.',
+  '{n} Rähmchen erfasst': '{n} frames recorded',
+  'Erfasst wird je Jahrgang eine Stückzahl, nicht jede Wabe einzeln – das ist am offenen Volk das Einzige, was man wirklich durchhält. Ausgeschmolzene Waben zieht BeeWise von den ältesten Jahrgängen ab.':
+    'You record a count per vintage, not each comb individually – at the open hive that is the '
+    + 'only thing anyone keeps up. Melted combs are deducted from the oldest vintages.',
+  '{n} Waben als ausgeschmolzen gebucht.': '{n} combs booked as melted down.',
+  '{n} Rähmchen als Jahrgang {j} gebucht.': '{n} frames booked as vintage {j}.',
+  'Was ist passiert': 'What happened',
+  'neu eingehängt': 'newly added',
+  'Anzahl Rähmchen': 'Number of frames',
+  'Das Jahr, in dem die Mittelwand ins Volk kam. Für Altbestand ruhig schätzen.':
+    'The year the foundation went into the colony. For older combs, an estimate is fine.',
+  'Alle erfassten Waben sind ausgeschmolzen.': 'All recorded combs have been melted down.',
+  'Keine Wabe ist älter als {n} Jahre – die Erneuerung läuft.':
+    'No comb is older than {n} years – renewal is on track.',
+  '{n} von {g} Waben sind {j} Jahre und älter. Im Frühjahr ausschmelzen und durch Mittelwände ersetzen.':
+    '{n} of {g} combs are {j} years or older. Melt them down in spring and replace them with '
+    + 'foundation.',
+  'Neue Rähmchen eingehängt': 'New frames added',
+  'Zählt für das Wabenalter – aus der Zahl weiß BeeWise später, welche Waben ausgeschmolzen werden sollten.':
+    'Counts towards comb age – from this number BeeWise later knows which combs should be '
+    + 'melted down.',
+  'Werden beim Wabenalter von den ältesten Jahrgängen abgezogen.':
+    'Deducted from the oldest vintages in the comb-age figures.',
+
+  // Foto am Bienenstand
+  'Foto vom Stand aufnehmen – es ersetzt das Luftbild in den Listen. Bleibt auf diesem Gerät.':
+    'Take a photo of the apiary – it replaces the aerial image in the lists. Stays on this device.',
+
+  // ------------------------------------------------------------ Winterbilanz
+  Auswertungen: 'Reports',
+  Winterbilanz: 'Winter balance',
+  'nicht mehr im Bestand{grund}': 'no longer in the apiary{grund}',
+  '{name}: {r} % Verlust': '{name}: {r} % losses',
+  'Eingewintert, durchgekommen, Verlustrate je Jahr und Stand':
+    'Wintered, survived, loss rate per year and apiary',
+  '{name}: {n} eingewintert, {o} noch nicht bewertet':
+    '{name}: {n} wintered, {o} not yet assessed',
+  '{name}: {v} von {n} verloren': '{name}: {v} of {n} lost',
+  '{n} eingewintert': '{n} wintered',
+  'vorige Saison': 'previous season',
+  'nächste Saison': 'next season',
+  'davon {n} schwach': '{n} of them weak',
+  'Auswinterung erfassen': 'Record spring assessment',
+  'Einwinterung erfassen': 'Record wintering',
+  'Völker dieser Saison': 'Colonies this season',
+  'gelöschtes Volk': 'deleted colony',
+  'noch offen': 'not yet assessed',
+  'Woran die Völker eingingen': 'What the colonies died of',
+  'Die Ursache ist der eigentliche Ertrag dieser Statistik: eine Quote allein sagt nur, dass es schiefging.':
+    'The cause is the real yield of these figures: a rate alone only says that something '
+    + 'went wrong.',
+  'Je Stand': 'Per apiary',
+  Stand: 'Apiary',
+  eingewintert: 'wintered',
+  Rate: 'Rate',
+  'Verlustrate über die Jahre': 'Loss rate over the years',
+  'Anteil verlorener Völker je Saison': 'Share of colonies lost per season',
+  'Zum Vergleich: über mehrere Jahre gemittelt liegen die üblichen Winterverluste im niedrigen zweistelligen Bereich. Ein einzelner Winter sagt wenig – die Reihe sagt viel.':
+    'For comparison: averaged over several years, usual winter losses are in the low double '
+    + 'digits. A single winter says little – the series says a lot.',
+  'Von Hand erfasst': 'Entered by hand',
+  '{n} eingewintert, {v} verloren': '{n} wintered, {v} lost',
+  'Zahlen aus der Erinnerung': 'figures from memory',
+  'Frühere Saison von Hand erfassen': 'Add an earlier season by hand',
+  'Alle Völker sind für diese Saison erfasst.': 'All colonies are recorded for this season.',
+  'Einwinterung {saison}': 'Wintering {saison}',
+  'Welche Völker gehen in den Winter?': 'Which colonies are going into winter?',
+  'Nur ankreuzen, was tatsächlich eingewintert wird. Ein Volk, das im Herbst schon aufgelöst oder vereinigt wurde, gehört nicht in die Rechnung – sonst schönt oder verdirbt es die Verlustrate.':
+    'Only tick what is actually wintered. A colony that was united or dissolved in autumn does '
+    + 'not belong in the figures – it would flatter or spoil the loss rate.',
+  'ohne Standort': 'no apiary',
+  '{n} Völker eingewintert.': '{n} colonies wintered.',
+  'Für diese Saison ist alles ausgewertet.': 'Everything is assessed for this season.',
+  Grund: 'Cause',
+  'Grund wählen': 'Choose a cause',
+  'Auswinterung {saison}': 'Spring assessment {saison}',
+  '{n} Völker warten auf die Auswertung': '{n} colonies waiting to be assessed',
+  '„Schwach" zählt als durchgekommen – das Volk lebt. Bei „verloren" bitte den Grund angeben: die Ursache ist der eigentliche Ertrag dieser Statistik.':
+    '“Weak” counts as survived – the colony is alive. For “lost”, please give the cause: the '
+    + 'cause is the real yield of these figures.',
+  'Verlorene Völker aus dem Bestand nehmen': 'Remove lost colonies from the apiary',
+  'Der Verlauf bleibt erhalten, aber es entstehen keine neuen Aufgaben mehr.':
+    'The history is kept, but no new tasks are created.',
+  '{n} Völker bewertet, {v} verloren.': '{n} colonies assessed, {v} lost.',
+  '{n} Völker bewertet – alle durchgekommen.': '{n} colonies assessed – all survived.',
+  'Eintrag löschen': 'Delete entry',
+  'Gespeichert.': 'Saved.',
+  'Zahlen ändern': 'Change figures',
+  'Frühere Saison erfassen': 'Add an earlier season',
+  'Für Jahre, in denen du BeeWise noch nicht benutzt hast. Diese Zahlen erscheinen getrennt als „von Hand erfasst" – man soll sehen, welche Werte aus der Erfassung und welche aus der Erinnerung stammen.':
+    'For years when you were not using BeeWise yet. These figures are shown separately as '
+    + '“entered by hand” – you should be able to see which numbers come from records and which '
+    + 'from memory.',
+  '{n} Völker eingewintert. Im Frühjahr die Auswinterung erfassen – dann steht hier die Verlustrate.':
+    '{n} colonies wintered. Record the spring assessment and the loss rate will appear here.',
+  '{n} von {g} Völkern sind noch nicht ausgewertet. Die Rate wird erst aus den bewerteten Völkern gerechnet.':
+    '{n} of {g} colonies have not been assessed yet. The rate is calculated from the assessed '
+    + 'colonies only.',
+  'Alle {n} Völker sind durch den Winter gekommen.': 'All {n} colonies came through the winter.',
+  '{v} von {n} Völkern verloren – {r} %.': '{v} of {n} colonies lost – {r} %.',
+  Ausgang: 'Outcome',
+  'Grund bei Verlust': 'Cause if lost',
+  durchgekommen: 'survived',
+  schwach: 'weak',
+  Eingewintert: 'Wintered',
+  Verloren: 'Lost',
+  'Verlustrate': 'Loss rate',
+
+  // Verlustgründe
+  'Varroa / Zusammenbruch': 'Varroa / collapse',
+  'verhungert': 'starved',
+  'Nosema / Ruhr': 'Nosema / dysentery',
+  'Räuberei': 'Robbing',
+  'Mäuse oder Umsturz': 'Mice or hive toppled',
+  'zu schwach eingewintert': 'wintered too weak',
+
+  // ----------------------------------------------------------------- Gewicht
+  Wiegen: 'Weigh',
+  Gewicht: 'Weight',
+  'Noch nichts gewogen. Vier bis sechs Wägungen im Jahr genügen: nach der letzten Ernte (das ist der Nullpunkt), nach jeder Futtergabe, im Oktober, im Dezember und im Februar. Daraus rechnet BeeWise Futtervorrat und Zehrung.':
+    'Nothing weighed yet. Four to six weighings a year are enough: after the last harvest (that '
+    + 'is the zero point), after each feed, in October, in December and in February. From those '
+    + 'BeeWise works out the stores and the consumption.',
+  'Eine einzelne Wägung: {kg} kg am {d}. Die zweite macht daraus eine Aussage.':
+    'A single weighing: {kg} kg on {d}. The second one turns it into a statement.',
+  Nullpunkt: 'zero point',
+  'Ernte, Zarge, Futter': 'harvest, box, feed',
+  'Als Nullpunkt gilt die erste Wägung nach der letzten Ernte ({d}). Beim Wiegen lässt sich das ausdrücklich setzen.':
+    'The first weighing after the last harvest ({d}) is used as the zero point. You can set it '
+    + 'explicitly when weighing.',
+  'zuletzt {kg} kg am {d} ({art})': 'last time {kg} kg on {d} ({art})',
+  'Die Waage ist gut für Unterschiede, nicht für Absolutwerte: unter einem Kilo ist alles Rauschen. Wichtig ist, immer an derselben Stelle und gleich weit anzuheben.':
+    'The scale is good for differences, not for absolute figures: anything under a kilo is '
+    + 'noise. What matters is lifting at the same spot and by the same amount every time.',
+  'Als Nullpunkt setzen': 'Set as zero point',
+  'Direkt nach der letzten Ernte: dann ist fast kein Vorrat im Volk, und alles Weitere ist Futter.':
+    'Right after the last harvest: there is almost no store in the colony then, and everything '
+    + 'after that is feed.',
+  'Gewicht fehlt.': 'The weight is missing.',
+  '{kg} kg gespeichert.': '{kg} kg saved.',
+  '{name}: Futter wird knapp': '{name}: stores are running low',
+  'Rund {rest} kg Vorrat bei {pro} kg Zehrung im Monat – bis Mitte März fehlen etwa {fehlt} kg. Futterteig direkt über den Sitz legen, kein Zuckerwasser.':
+    'About {rest} kg of stores at {pro} kg consumed per month – some {fehlt} kg short of '
+    + 'mid-March. Put fondant directly above the cluster, not syrup.',
+  'Wie gewogen': 'How it was weighed',
+  'Kippprobe hinten': 'tilt test at the back',
+  'ganze Beute': 'whole hive',
+  'Immer gleich ansetzen. Kippprobe und ganze Beute werden getrennt gerechnet.':
+    'Always lift the same way. Tilt tests and whole-hive weights are kept apart.',
+  'Nur wenn du wiegst. Immer gleich ansetzen, sonst ist die Reihe wertlos.':
+    'Only if you weigh. Always lift the same way, or the series is worthless.',
+  'Nur wenn du wiegst. Immer gleich ansetzen – aus zwei Wägungen wird die Zehrung.':
+    'Only if you weigh. Always lift the same way – two weighings give you the consumption.',
+  'Gewicht gewogen': 'Weight measured',
+  'Kofferwaage an der Hinterkante. Aus zwei Wägungen rechnet BeeWise die Zehrung und sagt, wie lange der Vorrat reicht.':
+    'Luggage scale at the back edge. From two weighings BeeWise works out the consumption and '
+    + 'how long the stores will last.',
+  'Erste Wägung: {kg} kg am {d}. Ab der zweiten Wägung rechnet BeeWise die Differenz.':
+    'First weighing: {kg} kg on {d}. From the second one BeeWise calculates the difference.',
+  'Seit {d} nahezu unverändert ({diff} kg in {n}) – das liegt im Rauschen der Methode.':
+    'Practically unchanged since {d} ({diff} kg in {n} days) – that is within the noise of the '
+    + 'method.',
+  'Seit {d} plus {diff} kg in {n}.': 'Up {diff} kg since {d}, over {n}.',
+  'Seit {d} minus {diff} kg in {n}, also gut {m} kg im Monat.':
+    'Down {diff} kg since {d} over {n}, so a good {m} kg a month.',
+  '1 Tag': '1 day',
+  '{n} Tagen': '{n} days',
+  'Über dem Nullpunkt vom {d}: {gem} kg an der Kippprobe, umgerechnet etwa {kg} kg Vorrat{eigen}.':
+    'Above the zero point of {d}: {gem} kg on the tilt test, which works out at roughly {kg} kg '
+    + 'of stores{eigen}.',
+  '(mit deinem eigenen Verhältnis gerechnet)': '(using your own ratio)',
+  '(Faustwert: Kippprobe × 2)': '(rule of thumb: tilt test × 2)',
+  'Über dem Nullpunkt vom {d}: {kg} kg Vorrat.': 'Above the zero point of {d}: {kg} kg of stores.',
+  'Gegeben wurden {g} kg, davon dürften rund {e} kg als Winterfutter hängen bleiben.':
+    '{g} kg were fed, of which roughly {e} kg should end up as winter stores.',
+  'Ziel für diese Beute: {ziel} kg – rechnerisch fehlen {fehlt} kg.':
+    'Target for this hive: {ziel} kg – on paper {fehlt} kg are missing.',
+  'Bei diesem Verbrauch reicht der Vorrat noch etwa {m} Monate – bis zur Weide genügt das.':
+    'At this rate the stores will last about {m} more months – enough to reach the first flow.',
+  'Bei diesem Verbrauch reicht der Vorrat nur noch etwa {m} Monate. Bis Mitte März fehlen rund {f} kg – Futterteig auflegen.':
+    'At this rate the stores will only last about {m} more months. Some {f} kg short of '
+    + 'mid-March – add fondant.',
+  'Achtung: es wurde auf zwei Arten gewogen. Verglichen wird nur innerhalb derselben Art.':
+    'Note: two different weighing methods were used. Only weighings of the same kind are '
+    + 'compared.',
+  'keine Koordinaten': 'no coordinates',
 };

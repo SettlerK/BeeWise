@@ -40,13 +40,17 @@ export const SCHNELL = [
   { key: 'futter', label: 'Futter geschätzt', typ: 'zahl', einheit: 'kg' },
   { key: 'sanftmut', label: 'Sanftmut', typ: 'wahl', optionen: ['1', '2', '3', '4', '5'],
     hinweis: '1 stechlustig … 5 sanft' },
+  // Nur ausfüllen, wenn die Waage dabei ist – vier bis sechs Wägungen im Jahr
+  // genügen (siehe js/gewicht.js). Deshalb steht das Feld am Ende und leer.
+  { key: 'gewicht', label: 'Gewicht', typ: 'zahl', einheit: 'kg',
+    hinweis: 'Nur wenn du wiegst. Immer gleich ansetzen, sonst ist die Reihe wertlos.' },
 ];
 
 /** Was „ohne Befund" bedeutet – ausdrücklich, damit niemand raten muss. */
 export const OHNE_BEFUND = { koenigin: 'weiselrichtig', stimmung: 'keine', zellen: 0 };
 
 export const standVoelker = (S, standortId) => S.voelker
-  .filter((v) => v.standortId === standortId)
+  .filter((v) => v.standortId === standortId && v.status !== 'aufgeloest')
   .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { numeric: true }));
 
 export const offeneFuer = (S, zielId) => S.plan.filter((a) => a.ziel.id === zielId

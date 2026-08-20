@@ -161,6 +161,10 @@ js/fotos.js             Fotos zu Durchsichten (verkleinern, Speicher im Blick)
 js/vergleich.js         Volksvergleich am Stand
 js/packliste.js         Packliste: was die fälligen Arbeiten an Material brauchen
 js/varroa.js            Milbenverlauf je Volk (Kurve, Monatsschwelle, Behandlungen)
+js/kasse.js             Honigbilanz und Kassenbuch (Chargen, Verkäufe, Ausgaben, Lager)
+js/waben.js             Wabenalter je Volk (Jahrgänge, Ausschmelz-Vorschlag)
+js/winter.js            Ein- und Auswinterung, Verlustrate je Saison und Stand
+js/gewicht.js           Wägungen: Nullpunkt, Differenzen, Futterstand, Winterzehrung
 js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
 js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
@@ -192,6 +196,12 @@ echtem Löschen), `rev`, `dirty`.
 | `tracht` | Blühmeldungen des Imkers samt erreichter Wärmesumme (Kalibrierung) |
 | `aufgaben` | eigene und automatisch ausgelöste Aufgaben |
 | `wanderungen` | Standortwechsel eines Volkes mit Datum und Notiz |
+| `abfuellungen` | Charge: Sorte, Glasgröße, Stückzahl, Los-Nummer, MHD |
+| `verkaeufe` | verkaufte Gläser mit Preis, Betrag, Verkaufsart und Kunde |
+| `ausgaben` | Zucker, Gläser, Behandlungsmittel, Gebühren … |
+| `waben` | Wabenalter: Jahrgang und Stückzahl je Volk, Abgänge beim Ausschmelzen |
+| `winterung` | Ein- und Auswinterung je Volk und Saison, Verlustgrund |
+| `wiegungen` | Gewicht je Volk mit Wägeart und Nullpunktmarke |
 | `meta` | Einstellungen, Wetter-Caches |
 
 ### Abgleich zwischen Geräten
@@ -632,6 +642,104 @@ fünf Kilo, wenn ein Volk auffällig leicht wiegt. Nicht voll auffüttern – di
 braucht Platz zum Verdunsten –, abends geben, und die Behandlung deswegen nicht verschieben.
 Die Hauptmenge kommt wie bisher nach der ersten Behandlung.
 
+## Honigbilanz und Kassenbuch
+
+Unter *Mehr → Kassenbuch*. Eigene Ansicht statt Unterpunkt, weil das Abendarbeit am Tisch ist
+und nicht Arbeit am Stand – deshalb steht es auch nicht in der Tabbar.
+
+Der Weg des Honigs hat vier Stationen, und genau so ist es gebaut:
+
+| Station | Woher die Zahl kommt |
+|---|---|
+| geerntet | aus den abgehakten Ernteaufgaben (kg je Volk) – **nichts wird doppelt erfasst** |
+| abgefüllt | eigener Datensatz je Charge, mit Los-Nummer und MHD |
+| verkauft | Gläser raus, Geld rein (Stück, Preis je Glas, Betrag, Verkaufsart, optional Kunde) |
+| im Lager | Rechnung: abgefüllt minus verkauft, je Sorte und Glasgröße |
+
+Zwei Rechenregeln, die man leicht falsch macht und die hier bewusst so stehen:
+
+* **Der Lagerbestand ist nicht jahresbezogen.** Honig vom Vorjahr steht im Januar noch im Regal,
+  also läuft der Bestand über alle Jahre – Erlöse und Ausgaben dagegen jahresweise.
+* **Kilo und Gläser sind nicht dasselbe.** Gerechnet wird immer über die Füllmenge
+  (ein 500-g-Glas = 0,5 kg), nie über ein Bruttogewicht.
+
+Die Kopfzeile zeigt sechs Zahlen: geerntet, abgefüllt, eingenommen, ausgegeben, Überschuss und
+**Erlös je Kilo** – die letzte ist die, die man beim Preisgespräch im Kopf haben will. Bleibt ein
+Teil der Ernte ohne Abfüllung, sagt die App das ausdrücklich („24,5 kg sind noch nicht als
+Abfüllung gebucht") statt es als Lücke stehen zu lassen. Bewusst **keine Balken** in dieser
+Karte: Kilo, Gläser und Euro sind nicht vergleichbar, ein gemeinsames Diagramm wäre Unsinn.
+
+Ausgaben sind imkerlich benannt (Zucker und Futter, Behandlungsmittel, Gläser und Deckel,
+Mittelwände und Wachs …), nicht nach Kontenklassen: beim Erfassen weiß man, dass man Zucker
+gekauft hat. Zuordnen kann man später immer noch.
+
+Export: **Jahresübersicht als PDF** (ein Blatt mit Summen und allen Buchungen) und **CSV** mit
+Semikolon und BOM, damit Excel es ohne Rückfrage und mit richtigen Umlauten öffnet.
+
+Was BeeWise ausdrücklich **nicht** tut: Umsatzsteuer, Abschreibung, Konten, Bewertung des
+Lagerbestands. Es sammelt die Zahlen so, wie sie beim Imkern anfallen – was daraus steuerlich
+folgt, entscheidet niemand in einer Imkerei-App.
+
+### Los-Nummer und MHD beim Abfüllen
+
+Beides gehört zur **Charge**, nicht zum Glas – deshalb ein eigener Datensatz und nicht ein Feld
+irgendwo an der Aufgabe. Die Aufgabe „Rühren, abfüllen, etikettieren" führt nach dem Abhaken
+direkt in die Charge und bringt Glasgröße und Stückzahl mit; die Sorte schlägt die App aus der
+letzten Ernte vor. So wird einmal erfasst, was einmal passiert ist.
+
+* **Los-Nummer**: Vorschlag `L` + Datum + laufende Nummer des Tages (`L260820-1`). Sinn der
+  Nummer ist die Rückverfolgbarkeit – von einem Glas zurück auf den Abfülltag und damit auf die
+  Eimer. Deshalb steht das Datum drin und kein Zufallsschlüssel. Änderbar, denn maßgeblich ist,
+  was auf dem Glas klebt.
+* **MHD**: Vorschlag zwei Jahre ab Abfüllung, Eingabe und Anzeige als `MM/JJJJ`, gespeichert als
+  `JJJJ-MM` (damit sich sortieren lässt). Rechtlicher Hinweis im Fenster: steht das Datum mit
+  **Tag**, Monat und Jahr auf dem Glas, ersetzt es die Los-Nummer – mit Monat und Jahr, wie hier
+  vorgeschlagen, braucht man die Nummer zusätzlich.
+* **Aufkleberbogen**: 4 × 12 kleine Etiketten je A4-Blatt mit Sorte, Füllmenge, Los und MHD –
+  zum Ergänzen gekaufter Etiketten, auf denen Name und Anschrift schon stehen.
+* Im Lagerbestand warnt die App, wenn bei einer Charge das MHD näher rückt und rechnerisch noch
+  Gläser da sind. Zugeordnet wird nach „wer zuerst abgefüllt wurde, geht zuerst weg" – eine
+  glasgenaue Verfolgung wäre Scheingenauigkeit, weil beim Verkauf niemand die Charge notiert.
+
+## Wabenalter
+
+Wabenerneuerung ist die billigste Hygienemaßnahme der Imkerei. Sie scheitert nur daran, dass
+niemand weiß, welche Wabe wie alt ist. Die Erfassungstiefe ist deshalb die eigentliche
+Entscheidung – und sie fällt hier bewusst grob: **je Volk und Jahr eine Stückzahl.**
+
+* In der Volksansicht steht die Karte **„Waben"**: ein Balken je Jahrgang, daneben die Stückzahl.
+  Alle Balken in derselben Farbe; die zu alten sind abgeschwächt und tragen die Beschriftung
+  *ausschmelzen* – keine Bewertung durch Farbe allein.
+* Darunter der Satz, um den es geht: „4 von 12 Waben sind 3 Jahre und älter. Im Frühjahr
+  ausschmelzen und durch Mittelwände ersetzen."
+* **Erfassen** geht auf zwei Wegen, ohne etwas doppelt einzutragen:
+  * über *Rähmchen buchen* (Anzahl, Jahrgang, oder als Abgang „ausgeschmolzen"),
+  * automatisch aus den Aufgaben: *Erweitern*, *Boden reinigen / alte Waben entnehmen* und
+    *Honigraum aufsetzen* haben jetzt das Feld **„Neue Rähmchen eingehängt"**. Was du dort
+    einträgst, wird als Jahrgang gebucht; die „entnommenen Waben" der Wabenhygiene gelten als
+    Abgang.
+* **Abgänge werden von den ältesten Jahrgängen abgezogen** – wer Waben ausschmilzt, nimmt die
+  dunkelsten, nicht die hellsten. Für Altbestand darf man den Jahrgang schätzen; die Auswahl
+  reicht acht Jahre zurück.
+
+Warum nicht wabengenau (jedes Rähmchen ein Datensatz mit Position)? Weil es am offenen Volk
+nicht durchzuhalten ist: entweder wird es nicht geführt oder falsch geführt – und eine falsche
+Genauigkeit ist schlechter als eine ehrliche Schätzung. Die Grenze liegt bei drei Jahren; sie
+steht als `WABEN_GRENZE` in `js/waben.js` an einer Stelle.
+
+## Foto am Bienenstand
+
+Jeder Stand kann jetzt ein eigenes Foto tragen (*Mehr → Stand antippen* oder *Völker → Stand
+bearbeiten*, dann auf das Bild tippen). Es ersetzt in den Listen und in der Standwahl des
+Durchgangs das Luftbild: das Luftbild zeigt die Lage, das Foto den Platz – bei Wanderständen
+erkennt man am Foto in einer Sekunde, welcher Stand gemeint ist. Fällt kein Foto vor, bleibt es
+beim Luftbild.
+
+Technisch dasselbe wie beim Volksfoto: verkleinert auf die eingestellte Kantenlänge, im
+Datensatz des Standortes gespeichert, damit auf dem Gerät und in der Sicherung – und der
+Dateidialog wird **synchron in der Nutzergeste** geöffnet, sonst blocken ihn Handy-Browser
+stillschweigend.
+
 ## Fachliche Rückfragen – warum (noch) kein Chatbot
 
 Naheliegender Wunsch: eine Frage eintippen („Darf ich vor der ersten Sommerbehandlung schon ein
@@ -654,6 +762,128 @@ ungeprüft – nie für Dosierungen.
 
 Und der Teil, den keine Antwort ersetzt: die App macht Fehler **sichtbar**. Die Milbenkurve zeigt,
 ob eine Behandlung gewirkt hat; das ist mehr wert als eine Auskunft vorab.
+
+## Ein- und Auswinterungsbilanz
+
+Die Winterverlustrate ist die einzige Zahl, an der man über Jahre sieht, ob die eigene
+Betriebsweise trägt – und die einzige, die man sich nicht schönrechnen darf. Zu finden unter
+*Mehr → Winterbilanz*.
+
+**Eine Saison heißt nach ihrem Anfangsjahr:** `2026/27`. Umgeschaltet wird im August, weil dann
+die Einwinterung beginnt (letzte Ernte, Behandlung, Auffüttern) – nicht im Januar.
+
+* **Ein Datensatz je Volk und Winter.** Nur so lässt sich später fragen, *woran* die Völker
+  gestorben sind; eine Quote ohne Ursachen ist eine Zahl zum Ärgern, keine zum Lernen. Die
+  Gründe sind die, die man wirklich sieht: Varroa/Zusammenbruch, verhungert, weisellos,
+  Nosema/Ruhr, Räuberei, Mäuse oder Umsturz, zu schwach eingewintert, unbekannt.
+* **Erfassung fällt nebenbei an.** Wer im Herbst *Auffüttern abschließen*, *Wintersitz*,
+  *Mäusegitter* oder *Restentmilbung* abhakt, hat eingewintert – der Eintrag entsteht von selbst.
+  Und wer im Frühjahr die *erste Durchsicht* abhakt, sagt damit: dieses Volk lebt. Für den Rest
+  gibt es zwei Knöpfe: *Einwinterung erfassen* (Liste mit Häkchen, alle vorbelegt) und
+  *Auswinterung erfassen* (je Volk drei große Knöpfe, bei „verloren" der Grund).
+* **„Schwach" zählt als durchgekommen** – das Volk lebt. Es wird aber getrennt ausgewiesen.
+* **Die Rate wird nur aus bewerteten Völkern gerechnet.** Solange die Auswinterung offen ist,
+  steht dort keine Quote, sondern die Aufforderung, sie zu erfassen. Sonst wären offene Völker
+  stillschweigend „durchgekommen" – die Statistik würde sich selbst beschönigen.
+* **Verlorene Völker gehen aus dem Bestand** (`status: 'aufgeloest'`, mit Datum und Grund), auf
+  Wunsch automatisch beim Erfassen. Der Verlauf bleibt vollständig erhalten – es entstehen nur
+  keine neuen Aufgaben mehr, und die Bestandslisten bleiben sauber. Unter *Mehr → Völker
+  verwalten* stehen sie weiterhin, gekennzeichnet mit „nicht mehr im Bestand".
+* **Frühere Jahre von Hand:** zwei Zahlen je Saison (eingewintert, verloren) für die Zeit vor
+  BeeWise. Sie erscheinen getrennt als „von Hand erfasst" – man soll sehen, welche Werte aus
+  Erfassung und welche aus Erinnerung stammen.
+* **Reihe über die Jahre** als Balken: ein Maß (Verlustrate), eine Farbe. Ein einzelner Winter
+  sagt wenig, die Reihe sagt viel.
+
+## Gewicht über das Jahr
+
+Handwägungen mit der Kofferwaage taugen für **Differenzen**, nicht für Absolutwerte. Die Methode
+streut ±0,5 bis 1 kg (Ansatzpunkt, Kippwinkel, nasses Holz, fliegende Bienen). Alles darunter ist
+Rauschen – und die App sagt das auch so, statt eine Zahl zu deuten, die nichts bedeutet.
+
+Damit lohnt es sich für **Winterfutter und Zehrung** (Zielspannen sind 3–5 kg breit, und im
+Dezember darf man nicht öffnen), aber **nicht** für den Trachtverlauf: dafür braucht es tägliche
+Werte, also eine echte Stockwaage unter einem Volk je Stand.
+
+**Nullpunkt statt Tara-Tabelle.** Das Zargenproblem (Honigraum drauf, Ernte runter) löst die App
+nicht mit Leergewichten je Zarge – Beuten wiegen je nach Holz und Alter anders –, sondern mit
+einem Bezugspunkt **direkt nach der letzten Ernte**: da ist fast kein Vorrat im Volk, alles
+Weitere ist Futter. Beim Wiegen lässt sich der Nullpunkt ausdrücklich setzen; sonst gilt die
+erste Wägung nach der letzten Ernte.
+
+**Kippprobe wird umgerechnet.** Wer hinten anhebt, misst grob die Hälfte einer
+Gewichtsänderung. Ohne Umrechnung wäre der Vergleich mit dem Zielvorrat irreführend („es fehlen
+14 kg", obwohl drei fehlen), deshalb rechnet die App mit dem Faktor 2 – und mit **deinem** eigenen
+Verhältnis, sobald du einmal am selben Tag beides gewogen hast (Kippprobe und ganze Beute).
+Welcher Weg gerechnet wurde, steht im Satz dabei.
+
+**Nur gleiche Wägeart vergleichen.** Kippprobe und ganze Beute sind zwei Maßstäbe; sie werden
+getrennt gezeichnet und getrennt gerechnet. Wurde beides benutzt, sagt die App es.
+
+Erfassen geht an vier Stellen, überall optional und leer vorbelegt: im **Durchgang** (letztes
+Feld), in der **Durchsicht**, über den Knopf **Wiegen** im Volk und in der Aufgabe *Futtervorrat
+prüfen*. Vier bis sechs Wägungen im Jahr genügen: nach der letzten Ernte (Nullpunkt), nach jeder
+Futtergabe, im Oktober, im Dezember, im Februar. Bei jedem Durchgang zu wiegen bringt nur
+Rauschen und verleitet zum Überdeuten.
+
+Ausgewertet wird in der Volksansicht: Kurve mit Nullpunktlinie und Marken für Ernte, Zarge und
+Futtergabe (damit ein Sprung erklärt ist), darunter Sätze im Klartext – „Seit 20. Dez. minus
+2,5 kg in 69 Tagen, also gut 1,1 kg im Monat", „Gegeben wurden 18 kg, davon dürften rund 15 kg
+als Winterfutter hängen bleiben", „Ziel für diese Beute: 16 kg – rechnerisch fehlen 8 kg".
+
+**Die Winterwarnung** ist der Punkt, an dem die Sache Völker retten kann: reicht der Vorrat bei
+der gemessenen Zehrung nicht bis Mitte März, steht das Volk von Oktober bis März auf *Heute* mit
+der konkreten Handlung („Futterteig direkt über den Sitz legen, kein Zuckerwasser").
+
+Eine Ungenauigkeit bleibt bewusst stehen: am Nullpunkt ist der Vorrat nicht genau null – im
+Brutnest hängen meist zwei bis vier Kilo. Die Rechnung unterschätzt den Vorrat also leicht. Das
+ist die sichere Richtung.
+
+## Prüfstand
+
+Alle Läufe arbeiten mit fest gestellter Uhr und gemocktem Open-Meteo und laufen gegen **drei
+Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
+
+| Lauf | prüft |
+|---|---|
+| `test_wetter.py` | Wetterbewertung, Reizlage, widerspruchsfreie Texte, Sprachwechsel |
+| `test_stand.py` | Durchgang, Packliste als Schritt 0, QR-Aufkleber, Tiefenlink |
+| `test_koenigin.py` | Königinnen, Umweiseln, Ableger als eigene Völker |
+| `test_kette.py` | Abhängigkeitskette der Regeln über die Saison |
+| `test_neu.py` | Milbenkurve, Wetterwarnungen, Sicherungs-Erinnerung |
+| `test_kasse.py` | Kassenbuch, Los-Nummer, MHD, Lagerbestand, PDF/CSV/Etiketten |
+| `test_waben.py` | Wabenjahrgänge, Ausschmelzen, Standfoto über echten Dateidialog |
+| `test_winter.py` | Ein- und Auswinterung, Verlustgründe, Auflösen, Mehrjahresreihe |
+| `test_gewicht.py` | Nullpunkt, Differenzen, Futterrechnung, Zehrung, Winterwarnung |
+| `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
+| `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
+
+Dazu bei jedem Bau: `node --check` für jede Datei **und** für das erzeugte Bündel (fängt
+gleichnamige Deklarationen aus verschiedenen Modulen), eine Prüfung auf doppelte Schlüssel im
+Sprachpaket und eine Prüfung, dass jeder deutsche Text im Englischen einen Eintrag hat.
+
+## Prüfstand
+
+Alle Läufe arbeiten mit fest gestellter Uhr und gemocktem Open-Meteo und laufen gegen **drei
+Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
+
+| Lauf | prüft |
+|---|---|
+| `test_wetter.py` | Wetterbewertung, Reizlage, widerspruchsfreie Texte, Sprachwechsel |
+| `test_stand.py` | Durchgang, Packliste als Schritt 0, QR-Aufkleber, Tiefenlink |
+| `test_koenigin.py` | Königinnen, Umweiseln, Ableger als eigene Völker |
+| `test_kette.py` | Abhängigkeitskette der Regeln über die Saison |
+| `test_neu.py` | Milbenkurve, Wetterwarnungen, Sicherungs-Erinnerung |
+| `test_kasse.py` | Kassenbuch, Los-Nummer, MHD, Lagerbestand, PDF/CSV/Etiketten |
+| `test_waben.py` | Wabenjahrgänge, Ausschmelzen, Standfoto über echten Dateidialog |
+| `test_winter.py` | Ein- und Auswinterung, Verlustgründe, Auflösen, Mehrjahresreihe |
+| `test_gewicht.py` | Nullpunkt, Differenzen, Futterrechnung, Zehrung, Winterwarnung |
+| `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
+| `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
+
+Dazu bei jedem Bau: `node --check` für jede Datei **und** für das erzeugte Bündel (fängt
+gleichnamige Deklarationen aus verschiedenen Modulen), eine Prüfung auf doppelte Schlüssel im
+Sprachpaket und eine Prüfung, dass jeder deutsche Text im Englischen einen Eintrag hat.
 
 ## Was bewusst noch fehlt
 

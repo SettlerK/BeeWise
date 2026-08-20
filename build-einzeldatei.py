@@ -10,9 +10,10 @@ W = pathlib.Path(__file__).parent
 MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
           'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'qr.js', 'pdf.js', 'etiketten.js',
           'berichte.js', 'koeniginnen.js', 'fotos.js', 'vergleich.js', 'varroa.js',
-          'packliste.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
+          'packliste.js', 'kasse.js', 'waben.js', 'winter.js', 'gewicht.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
 
-NAMENSRAUM = {'db.js': 'db', 'sync.js': 'sync', 'koeniginnen.js': 'koe', 'fotos.js': 'fotos'}
+NAMENSRAUM = {'db.js': 'db', 'sync.js': 'sync', 'koeniginnen.js': 'koe', 'fotos.js': 'fotos',
+              'kasse.js': 'kasse', 'waben.js': 'waben', 'winter.js': 'winter', 'gewicht.js': 'gewicht'}
 
 def namensraum(datei, alias):
     """Baut `const alias = { ... }` aus allen Ausfuhren einer Datei."""
@@ -79,6 +80,18 @@ html = html.replace('<link rel="manifest" href="manifest.webmanifest">', '')
 html = html.replace('<link rel="icon" href="icons/icon.svg" type="image/svg+xml">',
                     f'<link rel="icon" href="data:image/png;base64,{icon}">')
 html = html.replace('<link rel="apple-touch-icon" href="icons/icon-192.png">', '')
+# In der Einzeldatei gibt es kein sw.js daneben: die Registrierung wuerde nur
+# einen 404 in der Konsole erzeugen. Sie wird deshalb entfernt – und der Bauer
+# bricht ab, wenn sich der Aufruf in app.js aendert.
+SW_ALT = ("  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {\n"
+          "    navigator.serviceWorker.register('sw.js').catch(() => {});\n"
+          "  }")
+sw_treffer = sum(1 for teil in js if SW_ALT in teil)
+if sw_treffer != 1:
+    raise SystemExit('Registrierung des Service Workers in js/app.js nicht gefunden '
+                     '(Bauskript anpassen).')
+js = [teil.replace(SW_ALT, '  // (Einzeldatei: kein Service Worker)') for teil in js]
+
 html = html.replace('<script type="module" src="js/app.js"></script>',
                     '<script type="module">\n' + ''.join(js) + '\n</script>')
 html = html.replace("icon: 'icons/icon-192.png',", f"icon: 'data:image/png;base64,{icon}',")

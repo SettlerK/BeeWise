@@ -619,11 +619,11 @@ body.festgehalten{overflow:hidden}
 .varroalegende .mk.linie{border-color:var(--honig)}
 .varroalegende .mk.schwelle{border-color:var(--faellig);border-top-style:dashed}
 .varroalegende .mk.behandlung{border-color:var(--ueberfaellig);border-top-style:dashed;opacity:.7}
-.varroasatz{
+.varroasatz,.wabensatz,.gewichtsatz{
   margin-top:9px;font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:9px;
   background:var(--bg);border-left:3px solid var(--rand-stark);color:var(--text-schwach);
 }
-.varroasatz.warnung{border-left-color:var(--ueberfaellig)}
+.varroasatz.warnung,.wabensatz.warnung,.gewichtsatz.warnung{border-left-color:var(--ueberfaellig)}
 
 
 /* ----------------------------------------------------- Warnungen / Sicherung */
@@ -638,3 +638,54 @@ body.festgehalten{overflow:hidden}
 .warnknoepfe{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
 .warnweg{width:26px;height:26px;border-radius:99px;color:var(--text-zart);font-size:12px}
 .warnweg:active{background:var(--rand)}
+
+/* ------------------------------------------------------------- Kassenbuch */
+/* Kennzahlen: zwei Spalten am Handy, drei auf breiten Schirmen. Bewusst Zahlen
+   und keine Balken – Kilo, Gläser und Euro sind nicht vergleichbar. */
+.kennzahlen{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (min-width:520px){.kennzahlen{grid-template-columns:repeat(3,1fr)}}
+.kz{background:var(--bg);border:1px solid var(--rand);border-radius:10px;padding:9px 10px}
+.kz b{display:block;font-size:17px;font-weight:650;line-height:1.2}
+.kz span{display:block;font-size:11px;color:var(--text-schwach);margin-top:2px}
+.kz i{display:block;font-size:10.5px;color:var(--text-zart);font-style:normal;margin-top:1px}
+
+.buchung{display:flex;align-items:center;gap:10px;padding:11px 14px;
+  border-top:1px solid var(--rand);cursor:pointer}
+.karte .buchung:first-child{border-top:0}
+.buchung .btext{flex:1;min-width:0}
+.buchung .btext b{display:block;font-size:14px;font-weight:600}
+.buchung .btext small{display:block;font-size:11.5px;color:var(--text-schwach);margin-top:1px}
+.buchung .bwert{font-size:14px;font-weight:650;white-space:nowrap}
+.buchung .pfeil{color:var(--text-zart);font-size:17px}
+
+/* --------------------------------------------------------------- Wabenalter */
+.vglbalken small.ausschmelzen{
+  font-size:10px;color:var(--ueberfaellig);white-space:nowrap;
+}
+
+/* Standwahl mit Foto: das Bild macht den Stand auf einen Blick erkennbar. */
+.knopf.gross.mitbild{display:flex;align-items:center;gap:12px;text-align:left}
+.knopf.gross.mitbild img{
+  width:52px;height:52px;border-radius:10px;object-fit:cover;flex:0 0 auto;
+}
+.knopf.gross.mitbild > span{display:block;min-width:0}
+
+/* -------------------------------------------------------------- Winterbilanz */
+.wahlliste{display:flex;flex-direction:column;gap:2px;margin:4px 0 10px}
+.wahlzeile{display:flex;gap:11px;align-items:flex-start;padding:9px 2px;
+  border-top:1px solid var(--rand);cursor:pointer}
+.wahlliste .wahlzeile:first-child{border-top:0}
+.wahlzeile input{width:20px;height:20px;margin-top:1px;accent-color:var(--honig);flex:0 0 auto}
+.wahlzeile span{font-size:13.5px;line-height:1.35}
+.wahlzeile b{display:block;font-weight:600}
+.wahlzeile small{display:block;font-size:11.5px;color:var(--text-schwach)}
+
+/* Eine Zeile je Volk bei der Auswinterung: Name, drei Knöpfe, bei Verlust der Grund. */
+.auswzeile{padding:10px 0;border-top:1px solid var(--rand)}
+.auswkopf{display:flex;gap:8px;align-items:baseline;margin-bottom:6px}
+.auswkopf b{font-size:14.5px;font-weight:600}
+.auswkopf small{font-size:11.5px;color:var(--text-zart)}
+.auswzeile select{
+  width:100%;margin-top:8px;padding:10px 12px;font-size:14px;
+  border:1px solid var(--rand-stark);border-radius:10px;background:var(--karte);color:var(--text);
+}

@@ -245,5 +245,109 @@ export function volkHistorie(S, volkId) {
   return p;
 }
 
+/**
+ * Jahresübersicht des Kassenbuchs.
+ * Ein Blatt, das man dem Steuerberater oder sich selbst im Januar hinlegen kann:
+ * oben die Summen, darunter jede Buchung einzeln. Bewusst keine Auswertung nach
+ * Konten – das ist nicht die Aufgabe einer Imkerei-App.
+ */
+export function kassenbuchPDF(S, b, { imkerei = '' } = {}) {
+  const zwei = (x) => `${(Math.round((Number(x) || 0) * 100) / 100).toFixed(2)
+    .replace('.', ',')}`;
+  const eins = (x) => `${(Math.round((Number(x) || 0) * 10) / 10).toFixed(1).replace('.', ',')}`;
+  const mhdKurz = (m) => (m && String(m).includes('-')
+    ? `${String(m).slice(5, 7)}/${String(m).slice(0, 4)}` : (m || ''));
+
+  const p = new PDF({
+    titel: t('Honigbilanz und Kassenbuch {jahr}', { jahr: b.jahr }),
+    untertitel: [imkerei, t('erstellt am {d}', { d: dat(heute()) })].filter(Boolean).join(' · '),
+    fusszeile: 'BeeWise · ' + t('Kassenbuch {jahr}', { jahr: b.jahr }),
+  });
+
+  p.ueberschrift(t('Das Jahr in Zahlen'));
+  p.tabelle([
+    { titel: t('Kennzahl'), breite: 200, schluessel: 'was' },
+    { titel: t('Wert'), breite: 100, schluessel: 'wert' },
+  ], [
+    { was: t('geerntet'), wert: `${eins(b.ernte.gesamt)} kg` },
+    { was: t('abgefüllt'), wert: `${b.abgefuellteGlaeser} ${t('Gläser')} · ${eins(b.abgefuelltKg)} kg` },
+    { was: t('verkauft'), wert: `${b.verkaufteGlaeser} ${t('Gläser')} · ${eins(b.verkauftKg)} kg` },
+    { was: t('Einnahmen'), wert: `${zwei(b.einnahmen)} EUR` },
+    { was: t('Ausgaben'), wert: `${zwei(b.kosten)} EUR` },
+    { was: t('Überschuss'), wert: `${zwei(b.saldo)} EUR` },
+    ...(b.proKg != null ? [{ was: t('Erlös je Kilo'), wert: `${zwei(b.proKg)} EUR` }] : []),
+    { was: t('im Lager'), wert: `${b.lager.glaeser} ${t('Gläser')} · ${eins(b.lager.kg)} kg` },
+  ]);
+
+  if (b.ernte.jeVolk.length) {
+    p.ueberschrift(t('Ernte je Volk'));
+    p.tabelle([
+      { titel: t('Volk'), breite: 120, schluessel: 'volk' },
+      { titel: t('Menge'), breite: 80, schluessel: 'kg' },
+    ], b.ernte.jeVolk.map((v) => ({ volk: v.name, kg: `${eins(v.kg)} kg` })));
+  }
+
+  if (b.abfuellungen.length) {
+    p.ueberschrift(t('Abfüllungen ({n})', { n: b.abfuellungen.length }));
+    p.tabelle([
+      { titel: t('Datum'), breite: 62, schluessel: 'datum' },
+      { titel: t('Sorte'), breite: 80, schluessel: 'sorte' },
+      { titel: t('Glas'), breite: 44, schluessel: 'glas' },
+      { titel: t('Stück'), breite: 40, schluessel: 'anzahl' },
+      { titel: t('Menge'), breite: 50, schluessel: 'kg' },
+      { titel: t('Los'), breite: 70, schluessel: 'los' },
+      { titel: t('MHD'), breite: 50, schluessel: 'mhd' },
+    ], b.abfuellungen.map((a) => ({
+      datum: dat(a.datum), sorte: t(a.sorte || ''), glas: `${a.glasgroesse} g`,
+      anzahl: String(a.anzahl), kg: `${eins((a.anzahl * a.glasgroesse) / 1000)} kg`,
+      los: a.losnummer || '', mhd: mhdKurz(a.mhd),
+    })));
+  }
+
+  if (b.verkaeufe.length) {
+    p.ueberschrift(t('Verkäufe ({n})', { n: b.verkaeufe.length }));
+    p.tabelle([
+      { titel: t('Datum'), breite: 62, schluessel: 'datum' },
+      { titel: t('Sorte'), breite: 76, schluessel: 'sorte' },
+      { titel: t('Glas'), breite: 40, schluessel: 'glas' },
+      { titel: t('Stück'), breite: 36, schluessel: 'anzahl' },
+      { titel: t('Art'), breite: 60, schluessel: 'art' },
+      { titel: t('Kunde'), breite: 80, schluessel: 'kunde' },
+      { titel: t('Betrag'), breite: 50, schluessel: 'betrag' },
+    ], b.verkaeufe.map((v) => ({
+      datum: dat(v.datum), sorte: t(v.sorte || ''), glas: `${v.glasgroesse} g`,
+      anzahl: String(v.anzahl), art: t(v.art || ''), kunde: v.kunde || '',
+      betrag: `${zwei(v.betrag)} EUR`,
+    })));
+  }
+
+  if (b.ausgaben.length) {
+    p.ueberschrift(t('Ausgaben ({n})', { n: b.ausgaben.length }));
+    p.tabelle([
+      { titel: t('Datum'), breite: 62, schluessel: 'datum' },
+      { titel: t('Wofür'), breite: 110, schluessel: 'art' },
+      { titel: t('Bezeichnung'), breite: 160, schluessel: 'was' },
+      { titel: t('Betrag'), breite: 56, schluessel: 'betrag' },
+    ], b.ausgaben.map((a) => ({
+      datum: dat(a.datum), art: t(a.art || ''), was: a.was || a.notiz || '',
+      betrag: `${zwei(a.betrag)} EUR`,
+    })));
+    if (b.ausgabenJeArt.length > 1) {
+      p.ueberschrift(t('Ausgaben nach Art'));
+      p.tabelle([
+        { titel: t('Wofür'), breite: 160, schluessel: 'art' },
+        { titel: t('Betrag'), breite: 60, schluessel: 'betrag' },
+      ], b.ausgabenJeArt.map((a) => ({ art: t(a.art), betrag: `${zwei(a.betrag)} EUR` })));
+    }
+  }
+
+  p.abstand(6);
+  p.text(t('Diese Übersicht ist keine Buchhaltung und keine Steuererklärung: sie enthält '
+    + 'keine Umsatzsteuer, keine Abschreibungen und keine Bewertung des Lagerbestands. '
+    + 'Sie sammelt die Zahlen so, wie sie beim Imkern anfallen.'), { groesse: 8, grau: true });
+
+  return p;
+}
+
 export const dateiname = (s) => s.replace(/[^\wäöüÄÖÜß -]/g, '').replace(/\s+/g, '-').toLowerCase();
 export const heuteKurz = () => iso(heute());

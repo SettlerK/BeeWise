@@ -21,12 +21,16 @@ import {
   SCHNELL, OHNE_BEFUND, standVoelker, offeneFuer, volkSchritt, abschlussSchritt, packschritt,
   grobWerteLesen, schrittSpeichern,
 } from './stand.js';
-import { etikettenPDF, grundadresse } from './etiketten.js';
+import { etikettenPDF, losEtikettenPDF, grundadresse } from './etiketten.js';
 import * as koe from './koeniginnen.js';
 import * as fotos from './fotos.js';
 import { standVergleich, volkEinordnen } from './vergleich.js';
 import { varroaVerlauf, varroaBild } from './varroa.js';
-import { behandlungsprotokoll, volkHistorie, dateiname } from './berichte.js';
+import * as kasse from './kasse.js';
+import * as waben from './waben.js';
+import * as winter from './winter.js';
+import * as gewicht from './gewicht.js';
+import { behandlungsprotokoll, volkHistorie, kassenbuchPDF, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
   uiInit, sheetAuf, sheetZu, toast, bestaetige, feldHTML, felderVerdrahten, werteLesen,
@@ -40,6 +44,9 @@ const S = {
   ansicht: 'heute', volkId: null,
   standorte: [], voelker: [], durchsichten: [], erledigungen: [], trachtObs: [], eigene: [],
   wanderungen: [], koeniginnen: [],
+  abfuellungen: [], verkaeufe: [], ausgaben: [], waben: [], winterung: [], wiegungen: [],
+  kassenJahr: null,             // gewähltes Jahr im Kassenbuch
+  winterSaison: null,           // gewählte Saison in der Winterbilanz
   tracht: {}, wetter: {}, stunden: {}, plan: [], fragen: [],
   stand: null,                  // laufender Durchgang am Bienenstand
   filter: null,                 // Kategorie-Filter
@@ -76,10 +83,11 @@ const ZURUECK = document.getElementById('kopf-zurueck');
 
 async function datenLaden() {
   [S.standorte, S.voelker, S.durchsichten, S.erledigungen, S.trachtObs, S.eigene, S.wanderungen,
-    S.koeniginnen] = await Promise.all([
+    S.koeniginnen, S.abfuellungen, S.verkaeufe, S.ausgaben, S.waben, S.winterung, S.wiegungen] = await Promise.all([
     db.alle('standorte'), db.alle('voelker'), db.alle('durchsichten'),
     db.alle('erledigungen'), db.alle('tracht'), db.alle('aufgaben'), db.alle('wanderungen'),
-    db.alle('koeniginnen'),
+    db.alle('koeniginnen'), db.alle('abfuellungen'), db.alle('verkaeufe'), db.alle('ausgaben'),
+    db.alle('waben'), db.alle('winterung'), db.alle('wiegungen'),
   ]);
   S.sync = await sync.einstellungen();
   S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
@@ -140,6 +148,7 @@ async function wetterLaden({ still = true } = {}) {
 const TITEL = {
   heute: 'Heute', kalender: 'Kalender', voelker: 'Völker',
   tracht: 'Tracht', mehr: 'Mehr', volk: 'Volk', stand: 'Durchgang',
+  kassenbuch: 'Kassenbuch', winterbilanz: 'Winterbilanz',
 };
 
 function render() {
@@ -151,7 +160,7 @@ function render() {
     heute().toLocaleDateString(gebietsschema(), { weekday: 'short', day: 'numeric', month: 'long' });
   if (ZURUECK) ZURUECK.hidden = !UNTERANSICHT[S.ansicht];
   document.querySelectorAll('#tabbar button').forEach((b) =>
-    b.classList.toggle('an', b.dataset.tab === (S.ansicht === 'volk' ? 'voelker' : S.ansicht)));
+    b.classList.toggle('an', b.dataset.tab === (UNTERANSICHT[S.ansicht] || S.ansicht)));
   const warnung = db.nurFluechtig?.()
     ? `<div class="karte" style="border-color:var(--ueberfaellig)"><div class="karte-inhalt">
         <b style="color:var(--ueberfaellig)">Achtung: nichts wird dauerhaft gespeichert.</b>
@@ -163,6 +172,7 @@ function render() {
   AN.innerHTML = warnung + ({
     heute: ansichtHeute, kalender: ansichtKalender, voelker: ansichtVoelker,
     volk: ansichtVolk, tracht: ansichtTracht, mehr: ansichtMehr, stand: ansichtStand,
+    kassenbuch: ansichtKassenbuch, winterbilanz: ansichtWinter,
   }[S.ansicht])();
   uebersetzeDom(document.body);
   verdrahten();
@@ -170,7 +180,8 @@ function render() {
 }
 
 /** Ansichten, die „unter" einem Tab liegen und einen Zurück-Weg brauchen. */
-const UNTERANSICHT = { volk: 'voelker', stand: 'heute' };
+const UNTERANSICHT = { volk: 'voelker', stand: 'heute', kassenbuch: 'mehr',
+  winterbilanz: 'mehr' };
 
 function gehe(tab, volkId = null) {
   S.ansicht = tab; S.volkId = volkId;
@@ -217,6 +228,7 @@ function ansichtHeute() {
   </div>`);
 
   t.push(warnungenHTML());
+  t.push(futterkarteHTML());
   t.push(sicherungHTML());
   t.push(wetterUebersichtHTML());
   if (S.voelker.length) {
@@ -687,6 +699,7 @@ async function standSpeichern({ ohneBefund = false } = {}) {
       const b = await schrittSpeichern({
         S, volk, werte, abgehakt, fotosAblegen: fotoPufferSpeichern, hatFotos: bilder > 0,
       });
+      await wiegungAusWerten(volk.id, iso(heute()), werte);
       if (b.durchsicht) S.stand.erfasst.add(volk.id);
       S.stand.bilanz.voelker = S.stand.erfasst.size;
       S.stand.bilanz.aufgaben += b.aufgaben;
@@ -776,9 +789,10 @@ function standWaehlen() {
       const n = standVoelker(S, st.id).length;
       const offen = S.plan.filter((a) => a.ziel.standortId === st.id
         && ['faellig', 'ueberfaellig'].includes(a.zustand)).length;
-      return `<button class="knopf leise gross" data-swahl="${st.id}">
-        <b>${esc(st.name)}</b><small>${esc(t2('{n} Völker', { n }))}${offen
-        ? ' · ' + esc(t2('{n} offen', { n: offen })) : ''}</small></button>`;
+      return `<button class="knopf leise gross mitbild" data-swahl="${st.id}">
+        ${st.foto ? `<img src="${st.foto}" alt="">` : ''}
+        <span><b>${esc(st.name)}</b><small>${esc(t2('{n} Völker', { n }))}${offen
+        ? ' · ' + esc(t2('{n} offen', { n: offen })) : ''}</small></span></button>`;
     }).join('')}</div>`,
     danach(root) {
       root.querySelectorAll('[data-swahl]').forEach((b) => {
@@ -984,7 +998,7 @@ function ansichtVoelker() {
   }
   const t = [];
   for (const st of S.standorte) {
-    const liste = S.voelker.filter((v) => v.standortId === st.id);
+    const liste = S.voelker.filter((v) => v.standortId === st.id && v.status !== 'aufgeloest');
     if (!liste.length) continue;
     t.push(`<h2 class="abschnitt">${esc(st.name)} · ${t2('{n} Völker', { n: liste.length })}</h2><div class="karte">`);
     for (const v of liste) {
@@ -1030,6 +1044,19 @@ const volkNameVon = (id) => S.voelker.find((v) => v.id === id)?.name || '?';
 
 const letzteDurchsicht = (volkId) => S.durchsichten.filter((d) => d.volkId === volkId)
   .sort((a, b) => (a.datum < b.datum ? 1 : -1))[0];
+
+/**
+ * Bild eines Bienenstandes: eigenes Foto, sonst Luftbild, sonst Platzhalter.
+ * Das Luftbild zeigt die Lage, das Foto den Platz – gerade bei Wanderständen
+ * erkennt man am Foto in einer Sekunde, welcher Stand gemeint ist.
+ */
+function bildFuerStand(st, groesse = 52) {
+  if (st?.foto) {
+    return `<img class="luftbild" src="${st.foto}" alt=""
+      style="width:${groesse}px;height:${groesse}px;border-radius:10px;object-fit:cover">`;
+  }
+  return statischesLuftbild(st?.lat, st?.lon, { w: groesse, h: groesse, z: 16, radius: 10 });
+}
 
 /** Eigenes Foto, sonst Luftbild des Standortes, sonst grauer Platzhalter. */
 function bildFuerVolk(v, st, groesse = 52) {
@@ -1105,6 +1132,10 @@ function ansichtVolk() {
     ${aufgaben.map((a) => aufgabeHTML(a, true)).join('')}</div>` : ''}
 
   ${varroaKarteHTML(v)}
+
+  ${wabenKarteHTML(v)}
+
+  ${gewichtKarteHTML(v)}
 
   ${historieHTML(v)}
 
@@ -1194,6 +1225,129 @@ function einordnungHTML(v) {
     ? ' ' + esc(t2('(Jungvolk – das erklärt es meist.)')) : ''}</div>`;
 }
 
+
+/**
+ * Wabenalter im Volk.
+ * Ein Maß, ein Balken je Jahrgang – alle in derselben Farbe, nur die zu alten
+ * bekommen eine Beschriftung. Eine Färbung nach Alter würde behaupten, dunkles
+ * Wachs sei ein Fehler; zu alt ist es erst ab drei Jahren, und das steht dann
+ * ausdrücklich daneben.
+ */
+function wabenKarteHTML(v) {
+  const lage = waben.wabenLage(S, v.id);
+  const knopf = `<div class="knopfreihe">
+    <button class="knopf leise klein" data-waben="${v.id}">${
+    esc(t2('Rähmchen buchen'))}</button></div>`;
+
+  if (!lage.erfasst) {
+    return `<h2 class="abschnitt">${esc(t2('Waben'))}</h2>
+    <div class="karte"><div class="karte-inhalt">
+      <div class="mini">${esc(t2('Noch keine Rähmchen erfasst. Sobald du beim Erweitern oder '
+      + 'bei der Wabenhygiene die Stückzahl mit einträgst, rechnet BeeWise das Wabenalter '
+      + 'mit – und schlägt zu alte Waben zum Ausschmelzen vor.'))}</div>
+      ${knopf}
+    </div></div>`;
+  }
+
+  const hoechst = Math.max(...lage.jahrgaenge.map((j) => j.anzahl), 1);
+  const zeilen = lage.jahrgaenge.map((j) => `<div class="vglzeile" data-waben="${v.id}">
+    <div class="vglname">${j.jahrgang}
+      <small>${esc(j.alter === 0 ? t2('dieses Jahr')
+    : t2('{n} Jahre alt', { n: j.alter }))}</small></div>
+    <div class="vglbalken"><i style="width:${Math.max(3, Math.round((j.anzahl / hoechst) * 100))}%
+      ${j.zuAlt ? ';opacity:.55' : ''}"></i>
+      <b>${j.anzahl}</b>${j.zuAlt ? `<small class="ausschmelzen">${
+    esc(t2('ausschmelzen'))}</small>` : ''}</div>
+  </div>`).join('');
+
+  const satz = waben.wabenSatz(lage, t2);
+  return `<h2 class="abschnitt">${esc(t2('Waben'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="vgltitel">${esc(t2('Rähmchen je Jahrgang, {n} insgesamt', { n: lage.gesamt }))}</div>
+    <div class="vgl">${zeilen}</div>
+    ${satz ? `<div class="wabensatz${lage.alt ? ' warnung' : ''}">${esc(satz)}</div>` : ''}
+    ${lage.ausgeschmolzen ? `<div class="mini" style="margin-top:8px">${
+    esc(t2('{n} Waben wurden bisher ausgeschmolzen – abgezogen werden immer die ältesten '
+      + 'Jahrgänge.', { n: lage.ausgeschmolzen }))}</div>` : ''}
+    ${knopf}
+  </div></div>`;
+}
+
+/** Rähmchen buchen: neu eingehängt oder ausgeschmolzen. */
+function wabenSheet(volkId) {
+  const v = S.voelker.find((x) => x.id === volkId);
+  if (!v) return;
+  const lage = waben.wabenLage(S, volkId);
+  const jahr = heute().getFullYear();
+  const jahre = [];
+  for (let y = jahr; y >= jahr - 8; y--) jahre.push(String(y));
+
+  const felder = [
+    { key: 'art', label: 'Was ist passiert', typ: 'chips',
+      optionen: ['neu eingehängt', 'ausgeschmolzen'], standard: 'neu eingehängt' },
+    { key: 'anzahl', label: 'Anzahl Rähmchen', typ: 'zahl', einheit: 'Stück', schritt: 1 },
+    { key: 'jahrgang', label: 'Jahrgang', typ: 'auswahl', optionen: jahre, standard: String(jahr),
+      hinweis: 'Das Jahr, in dem die Mittelwand ins Volk kam. Für Altbestand ruhig schätzen.' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig' },
+  ];
+
+  sheetAuf({
+    titel: t2('Rähmchen buchen'),
+    unter: v.name + (lage.erfasst ? ` · ${t2('{n} Rähmchen erfasst', { n: lage.gesamt })}` : ''),
+    inhalt: `<div class="hinweis">${esc(t2('Erfasst wird je Jahrgang eine Stückzahl, nicht jede '
+      + 'Wabe einzeln – das ist am offenen Volk das Einzige, was man wirklich durchhält. '
+      + 'Ausgeschmolzene Waben zieht BeeWise von den ältesten Jahrgängen ab.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe"><button class="knopf" data-ok>${
+  esc(t2('Speichern'))}</button></div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        if (!w.anzahl) return toast(t2('Anzahl fehlt.'));
+        const raus = String(w.art || '').includes('ausgeschmolzen');
+        await db.schreibe('waben', {
+          id: uid(), volkId,
+          datum: iso(heute()),
+          jahrgang: raus ? null : Number(w.jahrgang) || jahr,
+          anzahl: Number(w.anzahl),
+          art: raus ? 'ausgeschmolzen' : 'neu',
+          notiz: w.notiz || '',
+        });
+        sheetZu(); await datenLaden(); render();
+        toast(raus ? t2('{n} Waben als ausgeschmolzen gebucht.', { n: Number(w.anzahl) })
+          : t2('{n} Rähmchen als Jahrgang {j} gebucht.',
+            { n: Number(w.anzahl), j: Number(w.jahrgang) || jahr }));
+      };
+    },
+  });
+}
+
+/**
+ * Wabenbuchungen, die sich aus einer abgehakten Aufgabe ergeben.
+ * Wer beim Erweitern sechs Mittelwände einhängt, hat das bereits erfasst –
+ * die App bucht daraus den Jahrgang, ohne noch einmal zu fragen.
+ */
+async function wabenAusAufgabe(regelId, volkId, datum, werte) {
+  const feld = waben.WABEN_AUS_AUFGABE[regelId];
+  const jahrgang = parseISO(datum).getFullYear();
+  let gebucht = 0;
+  if (feld && Number(werte[feld]) > 0) {
+    await db.schreibe('waben', {
+      id: uid(), volkId, datum, jahrgang, anzahl: Number(werte[feld]), art: 'neu',
+      quelle: regelId,
+    });
+    gebucht += Number(werte[feld]);
+  }
+  // „Entnommene Waben" bei der Wabenhygiene sind Abgänge
+  if (regelId === 'boden_waben' && Number(werte.waben) > 0) {
+    await db.schreibe('waben', {
+      id: uid(), volkId, datum, jahrgang: null, anzahl: Number(werte.waben),
+      art: 'ausgeschmolzen', quelle: regelId,
+    });
+  }
+  return gebucht;
+}
 
 /**
  * Varroa-Karte im Volk: Kurve, Schwelle, Behandlungen – und ein Satz, der die
@@ -1605,10 +1759,13 @@ function ansichtMehr() {
   <h2 class="abschnitt">Bienenstände</h2>
   <div class="karte">
     ${S.standorte.map((s) => `<div class="volkzeile" data-standort="${s.id}">
-      ${statischesLuftbild(s.lat, s.lon, { w: 52, h: 52, z: 16, radius: 10 })}
+      ${bildFuerStand(s, 52)}
       <div class="info"><b>${esc(s.name)}</b>
-        <div>${esc(s.adresse || (s.lat != null ? `${(+s.lat).toFixed(4)}, ${(+s.lon).toFixed(4)}` : 'keine Koordinaten'))}
-        · ${S.voelker.filter((v) => v.standortId === s.id).length} Völker</div></div>
+        <div>${esc(s.adresse || (s.lat != null ? `${(+s.lat).toFixed(4)}, ${(+s.lon).toFixed(4)}`
+    : t2('keine Koordinaten')))}
+        · ${esc(t2('{n} Völker',
+    { n: S.voelker.filter((v) => v.standortId === s.id && v.status !== 'aufgeloest').length }))}
+        </div></div>
       <span class="pfeil">›</span></div>`).join('')
     || '<div class="karte-inhalt leer" style="padding:20px">Noch kein Standort.</div>'}
   </div>
@@ -1618,10 +1775,29 @@ function ansichtMehr() {
   <div class="karte">
     ${S.voelker.map((v) => `<div class="volkzeile">
       <div class="info"><b>${esc(v.name)}</b>
-        <div>${esc(S.standorte.find((s) => s.id === v.standortId)?.name || 'ohne Standort')}</div></div>
+        <div>${esc([S.standorte.find((s) => s.id === v.standortId)?.name || 'ohne Standort',
+    v.status === 'aufgeloest' ? t2('nicht mehr im Bestand{grund}',
+      { grund: v.aufgeloestGrund ? ` (${t2(v.aufgeloestGrund)})` : '' }) : '']
+    .filter(Boolean).join(' · '))}</div></div>
       <button class="knopf leise klein" data-volk-bearbeiten="${v.id}">Bearbeiten</button>
       <button class="knopf leise klein loeschen" data-volk-loeschen="${v.id}">Löschen</button>
     </div>`).join('') || '<div class="karte-inhalt leer" style="padding:20px">Noch keine Völker.</div>'}
+  </div>
+
+  <h2 class="abschnitt">${esc(t2('Auswertungen'))}</h2>
+  <div class="karte">
+    <div class="volkzeile" data-kassenbuch>
+      <span class="gross" style="width:52px;text-align:center">📒</span>
+      <div class="info"><b>${esc(t2('Kassenbuch'))}</b>
+        <div>${esc(kassenbuchZeile())}</div></div>
+      <span class="pfeil">›</span>
+    </div>
+    <div class="volkzeile" data-winterbilanz>
+      <span class="gross" style="width:52px;text-align:center">❄</span>
+      <div class="info"><b>${esc(t2('Winterbilanz'))}</b>
+        <div>${esc(winterZeile())}</div></div>
+      <span class="pfeil">›</span>
+    </div>
   </div>
 
   <h2 class="abschnitt">Berichte</h2>
@@ -1868,6 +2044,9 @@ function verdrahten() {
     await datenLaden(); render(); toast('Volk gelöscht.');
   });
   on('[data-foto]', 'click', (e) => volksbildWaehlen(e.currentTarget.dataset.foto));
+  on('[data-standfoto]', 'click', (e) => standbildWaehlen(e.currentTarget.dataset.standfoto));
+  on('[data-waben]', 'click', (e) => wabenSheet(e.currentTarget.dataset.waben));
+  on('[data-wiegen]', 'click', (e) => wiegenSheet(e.currentTarget.dataset.wiegen));
   on('[data-koe-neu]', 'click', (e) => koeniginSheet(e.currentTarget.dataset.koeNeu));
   on('[data-koe-bearbeiten]', 'click', (e) => koeniginSheet(null,
     S.koeniginnen.find((k) => k.id === e.currentTarget.dataset.koeBearbeiten)));
@@ -1882,6 +2061,30 @@ function verdrahten() {
     if (p) { p.herunterladen(`stockkarte-${dateiname(v.name)}-${iso(heute())}.pdf`); toast('PDF erstellt.'); }
   });
   on('[data-protokoll]', 'click', () => protokollSheet());
+  on('[data-kassenbuch]', 'click', (e) => { e.preventDefault(); gehe('kassenbuch'); });
+  on('[data-kassenjahr]', 'click', (e) => {
+    S.kassenJahr = Number(e.currentTarget.dataset.kassenjahr);
+    render();
+  });
+  on('[data-neu-abfuellung]', 'click', () => abfuellungSheet());
+  on('[data-neu-verkauf]', 'click', () => verkaufSheet());
+  on('[data-neu-ausgabe]', 'click', () => ausgabeSheet());
+  on('[data-abfuellung]', 'click', (e) => abfuellungSheet(e.currentTarget.dataset.abfuellung));
+  on('[data-verkauf]', 'click', (e) => verkaufSheet(e.currentTarget.dataset.verkauf));
+  on('[data-ausgabe]', 'click', (e) => ausgabeSheet(e.currentTarget.dataset.ausgabe));
+  on('[data-los-etiketten]', 'click', () => losEtikettenSheet());
+  on('[data-kasse-pdf]', 'click', () => kassePDF());
+  on('[data-kasse-csv]', 'click', () => kasseCSV());
+  on('[data-winterbilanz]', 'click', (e) => { e.preventDefault(); gehe('winterbilanz'); });
+  on('[data-wintersaison]', 'click', (e) => {
+    S.winterSaison = Number(e.currentTarget.dataset.wintersaison);
+    render();
+  });
+  on('[data-einwinterung]', 'click', () => einwinterungSheet());
+  on('[data-auswinterung]', 'click', () => auswinterungSheet());
+  on('[data-winterzeile]', 'click', (e) => winterZeileSheet(e.currentTarget.dataset.winterzeile));
+  on('[data-wintersammel]', 'click', (e) => winterSammelSheet(e.currentTarget.dataset.wintersammel));
+  on('[data-wintersammel-neu]', 'click', () => winterSammelSheet());
   on('[data-etiketten]', 'click', (e) => { e.preventDefault(); etikettenSheet(); });
   on('[data-sync-einrichten]', 'click', () => syncSheet());
   on('[data-sync-jetzt]', 'click', () => syncAusfuehren());
@@ -2248,6 +2451,12 @@ async function aufgabeSpeichern(a, root, status) {
     });
   }
 
+  if (status === 'erledigt' && a.ziel.typ === 'volk' && !a.eigenId) {
+    await wabenAusAufgabe(a.regelId, a.ziel.id, datum, werte);
+    await winterAusAufgabe(a.regelId, a.ziel.id, datum);
+    await wiegungAusWerten(a.ziel.id, datum, werte);
+  }
+
   let neu = 0;
   if (status === 'erledigt' && a.ziel.typ === 'volk') {
     neu = await ausloeserPruefen({
@@ -2278,6 +2487,19 @@ async function aufgabeSpeichern(a, root, status) {
   if (status === 'erledigt' && a.aktion === 'ableger' && a.ziel.typ === 'volk'
     && Number(werte.anzahl) > 0) {
     setTimeout(() => ablegerSheet(a.ziel.id, Number(werte.anzahl), datum), 250);
+  }
+
+  // Abgefüllt wird einmal erfasst, nicht zweimal: die abgehakte Aufgabe führt
+  // direkt in die Charge – mit Glasgröße und Stückzahl aus der Aufgabe, dazu
+  // Los-Nummer und MHD, die nur die Charge kennt.
+  if (status === 'erledigt' && a.regelId === 'abfuellen' && Number(werte.glaeser) > 0) {
+    setTimeout(() => abfuellungSheet(null, {
+      datum,
+      glasgroesse: werte.glasgroesse || '500',
+      anzahl: Number(werte.glaeser),
+      sorte: letzteErnteSorte(datum),
+      notiz: werte.notiz || '',
+    }), 250);
   }
 }
 
@@ -2600,6 +2822,956 @@ function standortLoeschenSheet(st) {
   });
 }
 
+// ----------------------------------------------------------------- Kassenbuch
+// Eigene Ansicht, erreichbar über „Mehr". Absichtlich nicht in die Tabbar: das
+// Kassenbuch ist Abendarbeit am Tisch, nicht Arbeit am Stand.
+//
+// Aufbau von oben nach unten wie die Frage lautet: Was ist dieses Jahr
+// zusammengekommen? Wo kam es her? Was liegt noch im Regal? Und darunter die
+// Buchungen, mit denen man das fortschreibt.
+
+const kassEur = (x) => `${(Math.round((Number(x) || 0) * 100) / 100).toFixed(2)
+  .replace('.', ',')} €`;
+const kassKg = (x) => `${(Math.round((Number(x) || 0) * 10) / 10).toFixed(1)
+  .replace('.', ',')} kg`;
+const kassJahr = () => S.kassenJahr || heute().getFullYear();
+
+/** Eine Kennzahl in der Kopfkarte. */
+const kennzahl = (wert, was, zusatz = '') => `<div class="kz">
+  <b>${esc(wert)}</b><span>${esc(t2(was))}</span>
+  ${zusatz ? `<i>${esc(zusatz)}</i>` : ''}</div>`;
+
+function ansichtKassenbuch() {
+  const jahr = kassJahr();
+  const b = kasse.kassenBilanz(S, jahr);
+  const jahre = kasse.kassenJahre(S);
+  const bald = kasse.mhdBald(S);
+
+  const leer = !b.ernte.gesamt && !b.abfuellungen.length && !b.verkaeufe.length
+    && !b.ausgaben.length;
+
+  return `
+  <div class="karte"><div class="karte-inhalt">
+    <div class="monatskopf">
+      <button data-kassenjahr="${jahr - 1}" aria-label="${esc(t2('voriges Jahr'))}"
+        ${jahre.length && jahr - 1 < Math.min(...jahre) - 1 ? 'disabled' : ''}>‹</button>
+      <b>${jahr}</b>
+      <button data-kassenjahr="${jahr + 1}" aria-label="${esc(t2('nächstes Jahr'))}"
+        ${jahr >= heute().getFullYear() ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="kennzahlen">
+      ${kennzahl(kassKg(b.ernte.gesamt), 'geerntet',
+    b.ernte.jeVolk.length ? t2('{n} Völker', { n: b.ernte.jeVolk.length }) : '')}
+      ${kennzahl(String(b.abgefuellteGlaeser), 'Gläser abgefüllt', kassKg(b.abgefuelltKg))}
+      ${kennzahl(kassEur(b.einnahmen), 'eingenommen',
+    b.verkaufteGlaeser ? t2('{n} Gläser', { n: b.verkaufteGlaeser }) : '')}
+      ${kennzahl(kassEur(b.kosten), 'ausgegeben')}
+      ${kennzahl(kassEur(b.saldo), 'Überschuss')}
+      ${b.proKg != null ? kennzahl(kassEur(b.proKg), 'je Kilo verkauft') : ''}
+    </div>
+    ${b.nichtAbgefuellt > 0.5 ? `<div class="mini" style="margin-top:10px">${
+    esc(t2('{kg} der Ernte sind noch nicht als Abfüllung gebucht – entweder steht der Honig '
+      + 'noch im Eimer, oder eine Buchung fehlt.', { kg: kassKg(b.nichtAbgefuellt) }))}</div>` : ''}
+  </div></div>
+
+  ${leer ? `<div class="karte"><div class="karte-inhalt leer" style="padding:20px">
+    <span class="gross">📒</span>
+    ${esc(t2('Noch keine Zahlen für dieses Jahr. Die Ernte kommt von selbst aus den '
+      + 'abgehakten Ernteaufgaben; Abfüllen, Verkauf und Ausgaben buchst du hier.'))}
+  </div></div>` : ''}
+
+  ${b.ernte.jeStand.length ? `<h2 class="abschnitt">${esc(t2('Ernte je Stand'))}</h2>
+  <div class="karte">
+    ${b.ernte.jeStand.map((st) => `<div class="buchung">
+      <div class="btext"><b>${esc(st.name)}</b>
+        <small>${esc(t2('{n} Völker mit Ernte', { n: st.anzahl }))}</small></div>
+      <div class="bwert">${esc(kassKg(st.kg))}</div></div>`).join('')}
+    <div class="klapper" data-klapp="kasse:voelker">
+      <span class="mini">${esc(t2('nach Völkern aufschlüsseln'))}</span>
+      <span class="pfeil">${S.offen['kasse:voelker'] ? '⌄' : '›'}</span></div>
+    ${S.offen['kasse:voelker'] ? `<div class="karte-inhalt">
+      <table class="bilanz"><tbody>${b.ernte.jeVolk.map((v) => `<tr>
+        <td>${esc(v.name)}</td><td>${esc(kassKg(v.kg))}</td></tr>`).join('')}</tbody></table>
+      </div>` : ''}
+  </div>` : ''}
+
+  ${b.lager.zeilen.length ? `<h2 class="abschnitt">${esc(t2('Lagerbestand'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    ${`<table class="bilanz">
+      <thead><tr><th>${esc(t2('Sorte'))}</th><th>${esc(t2('Glas'))}</th>
+        <th>${esc(t2('abgefüllt'))}</th><th>${esc(t2('verkauft'))}</th>
+        <th>${esc(t2('im Lager'))}</th></tr></thead>
+      <tbody>${b.lager.zeilen.map((z) => `<tr>
+        <td>${esc(t2(z.sorte))}</td><td>${z.glasgroesse} g</td>
+        <td>${z.abgefuellt}</td><td>${z.verkauft}</td>
+        <td><b>${z.bestand}</b></td></tr>`).join('')}</tbody></table>
+      <div class="mini" style="margin-top:8px">${esc(t2('Zusammen {n} Gläser, das sind {kg}. '
+    + 'Der Bestand läuft über alle Jahre – Honig vom Vorjahr steht im Januar noch im Regal.',
+    { n: b.lager.glaeser, kg: kassKg(b.lager.kg) }))}</div>`}
+    ${bald.length ? `<div class="warnzeile" style="margin-top:12px;padding:0">
+      <span class="warnzeichen">🗓</span>
+      <div class="warntext"><b>${esc(t2('Mindesthaltbarkeit läuft ab'))}</b>
+        <div>${esc(bald.map((c) => t2('{sorte} {los}: {n} Gläser bis {mhd}',
+    { sorte: t2(c.sorte || ''), los: c.losnummer || '', n: c.rest,
+      mhd: kasse.mhdText(c.mhd) })).join(' · '))}</div></div></div>` : ''}
+  </div></div>` : ''}
+
+  <h2 class="abschnitt">${esc(t2('Abgefüllt'))}</h2>
+  <div class="karte">
+    ${b.abfuellungen.map((a) => `<div class="buchung" data-abfuellung="${a.id}">
+      <div class="btext"><b>${esc(t2(a.sorte || '–'))} · ${a.anzahl} × ${a.glasgroesse} g</b>
+        <small>${esc(fmtDatum(a.datum))}${a.losnummer ? ' · ' + esc(a.losnummer) : ''}${
+  a.mhd ? ' · ' + esc(t2('MHD {m}', { m: kasse.mhdText(a.mhd) })) : ''}</small></div>
+      <div class="bwert">${esc(kassKg(kasse.kgVon(a)))}</div>
+      <span class="pfeil">›</span></div>`).join('')
+    || `<div class="karte-inhalt leer" style="padding:18px">${
+      esc(t2('Noch keine Abfüllung gebucht.'))}</div>`}
+  </div>
+  <div class="knopfreihe">
+    <button class="knopf leise" data-neu-abfuellung>${esc(t2('Abfüllung buchen'))}</button>
+    ${b.abfuellungen.length ? `<button class="knopf leise" data-los-etiketten>${
+    esc(t2('Los-Etiketten (PDF)'))}</button>` : ''}
+  </div>
+
+  <h2 class="abschnitt">${esc(t2('Verkauft'))}</h2>
+  <div class="karte">
+    ${b.verkaeufe.map((v) => `<div class="buchung" data-verkauf="${v.id}">
+      <div class="btext"><b>${v.anzahl} × ${v.glasgroesse} g ${esc(t2(v.sorte || ''))}</b>
+        <small>${esc(fmtDatum(v.datum))}${v.art ? ' · ' + esc(t2(v.art)) : ''}${
+  v.kunde ? ' · ' + esc(v.kunde) : ''}</small></div>
+      <div class="bwert">${esc(kassEur(v.betrag))}</div>
+      <span class="pfeil">›</span></div>`).join('')
+    || `<div class="karte-inhalt leer" style="padding:18px">${
+      esc(t2('Noch kein Verkauf gebucht.'))}</div>`}
+  </div>
+  <div class="knopfreihe">
+    <button class="knopf leise" data-neu-verkauf>${esc(t2('Verkauf buchen'))}</button>
+  </div>
+
+  <h2 class="abschnitt">${esc(t2('Ausgaben'))}</h2>
+  <div class="karte">
+    ${b.ausgaben.map((a) => `<div class="buchung" data-ausgabe="${a.id}">
+      <div class="btext"><b>${esc(t2(a.art || 'Sonstiges'))}</b>
+        <small>${esc(fmtDatum(a.datum))}${a.was ? ' · ' + esc(a.was) : ''}</small></div>
+      <div class="bwert">−${esc(kassEur(a.betrag))}</div>
+      <span class="pfeil">›</span></div>`).join('')
+    || `<div class="karte-inhalt leer" style="padding:18px">${
+      esc(t2('Noch keine Ausgabe gebucht.'))}</div>`}
+    ${b.ausgabenJeArt.length > 1 ? `<div class="karte-inhalt">
+      <div class="mini" style="margin-bottom:2px">${esc(t2('nach Art zusammengefasst'))}</div>
+      <table class="bilanz"><tbody>${b.ausgabenJeArt.map((a) => `<tr>
+        <td>${esc(t2(a.art))}</td><td>${esc(kassEur(a.betrag))}</td></tr>`).join('')}
+      </tbody></table></div>` : ''}
+  </div>
+  <div class="knopfreihe">
+    <button class="knopf leise" data-neu-ausgabe>${esc(t2('Ausgabe buchen'))}</button>
+  </div>
+
+  <h2 class="abschnitt">${esc(t2('Auswertung'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="knopfreihe">
+      <button class="knopf leise" data-kasse-pdf>${esc(t2('Jahresübersicht (PDF)'))}</button>
+      <button class="knopf leise" data-kasse-csv>${esc(t2('Buchungen (CSV)'))}</button>
+    </div>
+    <div class="mini" style="margin-top:10px">${esc(t2('BeeWise führt keine Buchhaltung: keine '
+    + 'Umsatzsteuer, keine Abschreibung, kein Konto. Es sammelt die Zahlen so, dass du sie '
+    + 'weiterreichen kannst, wenn die Imkerei einmal steuerlich zählt.'))}</div>
+  </div></div>`;
+}
+
+// ---- Erfassungsfenster
+
+/** Sorten, die zur Auswahl stehen: die üblichen plus alles, was schon vorkam. */
+function kassenSorten() {
+  const eigene = new Set(kasse.HONIGSORTEN);
+  for (const a of S.abfuellungen) if (a.sorte && !a.deletedAt) eigene.add(a.sorte);
+  return [...eigene];
+}
+
+const kassenGroessen = () => {
+  const g = new Set(kasse.GLASGROESSEN);
+  for (const a of S.abfuellungen) if (a.glasgroesse && !a.deletedAt) g.add(String(a.glasgroesse));
+  return [...g].sort((x, y) => Number(x) - Number(y));
+};
+
+/** „08/2028" oder „2028-08" → „2028-08". Leere Eingabe bleibt leer. */
+function mhdLesen(text) {
+  const s = String(text || '').trim();
+  if (!s) return '';
+  let m = s.match(/^(\d{1,2})[./-](\d{4})$/);          // MM/JJJJ
+  if (m) return `${m[2]}-${String(m[1]).padStart(2, '0')}`;
+  m = s.match(/^(\d{4})-(\d{1,2})$/);                   // JJJJ-MM
+  if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}`;
+  m = s.match(/^(\d{4})-(\d{2})-\d{2}$/);               // ganzes Datum
+  if (m) return `${m[1]}-${m[2]}`;
+  return '';
+}
+
+/**
+ * Abfüllung buchen oder ändern.
+ * Los-Nummer und MHD sind vorbelegt, aber änderbar: die Nummer muss zu dem
+ * passen, was auf dem Glas klebt, und das entscheidet der Imker.
+ */
+function abfuellungSheet(id = null, vorgabe = {}) {
+  const alt = id ? S.abfuellungen.find((a) => a.id === id) : null;
+  const start = alt || vorgabe;
+  const datum = start.datum || iso(heute());
+  const felder = [
+    { key: 'datum', label: 'Abfülltag', typ: 'datum', standard: datum },
+    { key: 'sorte', label: 'Sorte', typ: 'auswahl', optionen: kassenSorten(),
+      standard: start.sorte || '' },
+    { key: 'glasgroesse', label: 'Glasgröße', typ: 'auswahl', einheit: 'g Inhalt',
+      optionen: kassenGroessen(), standard: String(start.glasgroesse || '500') },
+    { key: 'anzahl', label: 'Anzahl Gläser', typ: 'zahl', einheit: 'Stück', schritt: 1,
+      standard: start.anzahl ?? '' },
+    { key: 'losnummer', label: 'Los-Nummer', typ: 'text',
+      standard: start.losnummer || kasse.losVorschlag(S, datum),
+      hinweis: 'Damit kommst du von einem Glas zurück auf den Abfülltag.' },
+    { key: 'mhdText', label: 'Mindestens haltbar bis', typ: 'text', einheit: 'MM/JJJJ',
+      standard: kasse.mhdText(start.mhd || kasse.mhdVorschlag(datum)),
+      hinweis: 'Üblich sind zwei Jahre ab Abfüllung.' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: start.notiz || '' },
+  ];
+
+  sheetAuf({
+    titel: alt ? 'Abfüllung ändern' : 'Abfüllung buchen',
+    unter: alt ? '' : t2('Was ins Glas kommt – die Ernte selbst steht schon in den Aufgaben.'),
+    inhalt: `<div class="hinweis">${esc(t2('Pflicht auf dem Glas sind Mindesthaltbarkeit und '
+      + 'Füllmenge. Steht das Datum mit Tag, Monat und Jahr darauf, ersetzt es die Los-Nummer – '
+      + 'mit Monat und Jahr, wie hier vorgeschlagen, brauchst du die Nummer zusätzlich.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        ${alt ? `<button class="knopf leise loeschen" data-del>${esc(t2('Löschen'))}</button>` : ''}
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        if (!w.anzahl || !w.glasgroesse) return toast(t2('Anzahl und Glasgröße fehlen.'));
+        const satz = {
+          id: alt?.id || uid(),
+          datum: w.datum || iso(heute()),
+          sorte: w.sorte || '',
+          glasgroesse: Number(w.glasgroesse),
+          anzahl: Number(w.anzahl),
+          losnummer: w.losnummer || '',
+          mhd: mhdLesen(w.mhdText),
+          notiz: w.notiz || '',
+        };
+        await db.schreibe('abfuellungen', alt ? { ...alt, ...satz } : satz);
+        sheetZu(); await datenLaden(); S.kassenJahr = parseISO(satz.datum).getFullYear(); render();
+        toast(t2('Abfüllung gebucht: {n} × {g} g', { n: satz.anzahl, g: satz.glasgroesse }));
+      };
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        if (!await bestaetige(t2('Diese Abfüllung löschen?'))) return;
+        await db.loesche('abfuellungen', alt.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Abfüllung gelöscht.'));
+      });
+    },
+  });
+}
+
+/** Verkauf buchen oder ändern. */
+function verkaufSheet(id = null) {
+  const alt = id ? S.verkaeufe.find((v) => v.id === id) : null;
+  const lager = kasse.lagerbestand(S).zeilen.filter((z) => z.bestand > 0);
+  const vorschlag = lager[0] || {};
+  const felder = [
+    { key: 'datum', label: 'Tag', typ: 'datum', standard: alt?.datum || iso(heute()) },
+    { key: 'sorte', label: 'Sorte', typ: 'auswahl', optionen: kassenSorten(),
+      standard: alt?.sorte || vorschlag.sorte || '' },
+    { key: 'glasgroesse', label: 'Glasgröße', typ: 'auswahl', einheit: 'g Inhalt',
+      optionen: kassenGroessen(),
+      standard: String(alt?.glasgroesse || vorschlag.glasgroesse || '500') },
+    { key: 'anzahl', label: 'Anzahl Gläser', typ: 'zahl', einheit: 'Stück', schritt: 1,
+      standard: alt?.anzahl ?? '' },
+    { key: 'preis', label: 'Preis je Glas', typ: 'zahl', einheit: '€', schritt: 0.5,
+      standard: alt?.preis ?? '' },
+    { key: 'betrag', label: 'Betrag', typ: 'zahl', einheit: '€', schritt: 1,
+      standard: alt?.betrag ?? '',
+      abgeleitet: { aus: ['anzahl', 'preis'],
+        rechne: (w) => (w.anzahl && w.preis
+          ? Math.round(Number(w.anzahl) * Number(w.preis) * 100) / 100 : null) },
+      hinweis: 'Wird aus Anzahl und Preis gerechnet, lässt sich aber überschreiben.' },
+    { key: 'art', label: 'Wie verkauft', typ: 'auswahl', optionen: kasse.VERKAUF_ARTEN,
+      standard: alt?.art || 'Haustür' },
+    { key: 'kunde', label: 'Kunde', typ: 'text', standard: alt?.kunde || '',
+      hinweis: 'Freiwillig. Der Name liegt auf dem Gerät und geht in den Geräteabgleich mit.' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: alt?.notiz || '' },
+  ];
+
+  sheetAuf({
+    titel: alt ? 'Verkauf ändern' : 'Verkauf buchen',
+    unter: lager.length ? t2('im Lager: {was}',
+      { was: lager.map((z) => `${z.bestand} × ${z.glasgroesse} g ${t2(z.sorte)}`).join(', ') })
+      : '',
+    inhalt: `${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        ${alt ? `<button class="knopf leise loeschen" data-del>${esc(t2('Löschen'))}</button>` : ''}
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        if (!w.anzahl) return toast(t2('Anzahl fehlt.'));
+        const satz = {
+          id: alt?.id || uid(),
+          datum: w.datum || iso(heute()),
+          sorte: w.sorte || '',
+          glasgroesse: Number(w.glasgroesse || 0),
+          anzahl: Number(w.anzahl),
+          preis: w.preis != null ? Number(w.preis) : null,
+          betrag: Number(w.betrag || 0),
+          art: w.art || '',
+          kunde: w.kunde || '',
+          notiz: w.notiz || '',
+        };
+        await db.schreibe('verkaeufe', alt ? { ...alt, ...satz } : satz);
+        sheetZu(); await datenLaden(); S.kassenJahr = parseISO(satz.datum).getFullYear(); render();
+        toast(t2('Verkauf gebucht: {b}', { b: kassEur(satz.betrag) }));
+      };
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        if (!await bestaetige(t2('Diesen Verkauf löschen?'))) return;
+        await db.loesche('verkaeufe', alt.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Verkauf gelöscht.'));
+      });
+    },
+  });
+}
+
+/** Ausgabe buchen oder ändern. */
+function ausgabeSheet(id = null) {
+  const alt = id ? S.ausgaben.find((a) => a.id === id) : null;
+  const felder = [
+    { key: 'datum', label: 'Tag', typ: 'datum', standard: alt?.datum || iso(heute()) },
+    { key: 'art', label: 'Wofür', typ: 'auswahl', optionen: kasse.AUSGABE_ARTEN,
+      standard: alt?.art || '' },
+    { key: 'was', label: 'Bezeichnung', typ: 'text', standard: alt?.was || '',
+      platzhalter: '25 kg Zucker' },
+    { key: 'betrag', label: 'Betrag', typ: 'zahl', einheit: '€', schritt: 1,
+      standard: alt?.betrag ?? '' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: alt?.notiz || '' },
+  ];
+
+  sheetAuf({
+    titel: alt ? 'Ausgabe ändern' : 'Ausgabe buchen',
+    inhalt: `${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        ${alt ? `<button class="knopf leise loeschen" data-del>${esc(t2('Löschen'))}</button>` : ''}
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        if (!w.betrag) return toast(t2('Betrag fehlt.'));
+        const satz = {
+          id: alt?.id || uid(),
+          datum: w.datum || iso(heute()),
+          art: w.art || 'Sonstiges',
+          was: w.was || '',
+          betrag: Number(w.betrag),
+          notiz: w.notiz || '',
+        };
+        await db.schreibe('ausgaben', alt ? { ...alt, ...satz } : satz);
+        sheetZu(); await datenLaden(); S.kassenJahr = parseISO(satz.datum).getFullYear(); render();
+        toast(t2('Ausgabe gebucht: {b}', { b: kassEur(satz.betrag) }));
+      };
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        if (!await bestaetige(t2('Diese Ausgabe löschen?'))) return;
+        await db.loesche('ausgaben', alt.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Ausgabe gelöscht.'));
+      });
+    },
+  });
+}
+
+/**
+ * Welche Sorte wurde zuletzt geerntet? Als Vorschlag beim Abfüllen – wer im Juni
+ * abfüllt, füllt Frühtracht ab, und wer im August abfüllt, Sommertracht.
+ */
+function letzteErnteSorte(bis) {
+  const kandidaten = S.erledigungen
+    .filter((e) => !e.deletedAt && e.status !== 'uebersprungen'
+      && kasse.ERNTE_SORTE[e.regelId] && e.datum <= bis)
+    .sort((x, y) => (x.datum < y.datum ? 1 : -1));
+  return kandidaten.length ? kasse.ERNTE_SORTE[kandidaten[0].regelId] : '';
+}
+
+/** Einzeiler für den Eintrag unter „Mehr". */
+function kassenbuchZeile() {
+  const b = kasse.kassenBilanz(S, heute().getFullYear());
+  if (!b.ernte.gesamt && !b.abfuellungen.length && !b.verkaeufe.length && !b.ausgaben.length) {
+    return t2('Geerntet, abgefüllt, verkauft, Ausgaben – Zahlen für das Jahr');
+  }
+  return [t2('{kg} geerntet', { kg: kassKg(b.ernte.gesamt) }),
+    b.lager.glaeser ? t2('{n} Gläser im Lager', { n: b.lager.glaeser }) : '',
+    b.einnahmen || b.kosten ? t2('Überschuss {b}', { b: kassEur(b.saldo) }) : '']
+    .filter(Boolean).join(' · ');
+}
+
+/** Lesbarer Name einer Charge für die Auswahl. */
+const chargeName = (c) => [c.losnummer || fmtDatum(c.datum), c.sorte,
+  `${c.anzahl} × ${c.glasgroesse} g`].filter(Boolean).join(' · ');
+
+/** Bogen mit Los- und MHD-Aufklebern für eine Charge. */
+function losEtikettenSheet() {
+  const jahr = kassJahr();
+  const chargen = S.abfuellungen.filter((a) => !a.deletedAt
+    && parseISO(a.datum).getFullYear() === jahr)
+    .sort((a, b) => (a.datum < b.datum ? 1 : -1));
+  if (!chargen.length) return toast(t2('Keine Abfüllung in diesem Jahr.'));
+
+  sheetAuf({
+    titel: 'Los-Etiketten',
+    unter: t2('Kleine Aufkleber mit Sorte, Los-Nummer, MHD und Füllmenge – zum Ergänzen '
+      + 'vorgedruckter Etiketten.'),
+    inhalt: `
+      ${feldHTML({ key: 'charge', label: 'Charge', typ: 'auswahl',
+    optionen: chargen.map(chargeName) }, chargeName(chargen[0]))}
+      ${feldHTML({ key: 'stueck', label: 'Wie viele Aufkleber', typ: 'zahl', einheit: 'Stück',
+    schritt: 5 }, String(chargen[0].anzahl || 20))}
+      <div class="knopfreihe"><button class="knopf" data-ok>${
+  esc(t2('Bogen erzeugen'))}</button></div>`,
+    danach(root) {
+      felderVerdrahten(root, []);
+      root.querySelector('[data-ok]').onclick = () => {
+        const w = werteLesen(root);
+        const c = chargen.find((x) => chargeName(x) === w.charge) || chargen[0];
+        if (!c) return;
+        const stueck = Number(w.stueck) || c.anzahl;
+        losEtikettenPDF(c, stueck, { imkerei: S.imkereiName })
+          .herunterladen(`los-${(c.losnummer || c.datum).replace(/[^\w-]/g, '')}.pdf`);
+        sheetZu();
+        toast(t2('{n} Aufkleber erzeugt.', { n: stueck }));
+      };
+    },
+  });
+}
+
+async function kassePDF() {
+  const jahr = kassJahr();
+  kassenbuchPDF(S, kasse.kassenBilanz(S, jahr), { imkerei: S.imkereiName })
+    .herunterladen(dateiname(`kassenbuch-${jahr}`));
+  toast(t2('Jahresübersicht erstellt.'));
+}
+
+function kasseCSV() {
+  const jahr = kassJahr();
+  const text = kasse.kassenCSV(kasse.kassenBilanz(S, jahr));
+  // BOM davor, sonst zeigt Excel Umlaute falsch an.
+  const blob = new Blob(['﻿' + text], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `beewise-kassenbuch-${jahr}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(t2('Buchungen als CSV gespeichert.'));
+}
+
+// ------------------------------------------------------------------- Gewicht
+// Handwägungen taugen für Differenzen, nicht für Absolutwerte – die ganze
+// Auswertung sitzt deshalb auf einem Nullpunkt (siehe js/gewicht.js). Hier steht
+// nur die Darstellung und das Erfassen.
+
+/**
+ * Eine Wägung aus einem beliebigen Erfassungsfenster ableiten.
+ * Die Wägeart wird von der letzten Wägung dieses Volkes übernommen: wer einmal
+ * die Kippprobe gewählt hat, wiegt weiter so – die Reihe darf nicht ohne
+ * Zutun den Maßstab wechseln.
+ */
+async function wiegungAusWerten(volkId, datum, werte) {
+  const kg = Number(werte?.gewicht);
+  if (!kg || Number.isNaN(kg)) return false;
+  const letzte = (S.wiegungen || [])
+    .filter((w) => !w.deletedAt && w.volkId === volkId)
+    .sort((a, b) => (a.datum < b.datum ? 1 : -1))[0];
+  await db.schreibe('wiegungen', {
+    id: uid(), volkId, datum, kg,
+    art: letzte?.art || gewicht.WIEGEARTEN[0],
+    nullpunkt: false, quelle: 'erfassung',
+  });
+  return true;
+}
+
+/** Karte im Volk: Kurve, Nullpunkt, Ereignisse und die Sätze dazu. */
+function gewichtKarteHTML(v) {
+  const verlauf = gewicht.gewichtsVerlauf(S, v.id);
+  const knopf = `<div class="knopfreihe">
+    <button class="knopf leise klein" data-wiegen="${v.id}">${esc(t2('Wiegen'))}</button>
+  </div>`;
+
+  if (!verlauf.erfasst) {
+    return `<h2 class="abschnitt">${esc(t2('Gewicht'))}</h2>
+    <div class="karte"><div class="karte-inhalt">
+      <div class="mini">${esc(t2('Noch nichts gewogen. Vier bis sechs Wägungen im Jahr genügen: '
+      + 'nach der letzten Ernte (das ist der Nullpunkt), nach jeder Futtergabe, im Oktober, '
+      + 'im Dezember und im Februar. Daraus rechnet BeeWise Futtervorrat und Zehrung.'))}</div>
+      ${knopf}
+    </div></div>`;
+  }
+
+  const saetze = gewicht.gewichtSaetze(S, v, verlauf, t2);
+  const z = gewicht.zehrung(S, v, verlauf);
+  const bild = gewicht.gewichtBild(verlauf);
+  const letzte = verlauf.letzte;
+
+  return `<h2 class="abschnitt">${esc(t2('Gewicht'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    ${bild || `<div class="mini">${esc(t2('Eine einzelne Wägung: {kg} kg am {d}. Die zweite '
+    + 'macht daraus eine Aussage.', { kg: String(letzte.kg).replace('.', ','),
+    d: fmtDatum(letzte.datum) }))}</div>`}
+    ${bild ? `<div class="varroalegende">
+      <span><i class="mk linie"></i>${esc(t2(letzte.art))}</span>
+      ${verlauf.nullpunkt ? `<span><i class="mk schwelle"></i>${esc(t2('Nullpunkt'))}</span>` : ''}
+      ${verlauf.ereignisse.length ? `<span><i class="mk behandlung"></i>${
+    esc(t2('Ernte, Zarge, Futter'))}</span>` : ''}
+    </div>` : ''}
+    ${saetze.length ? `<div class="gewichtsatz${z && z.reicht === false ? ' warnung' : ''}">${
+    esc(saetze.join(' '))}</div>` : ''}
+    ${verlauf.nullpunktAbgeleitet ? `<div class="mini" style="margin-top:8px">${
+    esc(t2('Als Nullpunkt gilt die erste Wägung nach der letzten Ernte ({d}). Beim Wiegen '
+      + 'lässt sich das ausdrücklich setzen.', { d: fmtDatum(verlauf.nullpunkt.datum) }))}</div>`
+    : ''}
+    ${knopf}
+  </div></div>`;
+}
+
+/** Wiegen: Datum, Gewicht, Wägeart, auf Wunsch als Nullpunkt. */
+function wiegenSheet(volkId) {
+  const v = S.voelker.find((x) => x.id === volkId);
+  if (!v) return;
+  const verlauf = gewicht.gewichtsVerlauf(S, v.id);
+  const letzte = verlauf.letzte;
+  const felder = [
+    { key: 'datum', label: 'Tag', typ: 'datum', standard: iso(heute()) },
+    { key: 'kg', label: 'Gewicht', typ: 'zahl', einheit: 'kg', schritt: 0.5,
+      standard: letzte ? letzte.kg : '' },
+    { key: 'art', label: 'Wie gewogen', typ: 'chips', einfach: true,
+      optionen: gewicht.WIEGEARTEN, standard: letzte?.art || gewicht.WIEGEARTEN[0],
+      hinweis: 'Immer gleich ansetzen. Kippprobe und ganze Beute werden getrennt gerechnet.' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig' },
+  ];
+
+  sheetAuf({
+    titel: t2('Wiegen'),
+    unter: letzte
+      ? t2('zuletzt {kg} kg am {d} ({art})', { kg: String(letzte.kg).replace('.', ','),
+        d: fmtDatum(letzte.datum), art: t2(letzte.art) })
+      : v.name,
+    inhalt: `<div class="hinweis">${esc(t2('Die Waage ist gut für Unterschiede, nicht für '
+      + 'Absolutwerte: unter einem Kilo ist alles Rauschen. Wichtig ist, immer an derselben '
+      + 'Stelle und gleich weit anzuheben.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <label class="wahlzeile"><input type="checkbox" data-nullpunkt
+        ${verlauf.erfasst ? '' : 'checked'}>
+        <span>${esc(t2('Als Nullpunkt setzen'))}
+          <small>${esc(t2('Direkt nach der letzten Ernte: dann ist fast kein Vorrat im Volk, '
+  + 'und alles Weitere ist Futter.'))}</small></span></label>
+      <div class="knopfreihe"><button class="knopf" data-ok>${
+  esc(t2('Speichern'))}</button></div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        if (!w.kg) return toast(t2('Gewicht fehlt.'));
+        await db.schreibe('wiegungen', {
+          id: uid(), volkId,
+          datum: w.datum || iso(heute()),
+          kg: Number(w.kg),
+          art: w.art || gewicht.WIEGEARTEN[0],
+          nullpunkt: root.querySelector('[data-nullpunkt]').checked,
+          notiz: w.notiz || '',
+        });
+        sheetZu(); await datenLaden(); render();
+        toast(t2('{kg} kg gespeichert.', { kg: String(Number(w.kg)).replace('.', ',') }));
+      };
+    },
+  });
+}
+
+/**
+ * Völker, deren Vorrat rechnerisch nicht bis zur Weide reicht.
+ * Steht auf „Heute" – im Winter ist das die einzige Information, für die man
+ * sonst die Beute öffnen müsste, was man nicht darf.
+ */
+function futterkarteHTML() {
+  const liste = gewicht.futterWarnungen(S);
+  if (!liste.length) return '';
+  return `<div class="karte warnkarte">${liste.slice(0, 4).map((f) => `
+    <div class="warnzeile" data-volk="${f.volk.id}">
+      <span class="warnzeichen">⚖</span>
+      <div class="warntext">
+        <b>${esc(t2('{name}: Futter wird knapp', { name: f.volk.name }))}</b>
+        <div>${esc(t2('Rund {rest} kg Vorrat bei {pro} kg Zehrung im Monat – bis Mitte März '
+    + 'fehlen etwa {fehlt} kg. Futterteig direkt über den Sitz legen, kein Zuckerwasser.',
+    { rest: String(f.rest).replace('.', ','), pro: String(f.proMonat).replace('.', ','),
+      fehlt: String(f.fehlt).replace('.', ',') }))}</div>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// --------------------------------------------------------------- Winterbilanz
+// Die Verlustrate ist die einzige Zahl, an der man über Jahre sieht, ob die
+// Betriebsweise trägt – und die einzige, die man sich nicht schönrechnen darf.
+// Deshalb wird sie erst aus den ausgewerteten Völkern gebildet: solange die
+// Auswinterung offen ist, steht hier keine Quote, sondern eine Aufforderung.
+
+const winterJahr = () => S.winterSaison ?? winter.saisonVon();
+
+/** Einzeiler für den Eintrag unter „Mehr". */
+function winterZeile() {
+  const b = winter.winterBilanz(S, winter.saisonVon());
+  if (!b.ein) {
+    const vor = winter.winterReihe(S).slice(-1)[0];
+    return vor
+      ? t2('{name}: {r} % Verlust', { name: vor.name, r: String(vor.rate).replace('.', ',') })
+      : t2('Eingewintert, durchgekommen, Verlustrate je Jahr und Stand');
+  }
+  if (b.offen) {
+    return t2('{name}: {n} eingewintert, {o} noch nicht bewertet',
+      { name: b.name, n: b.ein, o: b.offen });
+  }
+  return t2('{name}: {v} von {n} verloren', { name: b.name, v: b.verloren, n: b.bewertet });
+}
+
+function ansichtWinter() {
+  const saison = winterJahr();
+  const b = winter.winterBilanz(S, saison);
+  const reihe = winter.winterReihe(S);
+  const offen = b.zeilen.filter((z) => !z.ausgang && z.volk);
+  const fehlen = winter.nichtEingewintert(S, saison);
+  const satz = winter.winterSatzText(b, t2);
+
+  const balken = reihe.length > 1 ? `<div class="vgl">${reihe.map((r) => {
+    const hoechst = Math.max(...reihe.map((x) => x.rate || 0), 10);
+    return `<div class="vglzeile">
+      <div class="vglname">${esc(r.name)}<small>${esc(t2('{n} eingewintert',
+    { n: r.ein }))}</small></div>
+      <div class="vglbalken"><i style="width:${Math.max(3,
+    Math.round(((r.rate || 0) / hoechst) * 100))}%"></i>
+        <b>${String(r.rate).replace('.', ',')} %</b></div>
+    </div>`;
+  }).join('')}</div>` : '';
+
+  return `
+  <div class="karte"><div class="karte-inhalt">
+    <div class="monatskopf">
+      <button data-wintersaison="${saison - 1}" aria-label="${esc(t2('vorige Saison'))}">‹</button>
+      <b>${esc(b.name)}</b>
+      <button data-wintersaison="${saison + 1}" aria-label="${esc(t2('nächste Saison'))}"
+        ${saison >= winter.saisonVon() ? 'disabled' : ''}>›</button>
+    </div>
+    <div class="kennzahlen">
+      ${kennzahl(String(b.ein), 'eingewintert')}
+      ${kennzahl(String(b.durch), 'durchgekommen', b.schwach
+    ? t2('davon {n} schwach', { n: b.schwach }) : '')}
+      ${kennzahl(String(b.verloren), 'verloren')}
+      ${kennzahl(b.rate != null ? `${String(b.rate).replace('.', ',')} %` : '–', 'Verlustrate',
+    b.offen ? t2('{n} offen', { n: b.offen }) : '')}
+    </div>
+    ${satz ? `<div class="wabensatz${b.verloren ? ' warnung' : ''}">${esc(satz)}</div>` : ''}
+    <div class="knopfreihe">
+      ${offen.length ? `<button class="knopf" data-auswinterung>${
+    esc(t2('Auswinterung erfassen'))}</button>` : ''}
+      ${fehlen.length ? `<button class="knopf ${offen.length ? 'leise' : ''}" data-einwinterung>${
+    esc(t2('Einwinterung erfassen'))}</button>` : ''}
+    </div>
+  </div></div>
+
+  ${b.zeilen.length ? `<h2 class="abschnitt">${esc(t2('Völker dieser Saison'))}</h2>
+  <div class="karte">
+    ${b.zeilen.map((z) => `<div class="buchung" data-winterzeile="${z.id}">
+      <div class="btext"><b>${esc(z.volk?.name || t2('gelöschtes Volk'))}</b>
+        <small>${esc([z.stand?.name, z.ausgang ? t2(z.ausgang) : t2('noch offen'),
+    z.grund ? t2(z.grund) : ''].filter(Boolean).join(' · '))}</small></div>
+      <div class="bwert">${z.ausgang === 'verloren' ? '✕'
+    : z.ausgang === 'durchgekommen' ? '✓' : z.ausgang === 'schwach' ? '≈' : '?'}</div>
+      <span class="pfeil">›</span></div>`).join('')}
+  </div>` : ''}
+
+  ${b.gruende.length ? `<h2 class="abschnitt">${esc(t2('Woran die Völker eingingen'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <table class="bilanz"><tbody>${b.gruende.map((g) => `<tr>
+      <td>${esc(t2(g.grund))}</td><td>${g.anzahl}</td></tr>`).join('')}</tbody></table>
+    <div class="mini" style="margin-top:8px">${esc(t2('Die Ursache ist der eigentliche Ertrag '
+    + 'dieser Statistik: eine Quote allein sagt nur, dass es schiefging.'))}</div>
+  </div></div>` : ''}
+
+  ${b.jeStand.length > 1 ? `<h2 class="abschnitt">${esc(t2('Je Stand'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <table class="bilanz">
+      <thead><tr><th>${esc(t2('Stand'))}</th><th>${esc(t2('eingewintert'))}</th>
+        <th>${esc(t2('verloren'))}</th><th>${esc(t2('Rate'))}</th></tr></thead>
+      <tbody>${b.jeStand.map((s) => `<tr><td>${esc(s.name)}</td><td>${s.ein}</td>
+        <td>${s.verloren}</td><td>${s.rate != null
+    ? String(s.rate).replace('.', ',') + ' %' : '–'}</td></tr>`).join('')}</tbody></table>
+  </div></div>` : ''}
+
+  ${balken ? `<h2 class="abschnitt">${esc(t2('Verlustrate über die Jahre'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="vgltitel">${esc(t2('Anteil verlorener Völker je Saison'))}</div>
+    ${balken}
+    <div class="mini" style="margin-top:8px">${esc(t2('Zum Vergleich: über mehrere Jahre '
+    + 'gemittelt liegen die üblichen Winterverluste im niedrigen zweistelligen Bereich. '
+    + 'Ein einzelner Winter sagt wenig – die Reihe sagt viel.'))}</div>
+  </div></div>` : ''}
+
+  ${b.sammel.length ? `<h2 class="abschnitt">${esc(t2('Von Hand erfasst'))}</h2>
+  <div class="karte">
+    ${b.sammel.map((x) => `<div class="buchung" data-wintersammel="${x.id}">
+      <div class="btext"><b>${esc(t2('{n} eingewintert, {v} verloren',
+    { n: x.anzahlEin, v: x.anzahlVerloren }))}</b>
+        <small>${esc(x.notiz || t2('Zahlen aus der Erinnerung'))}</small></div>
+      <span class="pfeil">›</span></div>`).join('')}
+  </div>` : ''}
+
+  <div class="knopfreihe">
+    <button class="knopf leise klein" data-wintersammel-neu>${
+  esc(t2('Frühere Saison von Hand erfassen'))}</button>
+  </div>`;
+}
+
+/**
+ * Einwinterung: welche Völker gehen in den Winter?
+ * Vorbelegt mit allen Völkern im Bestand – ein Tipp genügt. Wer im Herbst
+ * „Auffüttern abschließen" oder „Mäusegitter" abhakt, hat den Eintrag ohnehin
+ * schon (siehe winterAusAufgabe).
+ */
+function einwinterungSheet() {
+  const saison = winterJahr();
+  const fehlen = winter.nichtEingewintert(S, saison);
+  if (!fehlen.length) return toast(t2('Alle Völker sind für diese Saison erfasst.'));
+
+  sheetAuf({
+    titel: t2('Einwinterung {saison}', { saison: winter.saisonName(saison) }),
+    unter: t2('Welche Völker gehen in den Winter?'),
+    inhalt: `<div class="hinweis">${esc(t2('Nur ankreuzen, was tatsächlich eingewintert wird. '
+      + 'Ein Volk, das im Herbst schon aufgelöst oder vereinigt wurde, gehört nicht in die '
+      + 'Rechnung – sonst schönt oder verdirbt es die Verlustrate.'))}</div>
+      <div class="wahlliste">${fehlen.map((v) => `
+        <label class="wahlzeile"><input type="checkbox" data-ein="${v.id}" checked>
+          <span><b>${esc(v.name)}</b><small>${esc(standortName(v.standortId)
+        || t2('ohne Standort'))}</small></span></label>`).join('')}</div>
+      <div class="knopfreihe"><button class="knopf" data-ok>${
+  esc(t2('Speichern'))}</button></div>`,
+    danach(root) {
+      root.querySelector('[data-ok]').onclick = async () => {
+        const ids = [...root.querySelectorAll('[data-ein]:checked')].map((x) => x.dataset.ein);
+        for (const id of ids) {
+          const v = S.voelker.find((x) => x.id === id);
+          if (!v) continue;
+          await db.schreibe('winterung', {
+            id: uid(), art: 'volk', saison, volkId: v.id, standortId: v.standortId || null,
+            eingewintert: true, ausgang: null, grund: '', datum: iso(heute()),
+          });
+        }
+        sheetZu(); await datenLaden(); S.winterSaison = saison; render();
+        toast(t2('{n} Völker eingewintert.', { n: ids.length }));
+      };
+    },
+  });
+}
+
+/**
+ * Auswinterung: je Volk durchgekommen, schwach oder verloren – und woran.
+ * Alles in einem Fenster, weil man im März am Stand steht und alle Völker
+ * nacheinander ansieht.
+ */
+function auswinterungSheet() {
+  const saison = winterJahr();
+  const offen = winter.offeneAuswinterung(S, saison);
+  if (!offen.length) return toast(t2('Für diese Saison ist alles ausgewertet.'));
+
+  const zeile = (z) => `<div class="auswzeile" data-zeile="${z.id}">
+    <div class="auswkopf"><b>${esc(z.volk.name)}</b>
+      <small>${esc(z.stand?.name || '')}</small></div>
+    <div class="chips" data-ausgang>${winter.AUSGANG.map((a) =>
+    `<button type="button" data-wert="${a}">${esc(t2(a))}</button>`).join('')}</div>
+    <select data-grund hidden aria-label="${esc(t2('Grund'))}">
+      <option value="">${esc(t2('Grund wählen'))}</option>
+      ${winter.VERLUST_GRUENDE.map((g) => `<option value="${esc(g)}">${esc(t2(g))}</option>`).join('')}
+    </select>
+  </div>`;
+
+  sheetAuf({
+    titel: t2('Auswinterung {saison}', { saison: winter.saisonName(saison) }),
+    unter: t2('{n} Völker warten auf die Auswertung', { n: offen.length }),
+    inhalt: `<div class="hinweis">${esc(t2('„Schwach" zählt als durchgekommen – das Volk lebt. '
+      + 'Bei „verloren" bitte den Grund angeben: die Ursache ist der eigentliche Ertrag dieser '
+      + 'Statistik.'))}</div>
+      ${offen.map(zeile).join('')}
+      <label class="wahlzeile" style="margin-top:6px">
+        <input type="checkbox" data-aufloesen checked>
+        <span>${esc(t2('Verlorene Völker aus dem Bestand nehmen'))}
+          <small>${esc(t2('Der Verlauf bleibt erhalten, aber es entstehen keine neuen '
+  + 'Aufgaben mehr.'))}</small></span></label>
+      <div class="knopfreihe"><button class="knopf" data-ok>${
+  esc(t2('Speichern'))}</button></div>`,
+    danach(root) {
+      root.querySelectorAll('.auswzeile').forEach((zn) => {
+        const grund = zn.querySelector('[data-grund]');
+        zn.querySelectorAll('[data-ausgang] button').forEach((b) => {
+          b.onclick = () => {
+            zn.querySelectorAll('[data-ausgang] button').forEach((x) => x.classList.remove('an'));
+            b.classList.add('an');
+            grund.hidden = b.dataset.wert !== 'verloren';
+          };
+        });
+      });
+      root.querySelector('[data-ok]').onclick = async () => {
+        const aufloesen = root.querySelector('[data-aufloesen]').checked;
+        let n = 0; let verloren = 0;
+        for (const zn of root.querySelectorAll('.auswzeile')) {
+          const gewaehlt = zn.querySelector('[data-ausgang] button.an');
+          if (!gewaehlt) continue;
+          const satz = S.winterung.find((w) => w.id === zn.dataset.zeile);
+          if (!satz) continue;
+          const ausgang = gewaehlt.dataset.wert;
+          const grund = ausgang === 'verloren'
+            ? (zn.querySelector('[data-grund]').value || 'unbekannt') : '';
+          await db.schreibe('winterung', { ...satz, ausgang, grund, bewertetAm: iso(heute()) });
+          n += 1;
+          if (ausgang === 'verloren') {
+            verloren += 1;
+            const v = S.voelker.find((x) => x.id === satz.volkId);
+            if (v && aufloesen) {
+              await db.schreibe('voelker', { ...v, status: 'aufgeloest',
+                aufgeloestAm: iso(heute()), aufgeloestGrund: grund });
+            }
+          }
+        }
+        sheetZu(); await datenLaden(); render();
+        toast(verloren
+          ? t2('{n} Völker bewertet, {v} verloren.', { n, v: verloren })
+          : t2('{n} Völker bewertet – alle durchgekommen.', { n }));
+      };
+    },
+  });
+}
+
+/** Einzelnes Volk nachträglich ändern. */
+function winterZeileSheet(id) {
+  const satz = S.winterung.find((w) => w.id === id);
+  if (!satz) return;
+  const v = S.voelker.find((x) => x.id === satz.volkId);
+  const felder = [
+    { key: 'ausgang', label: 'Ausgang', typ: 'chips', einfach: true, optionen: winter.AUSGANG,
+      standard: satz.ausgang || '' },
+    { key: 'grund', label: 'Grund bei Verlust', typ: 'auswahl', optionen: winter.VERLUST_GRUENDE,
+      standard: satz.grund || '' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: satz.notiz || '' },
+  ];
+  sheetAuf({
+    titel: v?.name || t2('Volk'),
+    unter: winter.saisonName(satz.saison),
+    inhalt: `${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        <button class="knopf leise loeschen" data-del>${esc(t2('Eintrag löschen'))}</button>
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        await db.schreibe('winterung', { ...satz,
+          ausgang: w.ausgang || null,
+          grund: w.ausgang === 'verloren' ? (w.grund || 'unbekannt') : '',
+          notiz: w.notiz || '' });
+        sheetZu(); await datenLaden(); render(); toast(t2('Gespeichert.'));
+      };
+      root.querySelector('[data-del]').onclick = async () => {
+        await db.loesche('winterung', satz.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Eintrag gelöscht.'));
+      };
+    },
+  });
+}
+
+/**
+ * Frühere Saison von Hand: nur zwei Zahlen.
+ * Wer die App erst seit einem Jahr nutzt, hat die Verluste der Vorjahre im Kopf –
+ * und die Reihe über mehrere Jahre ist der eigentliche Wert dieser Statistik.
+ */
+function winterSammelSheet(id = null) {
+  const alt = id ? S.winterung.find((w) => w.id === id) : null;
+  const jetzt = winter.saisonVon();
+  const jahre = [];
+  for (let y = jetzt; y >= jetzt - 10; y--) jahre.push(winter.saisonName(y));
+  const felder = [
+    { key: 'saison', label: 'Saison', typ: 'auswahl', optionen: jahre,
+      standard: winter.saisonName(alt?.saison ?? jetzt - 1) },
+    { key: 'anzahlEin', label: 'Eingewintert', typ: 'zahl', einheit: 'Völker', schritt: 1,
+      standard: alt?.anzahlEin ?? '' },
+    { key: 'anzahlVerloren', label: 'Verloren', typ: 'zahl', einheit: 'Völker', schritt: 1,
+      standard: alt?.anzahlVerloren ?? '' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: alt?.notiz || '' },
+  ];
+  sheetAuf({
+    titel: alt ? t2('Zahlen ändern') : t2('Frühere Saison erfassen'),
+    inhalt: `<div class="hinweis">${esc(t2('Für Jahre, in denen du BeeWise noch nicht benutzt '
+      + 'hast. Diese Zahlen erscheinen getrennt als „von Hand erfasst" – man soll sehen, '
+      + 'welche Werte aus der Erfassung und welche aus der Erinnerung stammen.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        ${alt ? `<button class="knopf leise loeschen" data-del>${esc(t2('Löschen'))}</button>` : ''}
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        if (!w.anzahlEin) return toast(t2('Anzahl fehlt.'));
+        const saison = Number(String(w.saison).slice(0, 4));
+        await db.schreibe('winterung', {
+          ...(alt || {}), id: alt?.id || uid(), art: 'sammel', saison,
+          anzahlEin: Number(w.anzahlEin), anzahlVerloren: Number(w.anzahlVerloren || 0),
+          notiz: w.notiz || '', datum: `${saison}-10-01`,
+        });
+        sheetZu(); await datenLaden(); S.winterSaison = saison; render();
+        toast(t2('Gespeichert.'));
+      };
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        await db.loesche('winterung', alt.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Eintrag gelöscht.'));
+      });
+    },
+  });
+}
+
+/**
+ * Winterungseinträge, die sich aus einer abgehakten Aufgabe ergeben.
+ * Herbstaufgaben bedeuten „eingewintert", die erste Durchsicht im Frühjahr
+ * bedeutet „lebt". So entsteht die Statistik im Vorbeigehen und nicht durch
+ * eine zusätzliche Pflicht.
+ */
+async function winterAusAufgabe(regelId, volkId, datum) {
+  const v = S.voelker.find((x) => x.id === volkId);
+  if (!v) return;
+  if (winter.EINWINTERUNG_REGELN.includes(regelId)) {
+    const saison = winter.saisonVon(parseISO(datum));
+    if (!winter.winterSatz(S, volkId, saison)) {
+      await db.schreibe('winterung', {
+        id: uid(), art: 'volk', saison, volkId, standortId: v.standortId || null,
+        eingewintert: true, ausgang: null, grund: '', datum, quelle: regelId,
+      });
+    }
+    return;
+  }
+  if (winter.AUSWINTERUNG_REGELN.includes(regelId)) {
+    // Im Frühjahr liefert saisonVon() bereits den zurückliegenden Winter
+    // (vor August zählt das Vorjahr) – genau der soll ausgewertet werden.
+    const saison = winter.saisonVon(parseISO(datum));
+    const satz = winter.winterSatz(S, volkId, saison);
+    if (satz && !satz.ausgang) {
+      await db.schreibe('winterung', { ...satz, ausgang: 'durchgekommen',
+        bewertetAm: datum, quelleAusgang: regelId });
+    }
+  }
+}
+
 // ------------------------------------------------------------------ Berichte
 
 function protokollSheet() {
@@ -2776,6 +3948,12 @@ function standortSheet(st = null) {
     titel: st ? 'Bienenstand bearbeiten' : 'Bienenstand anlegen',
     unter: 'Adresse eingeben, Position übernehmen oder im Luftbild lange tippen.',
     inhalt: `
+      ${st ? `<div style="display:flex;gap:12px;align-items:center;margin-bottom:14px">
+        <button type="button" class="bildknopf" data-standfoto="${st.id}">${
+    bildFuerStand(st, 64)}<span class="bildstift">✎</span></button>
+        <div class="mini" style="flex:1">${esc(t2('Foto vom Stand aufnehmen – es ersetzt das '
+      + 'Luftbild in den Listen. Bleibt auf diesem Gerät.'))}</div>
+      </div>` : ''}
       ${feldHTML({ key: 'name', label: 'Name', platzhalter: 'z. B. Hausgarten' }, st?.name)}
       <label class="feld" data-key="adresse" data-typ="wert"><span>Adresse</span>
         <div class="suchzeile">
@@ -2799,6 +3977,12 @@ function standortSheet(st = null) {
       </div>`,
     danach(root) {
       felderVerdrahten(root);
+      // Der Fotoknopf sitzt IM Fenster – die Verdrahtung in verdrahten() greift
+      // nur in der Ansicht. Kein `await` vor fotoAufnehmen(), sonst blockt das
+      // Handy den Dateidialog.
+      root.querySelector('[data-standfoto]')?.addEventListener('click', (e) => {
+        standbildWaehlen(e.currentTarget.dataset.standfoto);
+      });
       const latEl = root.querySelector('[data-key=lat] input');
       const lonEl = root.querySelector('[data-key=lon] input');
       const adrEl = root.querySelector('[data-key=adresse] input');
@@ -2950,6 +4134,27 @@ function volkSheet(v = null) {
 }
 
 /** Bild des Volkes: derselbe Weg wie bei den Durchsichtsfotos. */
+/**
+ * Foto für einen Bienenstand.
+ * Wie beim Volk gilt: `fotoAufnehmen()` muss SYNCHRON in der Nutzergeste
+ * aufgerufen werden – ein `await` davor und Handy-Browser blocken den
+ * Dateidialog ohne Fehlermeldung (siehe js/fotos.js).
+ */
+function standbildWaehlen(standortId) {
+  fotos.fotoAufnehmen().then(async (bild) => {
+    if (!bild) return;
+    if (bild.fehler) return toast('Foto konnte nicht gelesen werden.');
+    const st = S.standorte.find((x) => x.id === standortId);
+    if (!st) return;
+    await db.schreibe('standorte', { ...st, foto: bild.klein });
+    await datenLaden();
+    // Ist das Fenster noch offen, wird es mit dem neuen Bild neu aufgebaut.
+    if (sheetIstAuf()) standortSheet(S.standorte.find((x) => x.id === standortId));
+    render();
+    toast('Foto gespeichert.');
+  }).catch((e) => fehlerZeigen('Foto', e));
+}
+
 function volksbildWaehlen(volkId) {
   fotos.fotoAufnehmen().then(async (bild) => {
     if (!bild) return;
@@ -2977,6 +4182,8 @@ const DURCHSICHT_FELDER = [
   { key: 'honigraeume', label: 'Honigräume', typ: 'zahl', einheit: 'Stück', schritt: 1 },
   { key: 'milbenProTag', label: 'Natürlicher Milbenfall', typ: 'zahl', einheit: 'Milben pro Tag', schritt: 0.5,
     hinweis: 'Über der Monatsschwelle legt die App selbstständig eine Behandlungsaufgabe an.' },
+  { key: 'gewicht', label: 'Gewicht', typ: 'zahl', einheit: 'kg', schritt: 0.5,
+    hinweis: 'Nur wenn du wiegst. Immer gleich ansetzen – aus zwei Wägungen wird die Zehrung.' },
   { key: 'notiz', label: 'Notiz' },
 ];
 
@@ -3003,6 +4210,7 @@ function durchsichtSheet(volkId) {
         const datum = w.datum || iso(heute());
         const d = await db.schreibe('durchsichten', { id: uid(), volkId, ...w, datum });
         await fotoPufferSpeichern(volkId, d.id, datum);
+        await wiegungAusWerten(volkId, datum, w);
 
         // Eine Durchsicht in der Schwarmzeit ist zugleich die Schwarmkontrolle.
         const sk = S.plan.find((a) => a.regelId === 'schwarmkontrolle' && a.ziel.id === volkId
@@ -3256,6 +4464,74 @@ async function beispieldaten() {
   await erl('sommertracht', v[0].id, 9, { kg: 14 });
   await erl('sommerbehandlung1', v[0].id, 7, { praeparat: 'Ameisensäure 60 %', menge: 80 });
   await erl('auffuettern', v[0].id, 5, { kg: 8 });
+  // Gewicht: Nullpunkt nach der Ernte, dann zwei Wägungen – so zeigt die Kurve
+  // gleich, worum es geht.
+  for (const [n, kg, null_] of [[9, 21.5, true], [4, 26.0, false]]) {
+    await db.schreibe('wiegungen', {
+      id: uid(), volkId: v[0].id, datum: iso(addDays(heute(), -n)), kg,
+      art: 'Kippprobe hinten', nullpunkt: null_,
+    });
+  }
+
+  // Winterbilanz: der zurückliegende Winter volksgenau, zwei Jahre davor von Hand –
+  // so zeigt die Reihe gleich, worum es geht.
+  await db.schreibe('winterung', {
+    id: uid(), art: 'volk', saison: j - 1, volkId: v[0].id, standortId: st1.id,
+    eingewintert: true, ausgang: 'durchgekommen', datum: `${j - 1}-10-05`,
+  });
+  await db.schreibe('winterung', {
+    id: uid(), art: 'volk', saison: j - 1, volkId: v[2].id, standortId: st1.id,
+    eingewintert: true, ausgang: 'schwach', datum: `${j - 1}-10-05`,
+  });
+  await db.schreibe('winterung', {
+    id: uid(), art: 'volk', saison: j - 1, volkId: v[3].id, standortId: st2.id,
+    eingewintert: true, ausgang: 'verloren', grund: 'Varroa / Zusammenbruch',
+    datum: `${j - 1}-10-05`,
+  });
+  await db.schreibe('winterung', {
+    id: uid(), art: 'sammel', saison: j - 2, anzahlEin: 4, anzahlVerloren: 1,
+    notiz: 'noch ohne App gezählt', datum: `${j - 2}-10-01`,
+  });
+
+  // Wabenalter: drei Jahrgänge je Volk, das erste Volk mit Altbestand –
+  // so zeigt die Karte gleich, wofür sie gedacht ist.
+  const wabenPlan = [[[j - 4, 4], [j - 2, 5], [j, 3]], [[j - 2, 6], [j - 1, 4], [j, 2]],
+    [[j - 3, 5], [j - 1, 5], [j, 2]]];
+  for (let i = 0; i < 3; i++) {
+    for (const [jahrgang, anzahl] of wabenPlan[i]) {
+      await db.schreibe('waben', {
+        id: uid(), volkId: v[i].id, datum: `${jahrgang}-04-15`, jahrgang, anzahl, art: 'neu',
+      });
+    }
+  }
+  await db.schreibe('waben', {
+    id: uid(), volkId: v[1].id, datum: `${j}-03-20`, jahrgang: null, anzahl: 2,
+    art: 'ausgeschmolzen',
+  });
+
+  // Kassenbuch: eine Charge, zwei Verkäufe, drei Ausgaben – damit die Ansicht
+  // beim Ausprobieren nicht leer bleibt.
+  const tag = (n) => iso(addDays(heute(), -n));
+  await db.schreibe('abfuellungen', {
+    id: uid(), datum: tag(70), sorte: 'Frühtracht', glasgroesse: 500, anzahl: 48,
+    losnummer: `L${tag(70).slice(2).replace(/-/g, '')}-1`,
+    mhd: `${j + 2}-${String(parseISO(tag(70)).getMonth() + 1).padStart(2, '0')}`,
+    notiz: 'gerührt, cremig',
+  });
+  await db.schreibe('verkaeufe', {
+    id: uid(), datum: tag(60), sorte: 'Frühtracht', glasgroesse: 500, anzahl: 12,
+    preis: 7, betrag: 84, art: 'Haustür', kunde: 'Nachbarschaft',
+  });
+  await db.schreibe('verkaeufe', {
+    id: uid(), datum: tag(30), sorte: 'Frühtracht', glasgroesse: 500, anzahl: 20,
+    preis: 6.5, betrag: 130, art: 'Wiederverkauf', kunde: 'Hofladen Meier',
+  });
+  for (const [n, art, was, betrag] of [[95, 'Gläser und Deckel', '100 Gläser 500 g', 62.9],
+    [40, 'Behandlungsmittel', 'Ameisensäure 60 %, 2 l', 24.5],
+    [20, 'Zucker und Futter', '5 × 15 kg Sirup', 87]]) {
+    await db.schreibe('ausgaben', { id: uid(), datum: tag(n), art, was, betrag });
+  }
+
   await datenLaden(); gehe('heute'); trachtLaden({ still: true });
   toast('Beispieldaten geladen.');
 }

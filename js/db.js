@@ -11,7 +11,7 @@ import { uid, nowISO } from './util.js';
 // Name der lokalen Datenbank. Bleibt bewusst 'stockkarte', damit bereits
 // erfasste Testdaten beim Umbenennen der App nicht verloren gehen.
 const DB_NAME = 'stockkarte';
-const DB_VERSION = 4;
+const DB_VERSION = 8;
 
 /** true, sobald nur noch im Arbeitsspeicher gearbeitet wird (nichts bleibt erhalten). */
 export const nurFluechtig = () => !!_speicher;
@@ -26,6 +26,12 @@ export const STORES = [
   'wanderungen',    // Standortwechsel eines Volkes (Wanderung, Umzug beim Auflösen eines Standes)
   'koeniginnen',    // Königinnen mit Herkunft, Jahrgang und Abstammung
   'bilder',         // Fotos zu Durchsichten (bleiben auf dem Gerät, siehe exportAlles)
+  'abfuellungen',   // Chargen: Sorte, Glasgröße, Stückzahl, Los-Nummer, MHD
+  'verkaeufe',      // verkaufte Gläser mit Betrag (Lagerbestand = abgefüllt minus verkauft)
+  'ausgaben',       // Zucker, Mittelwände, Gläser, Behandlungsmittel, Gebühren
+  'waben',          // Wabenalter: Jahrgang und Stückzahl je Volk
+  'winterung',      // Ein- und Auswinterung je Volk und Saison (Verlustrate)
+  'wiegungen',      // Gewicht je Volk: Kippprobe oder ganze Beute, Nullpunkt
   'meta',           // Einstellungen, Caches (Klimatologie, Wetter)
 ];
 

@@ -212,7 +212,11 @@ export function feldHTML(f, wert) {
   }
   if (f.typ === 'chips' || f.typ === 'jaNein') {
     const opt = f.typ === 'jaNein' ? ['ja', 'nein'] : (f.optionen || []);
-    return `<label class="feld" data-key="${f.key}" data-typ="chips"${f.typ === 'jaNein' ? ' data-einfach="1"' : ''}>${kopf}
+    // `einfach` = nur eine Auswahl gleichzeitig. Ohne das würde aus zwei Tippern
+    // ein Wert wie „durchgekommen, schwach" – bei Mehrfachbefunden (Brutbild)
+    // gewollt, bei Entweder-oder-Feldern ein Fehler.
+    return `<label class="feld" data-key="${f.key}" data-typ="chips"${
+  f.typ === 'jaNein' || f.einfach ? ' data-einfach="1"' : ''}>${kopf}
       <div class="chips">${opt.map((o) =>
         `<button type="button" data-wert="${esc(o)}"${String(w).split(', ').includes(String(o)) ? ' class="an"' : ''}>${esc(o === 'ja' ? t('Ja') : o === 'nein' ? t('Nein') : t(o))}</button>`).join('')}
       </div>${fuss}</label>`;
