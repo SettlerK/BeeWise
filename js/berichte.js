@@ -120,6 +120,7 @@ export function volkHistorie(S, volkId) {
   const p = new PDF({
     titel: t('Stockkarte – Volk {name}', { name: v.name }),
     untertitel: [st?.name, v.beute, v.koeniginJahr ? t('Königin {jahr}', { jahr: v.koeniginJahr }) : '',
+      v.gebildetAm ? t('gebildet am {d}', { d: dat(v.gebildetAm) }) : '',
       t('erstellt am {d}', { d: dat(heute()) })].filter(Boolean).join(' · '),
     fusszeile: `BeeWise · ${t('Volk {name}', { name: v.name })}`,
   });
@@ -175,6 +176,28 @@ export function volkHistorie(S, volkId) {
     })));
   }
 
+  // ---- Königinnen
+  const koeniginnen = (S.koeniginnen || []).filter((k) => k.volkId === volkId && !k.deletedAt)
+    .sort((a, b) => ((a.seit || '') < (b.seit || '') ? 1 : -1));
+  if (koeniginnen.length) {
+    p.ueberschrift(t('Königinnen ({n})', { n: koeniginnen.length }));
+    p.tabelle([
+      { titel: t('Jahrgang'), breite: 50, schluessel: 'jahr' },
+      { titel: t('Im Volk'), breite: 105, schluessel: 'zeit' },
+      { titel: t('Herkunft'), breite: 90, schluessel: 'herkunft' },
+      { titel: t('Rasse'), breite: 70, schluessel: 'rasse' },
+      { titel: t('Züchter / Belegstelle'), breite: 95, schluessel: 'zuechter' },
+      { titel: t('Ende'), breite: 80, schluessel: 'grund' },
+    ], koeniginnen.map((k) => ({
+      jahr: k.jahr,
+      zeit: `${dat(k.seit)} – ${k.bis ? dat(k.bis) : t('heute')}`,
+      herkunft: t(k.herkunft || ''),
+      rasse: k.rasse || '',
+      zuechter: k.zuechter || '',
+      grund: k.bis ? t(k.grund || '') : '',
+    })));
+  }
+
   // ---- Chronologie
   const ereignisse = [
     ...S.durchsichten.filter((d) => d.volkId === volkId).map((d) => ({
@@ -195,6 +218,10 @@ export function volkHistorie(S, volkId) {
       text: Object.entries(e.daten || {}).filter(([k]) => k !== 'notiz')
         .map(([k, w]) => `${k}: ${w}`).concat(e.daten?.notiz ? [e.daten.notiz] : [])
         .join(' · ') + (e.status === 'uebersprungen' ? '  (übersprungen)' : ''),
+    })),
+    ...koeniginnen.map((k) => ({
+      datum: k.seit, art: t('Königin eingesetzt'),
+      text: [k.jahr, t(k.herkunft || ''), k.rasse, k.zuechter, k.notiz].filter(Boolean).join(' · '),
     })),
     ...(S.wanderungen || []).filter((w) => w.volkId === volkId).map((w) => ({
       datum: w.datum, art: t('Umzug / Wanderung'),

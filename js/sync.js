@@ -10,7 +10,10 @@
 //     Wiederherstellungspunkten gibt es gratis dazu
 //   * du hast ohnehin ein Konto
 //
-// Was übertragen wird: eine einzige JSON-Datei mit allen Datensätzen.
+// Was übertragen wird: eine einzige JSON-Datei mit allen Datensätzen – ohne die
+// Fotos zu den Durchsichten. Die sind einzeln klein, in Summe aber das
+// Vielfache aller übrigen Daten, und jede Übertragung schreibt die Datei
+// komplett neu; das Repository würde sonst mit jeder Woche wachsen.
 // Zusammengeführt wird datensatzweise – der jüngere Stand gewinnt, gelöschte
 // Sätze tragen eine Löschmarke und bleiben gelöscht.
 //
@@ -122,7 +125,7 @@ export async function abgleichen({ beiSchritt = () => {} } = {}) {
   }
 
   beiSchritt('Übertrage …');
-  const eigener = await db.exportAlles();
+  const eigener = await db.exportAlles({ ohneBilder: true });
   eigener.geraet = e.geraet || '';
   const neuerSha = await fernSchreiben(e, eigener, sha);
 

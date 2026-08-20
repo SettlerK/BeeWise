@@ -20,6 +20,8 @@ import {
   grobWerteLesen, schrittSpeichern,
 } from './stand.js';
 import { etikettenPDF, grundadresse } from './etiketten.js';
+import * as koe from './koeniginnen.js';
+import * as fotos from './fotos.js';
 import { behandlungsprotokoll, volkHistorie, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
@@ -33,7 +35,7 @@ import {
 const S = {
   ansicht: 'heute', volkId: null,
   standorte: [], voelker: [], durchsichten: [], erledigungen: [], trachtObs: [], eigene: [],
-  wanderungen: [],
+  wanderungen: [], koeniginnen: [],
   tracht: {}, wetter: {}, stunden: {}, plan: [], fragen: [],
   stand: null,                  // laufender Durchgang am Bienenstand
   filter: null,                 // Kategorie-Filter
@@ -69,11 +71,12 @@ const ZURUECK = document.getElementById('kopf-zurueck');
 // ================================================================== Laden
 
 async function datenLaden() {
-  [S.standorte, S.voelker, S.durchsichten, S.erledigungen, S.trachtObs, S.eigene, S.wanderungen] =
-    await Promise.all([
-      db.alle('standorte'), db.alle('voelker'), db.alle('durchsichten'),
-      db.alle('erledigungen'), db.alle('tracht'), db.alle('aufgaben'), db.alle('wanderungen'),
-    ]);
+  [S.standorte, S.voelker, S.durchsichten, S.erledigungen, S.trachtObs, S.eigene, S.wanderungen,
+    S.koeniginnen] = await Promise.all([
+    db.alle('standorte'), db.alle('voelker'), db.alle('durchsichten'),
+    db.alle('erledigungen'), db.alle('tracht'), db.alle('aufgaben'), db.alle('wanderungen'),
+    db.alle('koeniginnen'),
+  ]);
   S.sync = await sync.einstellungen();
   S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
   S.imkereiName = await db.metaLies('imkerei', '');
@@ -85,7 +88,7 @@ async function datenLaden() {
 function neuRechnen() {
   S.plan = planBerechnen({
     datum: heute(), standorte: S.standorte, voelker: S.voelker,
-    erledigungen: S.erledigungen, eigene: S.eigene,
+    erledigungen: S.erledigungen, eigene: S.eigene, koeniginnen: S.koeniginnen,
     tracht: S.tracht, wetter: S.wetter,
   });
   S.fragen = trachtFragen(S.tracht, S.standorte, S.trachtObs);
@@ -603,6 +606,30 @@ function standStarten(standortId) {
   gehe('stand');
 }
 
+/**
+ * Waagerechtes Wischen blättert wie die Pfeile. Bewusst mit deutlichem Mindestweg
+ * und Vorrang für die Senkrechte: beim Scrollen durch den Kurzbefund darf nicht
+ * versehentlich das Volk wechseln.
+ */
+function wischenVerdrahten() {
+  const flaeche = AN;
+  let x0 = null; let y0 = null; let gesperrt = false;
+  flaeche.addEventListener('touchstart', (e) => {
+    if (S.ansicht !== 'stand' || e.touches.length !== 1) { x0 = null; return; }
+    // In Eingabefeldern und auf Chips nicht wischen
+    gesperrt = !!e.target.closest('input,textarea,select,button,.grobchips');
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  flaeche.addEventListener('touchend', (e) => {
+    if (x0 == null || gesperrt || S.ansicht !== 'stand') { x0 = null; return; }
+    const dx = e.changedTouches[0].clientX - x0;
+    const dy = e.changedTouches[0].clientY - y0;
+    x0 = null;
+    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    standWechseln(dx < 0 ? 1 : -1);
+  });
+}
+
 function ansichtStand() {
   const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
   if (!stand) return `<div class="karte"><div class="karte-inhalt leer">
@@ -640,11 +667,14 @@ async function standSpeichern({ ohneBefund = false } = {}) {
   const liste = standVoelker(S, stand.id);
   const volk = liste[S.stand.i];
   const { werte, abgehakt } = standSammeln(ohneBefund && !!volk);
-  if (!Object.keys(werte).length && !abgehakt.length) return { leer: true };
+  const bilder = fotoPuffer.length;
+  if (!Object.keys(werte).length && !abgehakt.length && !bilder) return { leer: true };
 
   try {
     if (volk) {
-      const b = await schrittSpeichern({ S, volk, werte, abgehakt });
+      const b = await schrittSpeichern({
+        S, volk, werte, abgehakt, fotosAblegen: fotoPufferSpeichern, hatFotos: bilder > 0,
+      });
       if (b.durchsicht) S.stand.erfasst.add(volk.id);
       S.stand.bilanz.voelker = S.stand.erfasst.size;
       S.stand.bilanz.aufgaben += b.aufgaben;
@@ -669,6 +699,7 @@ async function standSpeichern({ ohneBefund = false } = {}) {
 }
 
 function standBlaettern(richtung) {
+  fotoPufferLeeren();     // nicht gespeicherte Bilder gehören nicht zum nächsten Volk
   const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
   const liste = stand ? standVoelker(S, stand.id) : [];
   S.stand.i = Math.max(0, Math.min(liste.length, S.stand.i + richtung));
@@ -801,9 +832,12 @@ function ansichtKalender() {
 function ansichtVoelker() {
   if (!S.voelker.length) {
     return `<div class="karte"><div class="karte-inhalt leer"><span class="gross">🗂</span>
-      Noch keine Völker angelegt.
+      ${S.standorte.length ? t2('Noch keine Völker angelegt.')
+        : t2('Zuerst einen Bienenstand anlegen – aus seiner Lage rechnet BeeWise Tracht und Termine.')}
       <div class="knopfreihe" style="margin-top:16px">
-        <button class="knopf" data-neu-volk>Volk anlegen</button></div></div></div>`;
+        ${S.standorte.length ? '<button class="knopf" data-neu-volk>Volk anlegen</button>' : ''}
+        <button class="knopf${S.standorte.length ? ' leise' : ''}" data-neu-standort-hier>Bienenstand anlegen</button>
+      </div></div></div>`;
   }
   const t = [];
   for (const st of S.standorte) {
@@ -818,7 +852,7 @@ function ansichtVoelker() {
         ${bildFuerVolk(v, st, 52)}
         <div class="info">
           <b>${esc(v.name)}</b>
-          <div>${v.koeniginJahr ? `<i class="koenigin" style="background:${koeniginFarbe(v.koeniginJahr)}"></i>${esc(v.koeniginJahr)} · ` : ''}${letzte ? t2('Durchsicht {d}', { d: fmtDatum(letzte.datum) }) : t2('noch keine Durchsicht')}</div>
+          <div>${koe.jahrgang(S, v) ? `<i class="koenigin" style="background:${koe.zeichenFarbe(koe.jahrgang(S, v))}"></i>${esc(koe.jahrgang(S, v))} · ` : ''}${letzte ? t2('Durchsicht {d}', { d: fmtDatum(letzte.datum) }) : t2('noch keine Durchsicht')}</div>
         </div>
         ${offen ? `<span class="marke" style="background:#F3DAD5;color:#8E2E22">${t2('{n} offen', { n: offen })}</span>` : ''}
         <span class="pfeil">›</span></div>`);
@@ -827,7 +861,9 @@ function ansichtVoelker() {
     t.push('</div>');
     t.push(`<div class="knopfreihe" style="margin-top:-4px">
       <button class="knopf leise klein" data-standmodus="${st.id}">${
-      esc(t2('Durchgang an diesem Stand'))}</button></div>`);
+      esc(t2('Durchgang an diesem Stand'))}</button>
+      <button class="knopf leise klein" data-stand-bearbeiten="${st.id}">${
+      esc(t2('Stand bearbeiten'))}</button></div>`);
   }
   const ohne = S.voelker.filter((v) => !S.standorte.some((s) => s.id === v.standortId));
   if (ohne.length) {
@@ -836,11 +872,17 @@ function ansichtVoelker() {
         <div class="luftbild leer" style="width:52px;height:52px;border-radius:10px"></div>
         <div class="info"><b>${esc(v.name)}</b></div><span class="pfeil">›</span></div>`).join('') + '</div>');
   }
-  t.push('<div class="knopfreihe"><button class="knopf" data-neu-volk>Volk anlegen</button></div>');
+  t.push(`<div class="knopfreihe">
+    <button class="knopf" data-neu-volk>Volk anlegen</button>
+    <button class="knopf leise" data-neu-standort-hier>Bienenstand anlegen</button>
+  </div>`);
   return t.join('');
 }
 
 const standortName = (id) => S.standorte.find((s) => s.id === id)?.name || null;
+// Achtung: nicht `volkName` – so heißt schon ein Helfer in js/berichte.js, und in
+// der Einzeldatei teilen sich alle Module einen Namensraum.
+const volkNameVon = (id) => S.voelker.find((v) => v.id === id)?.name || '?';
 
 const letzteDurchsicht = (volkId) => S.durchsichten.filter((d) => d.volkId === volkId)
   .sort((a, b) => (a.datum < b.datum ? 1 : -1))[0];
@@ -854,12 +896,7 @@ function bildFuerVolk(v, st, groesse = 52) {
   return statischesLuftbild(st?.lat, st?.lon, { w: groesse, h: groesse, z: 17, radius: 10 });
 }
 
-function koeniginFarbe(jahr) {
-  // internationaler Code: 1/6 weiß, 2/7 gelb, 3/8 rot, 4/9 grün, 5/0 blau
-  const f = { 1: '#F2EFE6', 6: '#F2EFE6', 2: '#F2D24B', 7: '#F2D24B', 3: '#E27B6B', 8: '#E27B6B',
-    4: '#93C48D', 9: '#93C48D', 5: '#8AB4E8', 0: '#8AB4E8' };
-  return f[String(jahr || '').slice(-1)] || 'var(--rand)';
-}
+// Farbcode und Jahrgang kommen aus js/koeniginnen.js – dort liegt auch die Historie.
 
 function ansichtVolk() {
   const v = S.voelker.find((x) => x.id === S.volkId);
@@ -883,6 +920,17 @@ function ansichtVolk() {
         + `${standortName(w.nachStandortId) || w.nachName || '?'}${w.notiz ? ' · ' + w.notiz : ''}`,
       id: w.id, art: 'wanderung',
     })),
+    ...koe.alleVomVolk(S, v.id).map((k) => ({
+      datum: k.seit, titel: t2('Königin {jahr} eingesetzt', { jahr: k.jahr }),
+      notiz: [t2(k.herkunft), k.rasse, k.zuechter,
+        k.mutterVolkId ? t2('von Volk {name}', { name: volkNameVon(k.mutterVolkId) }) : '',
+        k.notiz].filter(Boolean).join(' · '),
+      id: k.id, art: 'koenigin',
+    })),
+    ...koe.alleVomVolk(S, v.id).filter((k) => k.bis).map((k) => ({
+      datum: k.bis, titel: t2('Königin {jahr} beendet: {grund}', { jahr: k.jahr, grund: t2(k.grund) }),
+      notiz: '', id: k.id, art: 'koenigin',
+    })),
   ].sort((a, b) => (a.datum < b.datum ? 1 : -1));
 
   return `
@@ -893,7 +941,8 @@ function ansichtVolk() {
       <div style="flex:1;min-width:0">
         <div style="font-size:18px;font-weight:650">${esc(v.name)}</div>
         <div class="mini">${esc(st?.name || 'ohne Standort')}${v.beute ? ' · ' + esc(v.beute) : ''}${v.zargen ? ' · ' + esc(v.zargen) + ' Zargen' : ''}</div>
-        ${v.koeniginJahr ? `<div class="mini"><i class="koenigin" style="background:${koeniginFarbe(v.koeniginJahr)}"></i>Königin ${esc(v.koeniginJahr)}${v.herkunft ? ' · ' + esc(v.herkunft) : ''}</div>` : ''}
+        ${koe.istJungvolk(v) ? `<div class="mini">${esc(t2('Jungvolk {jahr}', { jahr: parseISO(v.gebildetAm).getFullYear() }))}${
+          v.mutterVolkId ? ' · ' + esc(t2('von Volk {name}', { name: volkNameVon(v.mutterVolkId) })) : ''}</div>` : ''}
       </div>
     </div>
     <div class="knopfreihe">
@@ -905,6 +954,8 @@ function ansichtVolk() {
       <button class="knopf leise klein" data-volk-pdf="${v.id}">Stockkarte als PDF</button>
     </div>
   </div></div>
+
+  ${koeniginKarteHTML(v)}
 
   ${aufgaben.length ? `<h2 class="abschnitt">Anstehend</h2><div class="karte">
     ${aufgaben.map((a) => aufgabeHTML(a, true)).join('')}</div>` : ''}
@@ -918,6 +969,7 @@ function ansichtVolk() {
         <div class="d">${fmtDatum(e.datum, true)}</div>
         <div class="t">${esc(e.titel)}</div>
         ${e.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ''}
+        ${e.art === 'durchsicht' ? `<div class="fotoleiste" data-fotos="${e.id}"></div>` : ''}
       </div>`).join('')}</div>`
       : '<div class="leer" style="padding:16px">Noch nichts erfasst.</div>'}
   </div></div>`;
@@ -1009,6 +1061,173 @@ const datenKurz = (d, regelId) => {
     .map(([k, val]) => `${t2(label(k))}: ${val}${einheit(k) ? ' ' + t2(einheit(k)) : ''}`)
     .concat(d?.notiz ? [d.notiz] : []).join(' · ');
 };
+
+
+// ------------------------------------------------------------- Königinnen
+
+/** Karte im Volk: wer sitzt drin, seit wann, woher – und die Vorgängerinnen. */
+function koeniginKarteHTML(v) {
+  const jetzt = koe.aktuelle(S, v.id);
+  const frueher = koe.alleVomVolk(S, v.id).filter((k) => k.bis);
+  const jahr = koe.jahrgang(S, v);
+  const j = koe.alter(jahr);
+
+  if (!jetzt) {
+    return `<h2 class="abschnitt">Königin</h2>
+    <div class="karte"><div class="karte-inhalt">
+      <div class="mini">${jahr
+        ? esc(t2('Bisher ist nur der Jahrgang {jahr} vermerkt. Erfasse die Königin, dann führt '
+          + 'BeeWise Alter, Herkunft und Abstammung mit – und meldet sich, wenn Umweiseln ansteht.',
+        { jahr }))
+        : esc(t2('Noch keine Königin erfasst.'))}</div>
+      <div class="knopfreihe">
+        <button class="knopf leise" data-koe-neu="${v.id}">${esc(t2('Königin erfassen'))}</button>
+      </div>
+    </div></div>`;
+  }
+
+  const zeile = (schluessel, wert) => (wert
+    ? `<div class="kzeile"><span>${esc(t2(schluessel))}</span><b>${esc(wert)}</b></div>` : '');
+
+  return `<h2 class="abschnitt">Königin</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="koekopf">
+      <i class="koeniginGross" style="background:${koe.zeichenFarbe(jetzt.jahr)}"></i>
+      <div>
+        <b>${esc(t2('Jahrgang {jahr}', { jahr: jetzt.jahr }))}</b>
+        <div class="mini">${esc(t2('Zeichenfarbe {farbe}', { farbe: t2(koe.zeichenName(jetzt.jahr)) }))}
+          · ${esc(j === 0 ? t2('dieses Jahr') : j === 1 ? t2('zweite Saison')
+            : t2('{n}. Saison', { n: j + 1 }))}</div>
+      </div>
+      ${j >= 2 ? `<span class="marke wichtig">${esc(t2('Umweiseln prüfen'))}</span>` : ''}
+    </div>
+    ${zeile('Herkunft', t2(jetzt.herkunft))}
+    ${zeile('Rasse', jetzt.rasse)}
+    ${zeile('Züchter oder Belegstelle', jetzt.zuechter)}
+    ${zeile('Muttervolk', jetzt.mutterVolkId ? volkNameVon(jetzt.mutterVolkId) : '')}
+    ${zeile('Im Volk seit', fmtDatum(jetzt.seit))}
+    ${jetzt.notiz ? `<div class="mini" style="margin-top:6px">${esc(jetzt.notiz)}</div>` : ''}
+    <div class="knopfreihe">
+      <button class="knopf leise klein" data-koe-bearbeiten="${jetzt.id}">Bearbeiten</button>
+      <button class="knopf leise klein" data-koe-umweiseln="${v.id}">${esc(t2('Umweiseln'))}</button>
+    </div>
+    ${frueher.length ? `<div class="mini" style="margin-top:10px">${esc(t2('Vorgängerinnen'))}:
+      ${frueher.map((k) => esc(`${k.jahr} (${fmtDatum(k.seit)}–${fmtDatum(k.bis)}, ${t2(k.grund || '')})`)).join(' · ')}</div>` : ''}
+  </div></div>`;
+}
+
+const KOE_FELDER = (k = null, jahre = []) => [
+  { key: 'jahr', label: 'Jahrgang', typ: 'auswahl', optionen: jahre,
+    hinweis: 'Bestimmt die Zeichenfarbe nach dem internationalen Code.' },
+  { key: 'herkunft', label: 'Herkunft', typ: 'auswahl', optionen: koe.HERKUNFT },
+  { key: 'rasse', label: 'Rasse', typ: 'auswahl', optionen: koe.RASSEN },
+  { key: 'zuechter', label: 'Züchter oder Belegstelle', platzhalter: 'Name, Nummer, Linie' },
+  { key: 'notiz', label: 'Notiz' },
+];
+
+function koeniginSheet(volkId, vorhanden = null) {
+  const v = S.voelker.find((x) => x.id === volkId) || S.voelker.find((x) => x.id === vorhanden?.volkId);
+  if (!v) return;
+  const jetztJahr = new Date().getFullYear();
+  const jahre = [jetztJahr, jetztJahr - 1, jetztJahr - 2, jetztJahr - 3, jetztJahr - 4].map(String);
+  const k = vorhanden;
+  const andere = S.voelker.filter((x) => x.id !== v.id);
+
+  sheetAuf({
+    titel: k ? 'Königin bearbeiten' : 'Königin erfassen',
+    unter: v.name,
+    inhalt: `
+      ${KOE_FELDER(k, jahre).map((f) => feldHTML(f, k ? k[f.key] : (f.key === 'jahr'
+        ? (v.koeniginJahr || String(jetztJahr)) : ''))).join('')}
+      <label class="feld" data-key="mutterVolkId" data-typ="wert"><span>Muttervolk (Abstammung)</span>
+        <select><option value="">${esc(t2('unbekannt'))}</option>
+        ${andere.map((x) => `<option value="${x.id}"${k?.mutterVolkId === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
+        </select></label>
+      ${feldHTML({ key: 'seit', label: 'Im Volk seit', typ: 'datum' }, k?.seit || iso(heute()))}
+      <div class="knopfreihe">
+        ${k ? '<button class="knopf gefahr" data-del>Löschen</button>' : ''}
+        <button class="knopf" data-ok>Speichern</button>
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        const mutter = root.querySelector('[data-key=mutterVolkId] select').value || null;
+        if (k) {
+          await db.schreibe('koeniginnen', { ...k, ...w, mutterVolkId: mutter });
+          const volk = S.voelker.find((x) => x.id === k.volkId);
+          if (volk && !k.bis) await db.schreibe('voelker', { ...volk, koeniginJahr: w.jahr || k.jahr });
+        } else {
+          await koe.anlegen({ volkId: v.id, ...w, mutterVolkId: mutter });
+        }
+        sheetZu(); await datenLaden(); render(); toast('Königin gespeichert.');
+      };
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        if (!await bestaetige('Diesen Königinnen-Eintrag löschen?')) return;
+        await db.loesche('koeniginnen', k.id);
+        sheetZu(); await datenLaden(); render(); toast('Eintrag gelöscht.');
+      });
+    },
+  });
+}
+
+/** Umweiseln: alte Königin abschließen, neue eintragen – in einem Gang. */
+function umweiselnSheet(volkId) {
+  const v = S.voelker.find((x) => x.id === volkId);
+  const alt = koe.aktuelle(S, volkId);
+  const jetztJahr = new Date().getFullYear();
+  sheetAuf({
+    titel: 'Umweiseln',
+    unter: `${v.name}${alt ? ' · ' + t2('bisher Jahrgang {jahr}', { jahr: alt.jahr }) : ''}`,
+    inhalt: `
+      <div class="hinweis">Die alte Königin wird mit Datum und Grund abgeschlossen und bleibt im
+        Verlauf stehen. Die neue kommt als eigener Eintrag dazu – so bleibt die Reihe
+        nachvollziehbar. Nach etwa drei Wochen prüfen, ob die neue Königin legt.</div>
+      ${feldHTML({ key: 'grund', label: 'Was ist mit der alten Königin', typ: 'auswahl',
+        optionen: koe.ENDE_GRUND }, 'umgeweiselt')}
+      ${feldHTML({ key: 'datum', label: 'Datum', typ: 'datum' }, iso(heute()))}
+      <div class="trenner"></div>
+      <div class="mini" style="margin-bottom:8px">${esc(t2('Die neue Königin'))}</div>
+      ${feldHTML({ key: 'jahr', label: 'Jahrgang', typ: 'auswahl',
+        optionen: [jetztJahr, jetztJahr - 1].map(String) }, String(jetztJahr))}
+      ${feldHTML({ key: 'herkunft', label: 'Herkunft', typ: 'auswahl', optionen: koe.HERKUNFT },
+        'Standbegattung')}
+      ${feldHTML({ key: 'rasse', label: 'Rasse', typ: 'auswahl', optionen: koe.RASSEN }, alt?.rasse || '')}
+      ${feldHTML({ key: 'zuechter', label: 'Züchter oder Belegstelle' })}
+      ${feldHTML({ key: 'notiz', label: 'Notiz' })}
+      <div class="knopfreihe">
+        <button class="knopf leise" data-nurende>${esc(t2('Nur alte beenden'))}</button>
+        <button class="knopf" data-ok>${esc(t2('Umweiseln eintragen'))}</button>
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root);
+      const lauf = async (mitNeuer) => {
+        const w = werteLesen(root);
+        await koe.umweiseln({
+          volkId, alteId: alt?.id, grund: w.grund, datum: w.datum || iso(heute()),
+          neue: mitNeuer ? {
+            jahr: w.jahr, herkunft: w.herkunft, rasse: w.rasse, zuechter: w.zuechter, notiz: w.notiz,
+          } : null,
+        });
+        if (mitNeuer) {
+          await eigeneAnlegen({
+            titel: t('Legebeginn prüfen ({volk})', { volk: v.name }),
+            info: t('Etwa drei Wochen nach dem Umweiseln: legt die neue Königin? Sonst Weiselprobe '
+              + 'mit offener Brut aus einem anderen Volk.'),
+            kategorie: 'koenigin', wichtig: true,
+            von: iso(addDays(parseISO(w.datum || iso(heute())), 18)),
+            bis: iso(addDays(parseISO(w.datum || iso(heute())), 32)),
+            ziele: [{ typ: 'volk', id: volkId, name: v.name }],
+          });
+        }
+        sheetZu(); await datenLaden(); render();
+        toast(mitNeuer ? 'Umweiselung eingetragen.' : 'Königin beendet.');
+      };
+      root.querySelector('[data-ok]').onclick = () => lauf(true);
+      root.querySelector('[data-nurende]').onclick = () => lauf(false);
+    },
+  });
+}
 
 // ------------------------------------------------------------------ Tracht
 
@@ -1177,6 +1396,20 @@ function ansichtMehr() {
       <button class="knopf leise klein" data-demo>Beispieldaten laden</button>
       <button class="knopf leise klein loeschen" data-reset>Alles löschen</button>
     </div>
+    <div class="trenner"></div>
+    <div class="mini" id="fotobilanz">Fotos werden gezählt …</div>
+    <label class="feld" data-typ="wert" style="margin-top:8px"><span>Bildgröße neuer Fotos</span>
+      <select data-fotokante>
+        <option value="800">${esc(t2('sparsam (800 Punkte, ca. 60 kB)'))}</option>
+        <option value="1024">${esc(t2('normal (1024 Punkte, ca. 100 kB)'))}</option>
+        <option value="1600">${esc(t2('genau (1600 Punkte, ca. 250 kB)'))}</option>
+      </select></label>
+    <div class="knopfreihe">
+      <button class="knopf leise klein" data-fotos-aufraeumen>${esc(t2('Alte Fotos löschen'))}</button>
+    </div>
+    <div class="mini" style="margin-top:8px">Fotos liegen nur auf diesem Gerät: sie gehen in die
+      Sicherungsdatei mit, nicht in den Geräteabgleich. Sonst würde das Abgleich-Repository mit
+      jeder Woche wachsen.</div>
   </div></div>
 
   <h2 class="abschnitt">Sprache</h2>
@@ -1335,6 +1568,12 @@ function verdrahten() {
       };
     });
   });
+  const fotoplatz = AN.querySelector('[data-fotoplatz]');
+  if (fotoplatz) {
+    fotoplatz.innerHTML = fotoFeldHTML();
+    fotoFeldVerdrahten(fotoplatz);
+  }
+
   AN.querySelectorAll('.grobfeld[data-typ="zahl"]').forEach((f) => {
     const inp = f.querySelector('input');
     const um = (r) => {
@@ -1356,7 +1595,14 @@ function verdrahten() {
     await db.loesche('voelker', v.id);
     await datenLaden(); render(); toast('Volk gelöscht.');
   });
-  on('[data-foto]', 'click', (e) => fotoWaehlen(e.currentTarget.dataset.foto));
+  on('[data-foto]', 'click', (e) => volksbildWaehlen(e.currentTarget.dataset.foto));
+  on('[data-koe-neu]', 'click', (e) => koeniginSheet(e.currentTarget.dataset.koeNeu));
+  on('[data-koe-bearbeiten]', 'click', (e) => koeniginSheet(null,
+    S.koeniginnen.find((k) => k.id === e.currentTarget.dataset.koeBearbeiten)));
+  on('[data-koe-umweiseln]', 'click', (e) => umweiselnSheet(e.currentTarget.dataset.koeUmweiseln));
+  on('[data-neu-standort-hier]', 'click', () => standortSheet());
+  on('[data-stand-bearbeiten]', 'click', (e) => standortSheet(
+    S.standorte.find((x) => x.id === e.currentTarget.dataset.standBearbeiten)));
   on('[data-umzug]', 'click', (e) => umzugSheet(e.currentTarget.dataset.umzug));
   on('[data-volk-pdf]', 'click', (e) => {
     const p = volkHistorie(S, e.currentTarget.dataset.volkPdf);
@@ -1389,6 +1635,12 @@ function verdrahten() {
     icsHerunterladen(liste);
     toast(t('{n} Termine als .ics – in den Kalender importieren.', { n: liste.length }));
   });
+  fotobilanzZeigen();
+  on('[data-fotokante]', 'change', async (e) => {
+    await fotos.kanteSchreiben(e.currentTarget.value);
+    toast('Bildgröße gespeichert.');
+  });
+  on('[data-fotos-aufraeumen]', 'click', fotosAufraeumenSheet);
   on('[data-export]', 'click', exportieren);
   on('[data-import]', 'click', importieren);
   on('[data-demo]', 'click', beispieldaten);
@@ -1447,8 +1699,27 @@ function verdrahten() {
   }
 }
 
-/** Nachträglich geladene Inhalte (Trachtbilder aus Wikipedia). */
+/** Nachträglich geladene Inhalte (Trachtbilder, Fotos der Durchsichten). */
 function nachladen() {
+  const leisten = [...document.querySelectorAll('[data-fotos]')];
+  if (leisten.length && S.volkId) {
+    fotos.fotosVomVolk(S.volkId).then((bilder) => {
+      const nach = new Map();
+      for (const b of bilder) {
+        if (!nach.has(b.durchsichtId)) nach.set(b.durchsichtId, []);
+        nach.get(b.durchsichtId).push(b);
+      }
+      for (const el of leisten) {
+        const liste = nach.get(el.dataset.fotos) || [];
+        el.innerHTML = liste.map((b) =>
+          `<img class="fotoklein" src="${b.klein}" data-foto-gross="${b.id}" alt="">`).join('');
+        el.querySelectorAll('[data-foto-gross]').forEach((x) => {
+          x.onclick = (ev) => { ev.stopPropagation(); fotoAnsehen(x.dataset.fotoGross); };
+        });
+      }
+    }).catch(() => { /* ohne Bilder halt ohne */ });
+  }
+
   const arten = new Set();
   document.querySelectorAll('[data-bild-art],[data-bild-klein]').forEach((el) =>
     arten.add(el.dataset.bildArt || el.dataset.bildKlein));
@@ -1478,6 +1749,79 @@ function nachladen() {
   }
 }
 
+
+// ---------------------------------------------------------------- Fotos
+
+// Zwischenablage für Bilder, die im gerade offenen Fenster aufgenommen wurden.
+// Gespeichert werden sie erst, wenn die Durchsicht selbst geschrieben ist –
+// vorher gibt es keine Kennung, an der sie hängen könnten.
+let fotoPuffer = [];
+const fotoPufferLeeren = () => { fotoPuffer = []; };
+
+function fotoFeldHTML() {
+  return `<div class="fotofeld">
+    <span class="grobtitel">${esc(t2('Fotos'))}</span>
+    <div class="fotoreihe" id="fotoreihe"></div>
+    <button type="button" class="knopf leise klein" data-foto-neu>${esc(t2('+ Foto aufnehmen'))}</button>
+    <small>${esc(t2('Bleibt auf diesem Gerät und wandert nicht in den Geräteabgleich.'))}</small>
+  </div>`;
+}
+
+function fotoFeldVerdrahten(root) {
+  const knopf = root.querySelector('[data-foto-neu]');
+  if (!knopf) return;
+  const reihe = root.querySelector('#fotoreihe');
+  const zeichnen = () => {
+    reihe.innerHTML = fotoPuffer.map((b, i) =>
+      `<span class="fotoklein"><img src="${b.klein}" alt="">
+        <button type="button" data-foto-weg="${i}" aria-label="${esc(t2('entfernen'))}">✕</button></span>`).join('');
+    reihe.querySelectorAll('[data-foto-weg]').forEach((x) => {
+      x.onclick = () => { fotoPuffer.splice(Number(x.dataset.fotoWeg), 1); zeichnen(); };
+    });
+  };
+  knopf.onclick = async () => {
+    const kante = await fotos.kanteLesen();
+    const bild = await fotos.fotoAufnehmen({ kante });
+    if (!bild) return;
+    fotoPuffer.push(bild);
+    zeichnen();
+  };
+  zeichnen();
+}
+
+async function fotoPufferSpeichern(volkId, durchsichtId, datum) {
+  for (const bild of fotoPuffer) {
+    await fotos.fotoSpeichern({ volkId, durchsichtId, datum, bild });
+  }
+  const n = fotoPuffer.length;
+  fotoPufferLeeren();
+  return n;
+}
+
+/** Bild groß ansehen und bei Bedarf löschen. */
+function fotoAnsehen(id) {
+  const zeigen = async () => {
+    const alle = await fotos.fotosVomVolk(S.volkId);
+    const b = alle.find((x) => x.id === id);
+    if (!b) return toast('Foto nicht gefunden.');
+    sheetAuf({
+      titel: 'Foto',
+      unter: fmtDatum(b.datum, true),
+      inhalt: `<img class="fotogross" src="${b.daten}" alt="">
+        <div class="knopfreihe">
+          <button class="knopf gefahr" data-del>Foto löschen</button>
+        </div>`,
+      danach(root) {
+        root.querySelector('[data-del]').onclick = async () => {
+          await fotos.fotoLoeschen(id);
+          sheetZu(); render(); toast('Foto gelöscht.');
+        };
+      },
+    });
+  };
+  zeigen();
+}
+
 // ---------------------------------------------------------- Aufgaben-Sheets
 
 function hilfeBlock(a) {
@@ -1505,7 +1849,8 @@ function futterRechnerHTML(volkId) {
       <label><span>Vorhandenes Futter im Volk (kg)</span>
         <input type="number" data-r="vorhanden" value="${d?.futter ?? ''}" step="0.5" inputmode="decimal"></label>
       <label><span>Jungvolk (dieses Jahr gebildet, &lt; 1 Jahr)</span>
-        <select data-r="jungvolk"><option value="">nein</option><option value="1">ja</option></select></label>
+        <select data-r="jungvolk"><option value="">nein</option>
+        <option value="1"${koe.istJungvolk(v) ? ' selected' : ''}>ja</option></select></label>
     </div>
     <div class="rechnerergebnis" id="futterergebnis"></div>
     <div class="mini">${d ? `Vorbelegt aus der Durchsicht vom ${fmtDatum(d.datum)}.`
@@ -1555,6 +1900,9 @@ function aufgabeOeffnen(a) {
       ${a.wartetAuf ? `<div class="hinweis" style="border-color:var(--wartet)">Wartet auf: ${esc(a.wartetAuf)}.
         Sobald das erledigt ist, rückt dieser Termin automatisch nach.</div>` : ''}
       ${a.checkliste.length ? `<ul class="checkliste">${a.checkliste.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
+      ${a.aktion === 'umweiseln' && a.ziel.typ === 'volk' ? `<div class="knopfreihe">
+        <button class="knopf leise" data-koe-umweiseln="${a.ziel.id}">${esc(t2('Umweiseln eintragen'))}</button>
+        </div>` : ''}
       ${a.rechner === 'futter' && a.ziel.typ === 'volk' ? futterRechnerHTML(a.ziel.id) : ''}
       <div class="trenner"></div>
       <label class="feld" data-key="datum" data-typ="wert"><span>Erledigt am</span>
@@ -1568,6 +1916,10 @@ function aufgabeOeffnen(a) {
     danach(root) {
       felderVerdrahten(root, a.felder);
       futterRechnerVerdrahten(root);
+      root.querySelector('[data-koe-umweiseln]')?.addEventListener('click', (e) => {
+        sheetZu();
+        setTimeout(() => umweiselnSheet(e.currentTarget.dataset.koeUmweiseln), 60);
+      });
       root.querySelector('[data-ok]').onclick = () => aufgabeSpeichern(a, root, 'erledigt');
       root.querySelector('[data-skip]')?.addEventListener('click', () => aufgabeSpeichern(a, root, 'uebersprungen'));
       root.querySelector('[data-del]')?.addEventListener('click', async () => {
@@ -1605,6 +1957,73 @@ async function aufgabeSpeichern(a, root, status) {
   render();
   toast(neu ? t('Erledigt. {n} neue Aufgaben automatisch angelegt.', { n: neu })
     : (status === 'erledigt' ? 'Erledigt – Folgetermine neu berechnet.' : 'Übersprungen.'));
+
+  // Aus „Ableger gebildet" werden echte Völker – mit Abstammung und Jungvolkstatus.
+  if (status === 'erledigt' && a.aktion === 'ableger' && a.ziel.typ === 'volk'
+    && Number(werte.anzahl) > 0) {
+    setTimeout(() => ablegerSheet(a.ziel.id, Number(werte.anzahl), datum), 250);
+  }
+}
+
+/**
+ * Ableger als eigene Völker anlegen.
+ * Ohne das bleibt „3 Ableger gebildet" eine Zahl im Protokoll – mit ihm hat man
+ * drei Stockkarten, die Abstammung und ab sofort eigene Termine.
+ */
+function ablegerSheet(mutterId, anzahl, datum) {
+  const mutter = S.voelker.find((x) => x.id === mutterId);
+  if (!mutter) return;
+  const vorschlag = (i) => `${mutter.name}-${String.fromCharCode(97 + i)}`;
+  sheetAuf({
+    titel: t2('{n} Ableger als Völker anlegen', { n: anzahl }),
+    unter: t2('gebildet aus {name} am {d}', { name: mutter.name, d: fmtDatum(datum) }),
+    inhalt: `
+      <div class="hinweis">Jeder Ableger bekommt seine eigene Stockkarte, den Verweis auf das
+        Muttervolk und den Jungvolkstatus – dadurch rechnet BeeWise weniger Winterfutter und
+        legt in drei Wochen die Kontrolle auf Legebeginn an.</div>
+      <div id="ablegernamen">
+        ${Array.from({ length: anzahl }, (_, i) => feldHTML(
+        { key: 'n' + i, label: t2('Bezeichnung {i}', { i: i + 1 }) }, vorschlag(i))).join('')}
+      </div>
+      ${feldHTML({ key: 'beute', label: 'Beute / Rähmchenmaß', typ: 'auswahl',
+        optionen: ['Zander', 'Deutsch Normal', 'Dadant', 'Langstroth', 'Segeberger', 'anderes'] },
+      mutter.beute)}
+      <div class="knopfreihe">
+        <button class="knopf leise" data-spaeter>Später</button>
+        <button class="knopf" data-ok>Anlegen</button>
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root);
+      root.querySelector('[data-spaeter]').onclick = () => sheetZu();
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        const jahr = parseISO(datum).getFullYear();
+        let gemacht = 0;
+        for (let i = 0; i < anzahl; i++) {
+          const name = w['n' + i];
+          if (!name) continue;
+          const neuV = await db.schreibe('voelker', {
+            id: uid(), name, standortId: mutter.standortId, status: 'aktiv',
+            beute: w.beute || mutter.beute || '', zargen: 1,
+            herkunft: 'Ableger', mutterVolkId: mutter.id, gebildetAm: datum,
+            koeniginJahr: String(jahr),
+          });
+          await eigeneAnlegen({
+            titel: t('Legebeginn prüfen ({volk})', { volk: name }),
+            info: t('Drei bis vier Wochen nach der Bildung: legt die junge Königin? Wenn nicht, '
+              + 'Weiselprobe mit offener Brut aus einem anderen Volk.'),
+            kategorie: 'koenigin', wichtig: true,
+            von: iso(addDays(parseISO(datum), 21)),
+            bis: iso(addDays(parseISO(datum), 35)),
+            ziele: [{ typ: 'volk', id: neuV.id, name }],
+          });
+          gemacht += 1;
+        }
+        sheetZu(); await datenLaden(); render();
+        toast(t('{n} Ableger angelegt.', { n: gemacht }));
+      };
+    },
+  });
 }
 
 function gruppeOeffnen(gruppe) {
@@ -2172,7 +2591,16 @@ function volkSheet(v = null) {
         ${feldHTML({ key: 'zargen', label: 'Zargen', typ: 'zahl', einheit: 'Stück', schritt: 1 }, v?.zargen)}
       </div>
       ${feldHTML({ key: 'beute', label: 'Beute / Rähmchenmaß', typ: 'auswahl', optionen: ['Zander', 'Deutsch Normal', 'Dadant', 'Langstroth', 'Segeberger', 'anderes'] }, v?.beute)}
-      ${feldHTML({ key: 'herkunft', label: 'Herkunft', platzhalter: 'Ableger 2025, Schwarm, gekauft …' }, v?.herkunft)}
+      ${feldHTML({ key: 'herkunft', label: 'Herkunft', typ: 'auswahl',
+        optionen: ['Ableger', 'Kunstschwarm', 'Schwarm', 'gekauft', 'Wirtschaftsvolk', 'unbekannt'] }, v?.herkunft)}
+      <label class="feld" data-key="mutterVolkId" data-typ="wert"><span>Muttervolk (Abstammung)</span>
+        <select><option value="">${esc(t2('unbekannt'))}</option>
+        ${S.voelker.filter((x) => x.id !== v?.id).map((x) =>
+          `<option value="${x.id}"${v?.mutterVolkId === x.id ? ' selected' : ''}>${esc(x.name)}</option>`).join('')}
+        </select></label>
+      ${feldHTML({ key: 'gebildetAm', label: 'Gebildet am', typ: 'datum',
+        hinweis: 'Nur bei Ablegern und Schwärmen. Im Jahr der Bildung rechnet die App mit '
+          + 'Jungvolk – weniger Winterfutter, kein Honigraum.' }, v?.gebildetAm)}
       ${feldHTML({ key: 'notiz', label: 'Notiz' }, v?.notiz)}
       <div class="knopfreihe">
         ${v ? '<button class="knopf gefahr" data-del>Löschen</button>' : ''}
@@ -2183,8 +2611,17 @@ function volkSheet(v = null) {
       root.querySelector('[data-ok]').onclick = async () => {
         const w = werteLesen(root);
         if (!w.name) return toast('Bitte eine Bezeichnung vergeben.');
-        await db.schreibe('voelker', { ...(v || {}), id: v?.id || uid(), status: 'aktiv', ...w });
-        sheetZu(); await datenLaden(); render(); toast('Volk gespeichert.');
+        const mutter = root.querySelector('[data-key=mutterVolkId] select').value || null;
+        const gespeichert = await db.schreibe('voelker', {
+          ...(v || {}), id: v?.id || uid(), status: 'aktiv', ...w, mutterVolkId: mutter,
+        });
+        sheetZu(); await datenLaden();
+        // Beim neuen Volk gleich die Königin erfassen – dort steckt der Jahrgang,
+        // die Herkunft und später das Umweiseln dran.
+        if (!v && w.koeniginJahr) {
+          koeniginSheet(gespeichert.id);
+        } else { render(); }
+        toast('Volk gespeichert.');
       };
       root.querySelector('[data-del]')?.addEventListener('click', async () => {
         if (!await bestaetige('Volk wirklich löschen? Der Verlauf geht mit verloren.')) return;
@@ -2196,7 +2633,7 @@ function volkSheet(v = null) {
 }
 
 /** Foto aufnehmen oder wählen, verkleinert speichern. */
-function fotoWaehlen(volkId) {
+function volksbildWaehlen(volkId) {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
   inp.onchange = () => {
@@ -2250,13 +2687,17 @@ function durchsichtSheet(volkId) {
       <label class="feld" data-key="datum" data-typ="wert"><span>Datum</span>
         <input type="date" value="${iso(heute())}"></label>
       ${DURCHSICHT_FELDER.map((f) => feldHTML(f)).join('')}
+      ${fotoFeldHTML()}
       <div class="knopfreihe"><button class="knopf" data-ok>Speichern</button></div>`,
+    beimSchliessen: fotoPufferLeeren,
     danach(root) {
       felderVerdrahten(root, DURCHSICHT_FELDER);
+      fotoFeldVerdrahten(root);
       root.querySelector('[data-ok]').onclick = async () => {
         const w = werteLesen(root);
         const datum = w.datum || iso(heute());
-        await db.schreibe('durchsichten', { id: uid(), volkId, ...w, datum });
+        const d = await db.schreibe('durchsichten', { id: uid(), volkId, ...w, datum });
+        await fotoPufferSpeichern(volkId, d.id, datum);
 
         // Eine Durchsicht in der Schwarmzeit ist zugleich die Schwarmkontrolle.
         const sk = S.plan.find((a) => a.regelId === 'schwarmkontrolle' && a.ziel.id === volkId
@@ -2313,11 +2754,53 @@ function eintragMenu(ref) {
     danach(root) {
       root.querySelector('[data-del]').onclick = async () => {
         const store = { durchsicht: 'durchsichten', erledigung: 'erledigungen',
-          wanderung: 'wanderungen' }[art] || 'erledigungen';
+          wanderung: 'wanderungen', koenigin: 'koeniginnen' }[art] || 'erledigungen';
         await db.loesche(store, id);
         sheetZu(); await datenLaden(); render(); toast('Eintrag gelöscht.');
       };
     },
+  });
+}
+
+
+/** Speicherverbrauch der Fotos anzeigen – nachträglich, weil er gelesen werden muss. */
+function fotobilanzZeigen() {
+  const el = AN.querySelector('#fotobilanz');
+  if (!el) return;
+  const wahl = AN.querySelector('[data-fotokante]');
+  fotos.kanteLesen().then((k) => { if (wahl) wahl.value = String(k); });
+  fotos.bilanz().then((b) => {
+    el.textContent = b.anzahl
+      ? t('Fotos: {n} · etwa {gr}', { n: b.anzahl, gr: fotos.groesse(b.bytes) })
+      : t('Noch keine Fotos gespeichert.');
+  }).catch(() => { el.textContent = ''; });
+}
+
+function fotosAufraeumenSheet() {
+  fotos.bilanz().then((b) => {
+    const jahre = Object.keys(b.jahre).sort();
+    if (!jahre.length) return toast('Es gibt noch keine Fotos.');
+    sheetAuf({
+      titel: 'Alte Fotos löschen',
+      unter: t2('Fotos: {n} · etwa {gr}', { n: b.anzahl, gr: fotos.groesse(b.bytes) }),
+      inhalt: `
+        <div class="hinweis">Gelöscht werden alle Fotos VOR dem gewählten Jahr. Die Durchsichten
+          selbst bleiben vollständig erhalten – nur die Bilder verschwinden.</div>
+        <div class="mini" style="margin-bottom:10px">${jahre.map((j) =>
+        esc(t2('{jahr}: {n} Bilder', { jahr: j, n: b.jahre[j] }))).join(' · ')}</div>
+        ${feldHTML({ key: 'grenze', label: 'Behalten ab Jahr', typ: 'auswahl', optionen: jahre },
+        jahre[jahre.length - 1])}
+        <div class="knopfreihe"><button class="knopf gefahr" data-ok>Löschen</button></div>`,
+      danach(root) {
+        felderVerdrahten(root);
+        root.querySelector('[data-ok]').onclick = async () => {
+          const grenze = Number(werteLesen(root).grenze);
+          const weg = await fotos.aufraeumen(grenze);
+          sheetZu(); render();
+          toast(t('{n} Fotos gelöscht.', { n: weg }));
+        };
+      },
+    });
   });
 }
 
@@ -2482,6 +2965,10 @@ document.getElementById('tabbar').addEventListener('click', (e) => {
 
 ZURUECK?.addEventListener('click', () => zurueck());
 
+// Einmal anmelden, nicht bei jedem Bildaufbau: der Bereich bleibt derselbe,
+// sonst würden sich die Zuhörer stapeln und ein Wisch mehrere Schritte machen.
+wischenVerdrahten();
+
 /** Beim allerersten Start nach der Sprache fragen – zweisprachig beschriftet. */
 function spracheAbfragen() {
   return new Promise((fertig) => {
@@ -2526,4 +3013,5 @@ function spracheAbfragen() {
 
 window.__beewise = { S, db, planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
   gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText,
-  standStarten, standWeiter, standBeenden, etikettenSheet };
+  standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen,
+  get fotoPuffer() { return fotoPuffer; } };

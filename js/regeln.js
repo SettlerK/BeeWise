@@ -22,6 +22,7 @@ export const KATEGORIEN = {
   honig: { name: 'Honig', farbe: '#D9822B' },
   varroa: { name: 'Varroa', farbe: '#C24B3D' },
   winter: { name: 'Einwinterung', farbe: '#4B77A6' },
+  koenigin: { name: 'Königinnen', farbe: '#A6789B' },
   betrieb: { name: 'Betrieb', farbe: '#7A7266' },
   eigene: { name: 'Eigene', farbe: '#8A6BA8' },
 };
@@ -167,6 +168,7 @@ export const REGELN = [
     info: 'Aus der Schwarmstimmung heraus. Den brutfreien Ableger sofort mit Oxalsäure behandeln – die einzige Gelegenheit im Sommer.',
     anker: { typ: 'bluete', art: 'raps', ereignis: 'start' },
     fenster: [0, 45],
+    aktion: 'ableger',
     hilfe: 'Ableger bilden Anleitung',
     felder: [
       { key: 'anzahl', label: 'Gebildete Ableger', typ: 'zahl', einheit: 'Stück', schritt: 1 },
@@ -270,11 +272,39 @@ export const REGELN = [
     ],
   },
   {
+    id: 'anfuettern',
+    titel: 'Wenn nötig: erste kleine Futtergabe',
+    kurz: 'Erste Futtergabe',
+    kategorie: 'winter', ziel: 'volk', freiwillig: true,
+    info: 'Nach der Ernte ist der Vorrat aus dem Volk heraus und draußen herrscht meist '
+      + 'Trachtlücke. Wiegt ein Volk auffällig leicht, ist eine kleine Gabe von etwa zwei bis '
+      + 'fünf Kilo VOR der ersten Behandlung üblich – ein hungerndes Volk verträgt die '
+      + 'Ameisensäure schlechter. Nicht voll auffüttern: die Säure braucht Platz zum Verdunsten, '
+      + 'und die Hauptmenge kommt ohnehin erst nach der ersten Behandlung. Abends geben, nichts '
+      + 'verschütten – in der Trachtlücke ist Räuberei schnell da. Und das Wichtigste: die '
+      + 'Behandlung deswegen nicht verschieben.',
+    checkliste: ['Volk angehoben – wirkt es leicht?', 'Abends gefüttert', 'Nichts verschüttet',
+      'Futtergeschirr dicht'],
+    anker: { typ: 'nachAufgabe', regel: 'sommertracht' },
+    fenster: [0, 4],
+    benoetigt: ['sommertracht'],
+    wetterbedarf: 'trocken',
+    hilfe: 'Anfüttern nach der letzten Ernte vor der Behandlung',
+    felder: [
+      { key: 'kg', label: 'Gegebene Menge', typ: 'zahl', einheit: 'kg', schritt: 0.5,
+        hinweis: 'Richtwert 2–5 kg. Die große Menge kommt nach der ersten Behandlung.' },
+      { key: 'futtermittel', label: 'Futtermittel', typ: 'auswahl',
+        optionen: ['Fertigsirup (Invertzucker)', 'Zuckerwasser 3:2', 'Futterteig'] },
+      F.notiz,
+    ],
+  },
+  {
     id: 'sommerbehandlung1',
     titel: 'Sommerbehandlung 1 – Ameisensäure',
     kategorie: 'varroa', ziel: 'volk', wichtig: true,
     info: 'Ein bis drei Tage nach der letzten Honigernte. Jede Woche Verzug kostet Winterbienen. Nicht in Hitze über 25 °C ansetzen, abends starten.',
-    checkliste: ['Honigräume ab', 'Stockwindel eingelegt', 'Menge nach Beutenvolumen', 'Wetter passt (15–25 °C)'],
+    checkliste: ['Honigräume ab', 'Stockwindel eingelegt', 'Menge nach Beutenvolumen',
+      'Wetter passt (15–25 °C)', 'Volk hungert nicht (sonst vorher 2–3 kg geben)'],
     anker: { typ: 'nachAufgabe', regel: 'sommertracht' },
     fenster: [1, 10],
     benoetigt: ['sommertracht'],
@@ -385,6 +415,34 @@ export const REGELN = [
     felder: [F.notiz],
   },
 
+  // -------------------------------------------------------------- Königinnen
+  {
+    id: 'umweiseln',
+    titel: 'Königin ersetzen (Umweiseln)',
+    kurz: 'Umweiseln',
+    kategorie: 'koenigin', ziel: 'volk', freiwillig: true,
+    info: 'Diese Königin geht in ihre dritte Saison. Ältere Königinnen legen weniger, das Volk '
+      + 'neigt stärker zum Schwärmen und die Weiselrichtigkeit wird unsicherer. Wer planmäßig '
+      + 'umweiselt, hat ruhigere und stärkere Völker – und weiß, was er im Volk hat. '
+      + 'Zeitfenster: solange Drohnen fliegen und der Anpaarung noch Sommer bleibt.',
+    checkliste: ['Alte Königin gefunden und entnommen', 'Zusetzverfahren vorbereitet',
+      'Nach 9 Tagen Nachschaffungszellen brechen', 'Legebeginn nach 3 Wochen prüfen'],
+    anker: { typ: 'datum', von: [5, 20], bis: [8, 10] },
+    // Nur dort anbieten, wo die Königin wirklich alt ist – sonst stünde die
+    // Aufgabe bei jedem Volk und würde ignoriert.
+    bedingung: (ziel, ctx) => {
+      const eigene = (ctx.koeniginnen || [])
+        .filter((k) => k.volkId === ziel.id && !k.bis && !k.deletedAt)
+        .sort((a, b) => ((a.seit || '') < (b.seit || '') ? 1 : -1))[0];
+      const jahr = Number(eigene?.jahr || ziel.obj?.koeniginJahr || 0);
+      if (!jahr) return false;
+      return (ctx.datum || new Date()).getFullYear() - jahr >= 2;
+    },
+    aktion: 'umweiseln',
+    hilfe: 'Umweiseln Königin zusetzen Verfahren',
+    felder: [F.notiz],
+  },
+
   // ------------------------------------------------------------------ Betrieb
   {
     id: 'werkstatt',
@@ -422,7 +480,8 @@ const WETTERBEDARF = {
   drohnenbrut: 'oeffnen', befallskontrolle: 'trocken',
   sommerbehandlung1: 'as', sommerbehandlung2: 'as', behandlungserfolg: 'trocken',
   restentmilbung: 'os',
-  auffuettern: 'trocken', auffuettern_ende: 'trocken',
+  anfuettern: 'trocken', auffuettern: 'trocken', auffuettern_ende: 'trocken',
+  umweiseln: 'oeffnen',
   wintersitz: 'oeffnen', mauseschutz: 'trocken',
 };
 for (const r of REGELN) if (WETTERBEDARF[r.id]) r.wetterbedarf = WETTERBEDARF[r.id];

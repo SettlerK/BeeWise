@@ -120,6 +120,8 @@ export function volkSchritt(S, volk, stand, nummer, anzahl) {
       <span class="grobtitel">${esc(t('Notiz'))}</span>
       <textarea rows="2" placeholder="${esc(t('frei diktierbar über die Mikrofontaste der Tastatur'))}"></textarea>
     </div>
+    <!-- Der Fotobaustein wird von app.js eingesetzt: er braucht den Zwischenspeicher -->
+    <div data-fotoplatz></div>
   </div></div>
 
   <div class="standknoepfe">
@@ -185,15 +187,20 @@ export function grobWerteLesen(wurzel) {
  * Aufgaben als Erledigungen, danach die automatischen Auslöser prüfen.
  * @returns {{durchsicht: boolean, aufgaben: number, neu: number}}
  */
-export async function schrittSpeichern({ S, volk, werte, abgehakt, datum = iso(heute()) }) {
-  const bilanz = { durchsicht: false, aufgaben: 0, neu: 0 };
-  const hatWerte = Object.keys(werte || {}).length > 0;
+export async function schrittSpeichern({
+  S, volk, werte, abgehakt, datum = iso(heute()), fotosAblegen = null, hatFotos = false,
+}) {
+  const bilanz = { durchsicht: false, aufgaben: 0, neu: 0, fotos: 0 };
+  // Ein Foto allein ist auch ein Befund – dann wird die Durchsicht angelegt,
+  // damit das Bild etwas hat, woran es hängen kann.
+  const hatWerte = Object.keys(werte || {}).length > 0 || hatFotos;
 
   if (hatWerte) {
-    await db.schreibe('durchsichten', {
+    const d = await db.schreibe('durchsichten', {
       id: uid(), volkId: volk.id, datum, quelle: 'stand', ...werte,
     });
     bilanz.durchsicht = true;
+    if (fotosAblegen) bilanz.fotos = await fotosAblegen(volk.id, d.id, datum);
   }
 
   for (const a of abgehakt) {

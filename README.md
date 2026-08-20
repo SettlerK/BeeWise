@@ -156,6 +156,8 @@ js/bilder.js            Trachtbilder über die Wikipedia-Schnittstelle
 js/hilfe.js             Videohilfe (kanalgebundene Suchlinks)
 js/kalenderexport.js    .ics-Export, nach Stichtag gebündelt
 js/stand.js             Stand-Modus: Durchgang Volk für Volk
+js/koeniginnen.js       Königinnen, Jahrgänge, Abstammung
+js/fotos.js             Fotos zu Durchsichten (verkleinern, Speicher im Blick)
 js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
 js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
@@ -237,8 +239,15 @@ große Flächen, wenige Angaben, sofort gespeichert.
 * **„Ohne Befund"** trägt in einem Griff ein, was der Normalfall ist (weiselrichtig, keine
   Schwarmstimmung, keine Weiselzellen), und blättert weiter. Was dabei gespeichert wird, steht
   ausdrücklich darunter – die App erfindet nichts, was du nicht gesehen hast.
-* Gespeichert wird bei jedem Blättern, auch über die Pfeile. Ein leerer Akku kostet höchstens
-  das Volk, an dem du gerade stehst.
+* Gespeichert wird bei jedem Blättern – über die Pfeile **oder durch Wischen** nach links und
+  rechts. Ein leerer Akku kostet höchstens das Volk, an dem du gerade stehst.
+* **Foto je Durchsicht:** ein Bild sagt bei Brutbildern und Krankheitsverdacht mehr als jede
+  Notiz. Aufgenommen wird mit der Kamera, gespeichert die längste Kante mit 1024 Punkten
+  (etwa 100 kB je Bild, einstellbar). Fotos bleiben auf dem Gerät und gehen in die
+  Sicherungsdatei mit, aber **nicht in den Geräteabgleich** – sonst wüchse das Sync-Repository
+  mit jeder Woche. Unter *Mehr → Daten* steht, wie viel Platz sie belegen, und alte Jahrgänge
+  lassen sich löschen. Größenordnung: zehn Völker, acht Durchsichten im Jahr, je ein Bild
+  ≈ 10 MB im Jahr.
 * Eine Durchsicht mit Angabe zur Schwarmstimmung hakt eine fällige Schwarmkontrolle gleich mit
   ab; Milbenfall, Weisellosigkeit oder knappes Futter lösen wie sonst automatisch Aufgaben aus.
 * Am Ende eine Bilanz und die Aufgaben, die dem Stand selbst gelten (Flugloch, Mäusegitter).
@@ -251,6 +260,31 @@ bewusst **nicht** selbst ab und versucht auch nicht, Gesagtes in Felder zu zerle
 verlässlich, im Browser braucht sie eine Netzverbindung, und in der auf den Startbildschirm
 gelegten Fassung arbeitet sie auf iOS nicht zuverlässig. Ein Tippfeld, das immer funktioniert,
 ist am Stand mehr wert als eine Sprachsteuerung, die zweimal von drei Malen klappt.
+
+### Königinnen und Abstammung
+
+Am Volk stand bisher nur ein Jahrgang. Jetzt gibt es je Königin einen eigenen Datensatz mit
+Anfang und Ende:
+
+* **Königinnenkarte** in der Volksansicht: Jahrgang mit Zeichenfarbe nach dem internationalen
+  Code, Saison (»3. Saison«), Herkunft (Standbegattung, Belegstelle, künstlich besamt, gekauft,
+  Nachschaffung, Schwarm), Rasse, Züchter oder Belegstelle, Muttervolk, im Volk seit.
+* **Umweiseln** in einem Gang: die alte Königin wird mit Datum und Grund abgeschlossen und
+  bleibt im Verlauf, die neue kommt als eigener Eintrag dazu. Dazu legt BeeWise automatisch die
+  Kontrolle »Legebeginn prüfen« in drei Wochen an.
+* **Umweiselaufgabe ab der dritten Saison** – aber nur bei den Völkern, deren Königin wirklich
+  alt ist. Dafür können Regeln jetzt eine `bedingung(ziel, ctx)` tragen; ohne sie stünde die
+  Aufgabe bei jedem Volk und würde ignoriert.
+* Rückwärtsverträglich: `volk.koeniginJahr` wird weiter mitgeschrieben, damit Farbpunkt,
+  Aufkleber und PDF-Berichte unverändert funktionieren – auch für Völker, deren Königin nie
+  erfasst wurde.
+
+### Ableger werden echte Völker
+
+Beim Abhaken von »Ableger bilden« fragt BeeWise, ob daraus Völker werden sollen. Jeder Ableger
+bekommt eine eigene Stockkarte, den Verweis auf das Muttervolk, das Bildungsdatum – und damit
+den **Jungvolkstatus**: im Jahr der Bildung rechnet der Futterrechner mit weniger Winterfutter.
+Zusätzlich entsteht je Ableger die Kontrolle »Legebeginn prüfen« nach drei bis vier Wochen.
 
 ### QR-Aufkleber an der Beute
 
@@ -486,11 +520,20 @@ Gibt es keines (etwa bei einer Trachtlücke, die nicht vom Wetter abhängt), sag
 ebenfalls, statt einen Termin zu versprechen. Die Termine selbst verschiebt das Wetter nicht –
 die Entscheidung bleibt beim Imker.
 
+## Zur Futtergabe vor der Sommerbehandlung
+
+Die übliche Reihenfolge ist Ernte → erste Varroabehandlung → Auffüttern. Nach der Ernte ist der
+Vorrat aber aus dem Volk heraus, und draußen herrscht meist Trachtlücke. Deshalb gibt es die
+freiwillige Aufgabe **»Wenn nötig: erste kleine Futtergabe«** direkt nach der Ernte: zwei bis
+fünf Kilo, wenn ein Volk auffällig leicht wiegt. Nicht voll auffüttern – die Ameisensäure
+braucht Platz zum Verdunsten –, abends geben, und die Behandlung deswegen nicht verschieben.
+Die Hauptmenge kommt wie bisher nach der ersten Behandlung.
+
 ## Was bewusst noch fehlt
 
-* Fotos je Durchsicht (bisher ein Foto je Volk)
 * Mehrbenutzerbetrieb: zwei Imker führen dieselbe Imkerei gleichzeitig
-* Königinnenhistorie mit Abstammung
+* Wabenalter je Rähmchen
+* Honigbilanz und Kassenbuch
 
 ---
 

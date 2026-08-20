@@ -530,3 +530,35 @@ label.feld > span em{font-style:normal;opacity:.65;font-weight:400}
 
 /* Im Durchgang stört die Tab-Leiste eher – der Weg zurück steht oben. */
 body.imstand .tabbar{opacity:.55}
+
+
+/* ------------------------------------------------------- Königinnen und Fotos */
+.koekopf{display:flex;align-items:center;gap:11px;margin-bottom:10px}
+.koeniginGross{
+  width:26px;height:26px;border-radius:99px;flex:none;border:1px solid rgba(0,0,0,.2);
+  box-shadow:inset 0 -4px 8px rgba(0,0,0,.12);
+}
+.koekopf b{font-size:15.5px}
+.kzeile{
+  display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:4px 0;
+  border-top:1px solid var(--rand);
+}
+.kzeile span{color:var(--text-schwach)}
+.kzeile b{font-weight:600;text-align:right}
+
+.fotofeld{display:block;margin:14px 0 4px}
+.fotofeld small{display:block;margin-top:6px;font-size:11.5px;color:var(--text-zart)}
+.fotoreihe{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.fotoklein{
+  position:relative;display:inline-block;width:60px;height:60px;border-radius:10px;
+  overflow:hidden;background:var(--rand);flex:none;
+}
+.fotoklein img{width:100%;height:100%;object-fit:cover;display:block}
+img.fotoklein{object-fit:cover}
+.fotoklein button{
+  position:absolute;right:0;top:0;width:22px;height:22px;background:rgba(0,0,0,.55);color:#fff;
+  font-size:11px;border-bottom-left-radius:8px;
+}
+.fotoleiste{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.fotoleiste .fotoklein{width:48px;height:48px;cursor:pointer}
+.fotogross{width:100%;border-radius:12px;display:block;margin-bottom:12px}

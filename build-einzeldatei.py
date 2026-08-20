@@ -9,7 +9,25 @@ import re, base64, pathlib
 W = pathlib.Path(__file__).parent
 MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
           'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'qr.js', 'pdf.js', 'etiketten.js',
-          'berichte.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
+          'berichte.js', 'koeniginnen.js', 'fotos.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
+
+NAMENSRAUM = {'db.js': 'db', 'sync.js': 'sync', 'koeniginnen.js': 'koe', 'fotos.js': 'fotos'}
+
+def namensraum(datei, alias):
+    """Baut `const alias = { ... }` aus allen Ausfuhren einer Datei."""
+    text = (W / 'js' / datei).read_text(encoding='utf-8')
+    namen = re.findall(r'^export\s+(?:async\s+)?(?:function|class|const|let|var)\s+([A-Za-z_$][\w$]*)',
+                       text, flags=re.M)
+    for block in re.findall(r'^export\s*\{([^}]*)\};', text, flags=re.M):
+        for teil in block.split(','):
+            name = teil.split(' as ')[-1].strip()
+            if name:
+                namen.append(name)
+    einmalig = list(dict.fromkeys(namen))
+    if not einmalig:
+        raise SystemExit(f'Keine Ausfuhren in {datei} gefunden – Namensraum {alias} wäre leer.')
+    return f'const {alias} = {{ ' + ', '.join(einmalig) + ' };'
+
 
 def entkerne(text):
     text = re.sub(r'^import\s[\s\S]*?from\s+[\'"][^\'"]+[\'"];\s*$', '', text, flags=re.M)
@@ -45,13 +63,11 @@ for m in MODULE:
         js.append(f'\nconst {b} = {a};\n')
     if m == 'lang/en.js':
         js.append('\n')
-    if m == 'db.js':
-        # app.js spricht die Datenschicht als Namensraum `db` an
-        js.append('\nconst db = { STORES, open, alle, hole, schreibe, loesche, entferne, leere,'
-                  ' metaLies, metaSchreibe, exportAlles, importAlles, mischeEin, Sync,'
-                  ' nurFluechtig, letzterFehler, zuruecksetzen };\n')
-    if m == 'sync.js':
-        js.append('\nconst sync = { einstellungen, einstellungenSpeichern, pruefen, abgleichen };\n')
+    # Namensraum-Attrappen für `import * as x from ...`. Die Namen werden aus
+    # den Dateien gelesen, nicht gepflegt – sonst fehlt irgendwann eine neue
+    # Funktion und fällt erst beim Benutzen auf.
+    if m in NAMENSRAUM:
+        js.append('\n' + namensraum(m, NAMENSRAUM[m]) + '\n')
 
 html = (W / 'index.html').read_text(encoding='utf-8')
 css = (W / 'css' / 'app.css').read_text(encoding='utf-8')

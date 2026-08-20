@@ -36,6 +36,7 @@ function datumsFenster(anker, datum) {
 /**
  * @param {object} ctx
  *  datum, standorte[], voelker[], erledigungen[],
+ *  koeniginnen[] (für Regeln mit Bedingung),
  *  tracht: {standortId: {arten:[...]}},
  *  wetter: {standortId: {ersterWarmtag, durchsichtWetter, brutfrei, ersterNachtfrost}}
  */
@@ -186,6 +187,13 @@ export function planBerechnen(ctx) {
 
   for (const regel of REGELN) {
     for (const ziel of zieleFuer(regel)) {
+      // Manche Regeln gelten nur für bestimmte Ziele – etwa das Umweiseln, das
+      // nur dort auftauchen soll, wo die Königin wirklich alt ist.
+      if (regel.bedingung) {
+        let gilt = false;
+        try { gilt = !!regel.bedingung(ziel, ctx); } catch { gilt = false; }
+        if (!gilt) continue;
+      }
       const eigene = erledigungenVon(regel.id, ziel)
         .filter((e) => (ziel.typ === 'imkerei' ? e.zielId === 'imkerei' : e.zielId === ziel.id))
         .filter((e) => inSaison(e, regel));
@@ -322,6 +330,7 @@ function bauen(regel, ziel, von, bis, zustand, extra) {
     wichtig: !!regel.wichtig,
     freiwillig: !!regel.freiwillig,
     wetterbedarf: regel.wetterbedarf || null,
+    aktion: regel.aktion || null,
     ziel,
     von, bis, zustand,
     ...extra,

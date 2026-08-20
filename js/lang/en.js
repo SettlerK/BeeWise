@@ -1020,4 +1020,146 @@ export const en = {
   '{n} Aufkleber erstellt.': '{n} labels created.',
   'Zu diesem Aufkleber gibt es auf diesem Gerät kein Volk – fehlt der Abgleich?':
     'There is no colony for this label on this device – is the sync missing?',
+
+  // ------------------------------- Königinnen, Ableger, Fotos, Anfütterung
+  'Wenn nötig: erste kleine Futtergabe': 'If needed: a first small feed',
+  'Erste Futtergabe': 'First feed',
+  'Nach der Ernte ist der Vorrat aus dem Volk heraus und draußen herrscht meist Trachtlücke. Wiegt ein Volk auffällig leicht, ist eine kleine Gabe von etwa zwei bis fünf Kilo VOR der ersten Behandlung üblich – ein hungerndes Volk verträgt die Ameisensäure schlechter. Nicht voll auffüttern: die Säure braucht Platz zum Verdunsten, und die Hauptmenge kommt ohnehin erst nach der ersten Behandlung. Abends geben, nichts verschütten – in der Trachtlücke ist Räuberei schnell da. Und das Wichtigste: die Behandlung deswegen nicht verschieben.':
+    'After the harvest the stores are out of the hive and outside there is usually a forage gap. '
+    + 'If a colony feels noticeably light, a small feed of roughly two to five kilos BEFORE the '
+    + 'first treatment is common practice – a starving colony tolerates formic acid less well. Do '
+    + 'not feed up fully: the acid needs room to evaporate, and the bulk of the winter feed comes '
+    + 'after the first treatment anyway. Feed in the evening, spill nothing – in a forage gap '
+    + 'robbing starts quickly. And most importantly: do not delay the treatment because of it.',
+  'Volk angehoben – wirkt es leicht?': 'Hive lifted – does it feel light?',
+  'Abends gefüttert': 'Fed in the evening',
+  'Nichts verschüttet': 'Nothing spilled',
+  'Futtergeschirr dicht': 'Feeder tight',
+  'Gegebene Menge': 'Amount given',
+  'Richtwert 2–5 kg. Die große Menge kommt nach der ersten Behandlung.':
+    'Guide value 2–5 kg. The large amount comes after the first treatment.',
+  'Anfüttern nach der letzten Ernte vor der Behandlung':
+    'feeding after the last harvest before treatment',
+  'Volk hungert nicht (sonst vorher 2–3 kg geben)':
+    'Colony is not starving (otherwise give 2–3 kg first)',
+  'Königinnen': 'Queens',
+  'Königin ersetzen (Umweiseln)': 'Replace the queen (requeening)',
+  'Diese Königin geht in ihre dritte Saison. Ältere Königinnen legen weniger, das Volk neigt stärker zum Schwärmen und die Weiselrichtigkeit wird unsicherer. Wer planmäßig umweiselt, hat ruhigere und stärkere Völker – und weiß, was er im Volk hat. Zeitfenster: solange Drohnen fliegen und der Anpaarung noch Sommer bleibt.':
+    'This queen is entering her third season. Older queens lay less, the colony is more inclined '
+    + 'to swarm and queenrightness becomes less reliable. Requeening on a plan gives calmer, '
+    + 'stronger colonies – and you know what you have. Window: while drones are still flying and '
+    + 'there is enough summer left for mating.',
+  'Alte Königin gefunden und entnommen': 'Old queen found and removed',
+  'Zusetzverfahren vorbereitet': 'Introduction method prepared',
+  'Nach 9 Tagen Nachschaffungszellen brechen': 'Break emergency cells after 9 days',
+  'Legebeginn nach 3 Wochen prüfen': 'Check for eggs after 3 weeks',
+  'Umweiseln Königin zusetzen Verfahren': 'requeening introducing a queen method',
+  'Standbegattung': 'open mating',
+  'Belegstelle': 'mating station',
+  'künstlich besamt': 'instrumentally inseminated',
+  'Nachschaffung': 'emergency queen',
+  'umgeweiselt': 'requeened',
+  'verloren': 'lost',
+  'abgeschwärmt': 'swarmed off',
+  'Volk aufgelöst': 'colony dissolved',
+  'Carnica': 'Carnica',
+  'Buckfast': 'Buckfast',
+  'Dunkle Biene': 'Dark bee',
+  'Ligustica': 'Ligustica',
+  'Mischling': 'crossbred',
+  'weiß': 'white',
+  'gelb': 'yellow',
+  'rot': 'red',
+  'grün': 'green',
+  'blau': 'blue',
+  'Königin {jahr} eingesetzt': 'Queen {jahr} introduced',
+  'von Volk {name}': 'from colony {name}',
+  'Königin {jahr} beendet: {grund}': 'Queen {jahr} ended: {grund}',
+  'Jungvolk {jahr}': 'Nucleus colony {jahr}',
+  'Bisher ist nur der Jahrgang {jahr} vermerkt. Erfasse die Königin, dann führt BeeWise Alter, Herkunft und Abstammung mit – und meldet sich, wenn Umweiseln ansteht.':
+    'So far only the year {jahr} is noted. Record the queen and BeeWise keeps track of age, '
+    + 'origin and parentage – and speaks up when requeening is due.',
+  'Noch keine Königin erfasst.': 'No queen recorded yet.',
+  'Königin erfassen': 'Record the queen',
+  'Jahrgang {jahr}': 'Year {jahr}',
+  'Zeichenfarbe {farbe}': 'marking colour {farbe}',
+  'dieses Jahr': 'this year',
+  'zweite Saison': 'second season',
+  '{n}. Saison': 'season {n}',
+  'Umweiseln prüfen': 'consider requeening',
+  'Züchter oder Belegstelle': 'Breeder or mating station',
+  'Muttervolk': 'Mother colony',
+  'Im Volk seit': 'In the colony since',
+  'Vorgängerinnen': 'Predecessors',
+  'Jahrgang': 'Year',
+  'Bestimmt die Zeichenfarbe nach dem internationalen Code.':
+    'Determines the marking colour under the international code.',
+  'Muttervolk (Abstammung)': 'Mother colony (parentage)',
+  'Königin bearbeiten': 'Edit queen',
+  'Königin gespeichert.': 'Queen saved.',
+  'Diesen Königinnen-Eintrag löschen?': 'Delete this queen entry?',
+  'bisher Jahrgang {jahr}': 'previously year {jahr}',
+  'Die alte Königin wird mit Datum und Grund abgeschlossen und bleibt im Verlauf stehen. Die neue kommt als eigener Eintrag dazu – so bleibt die Reihe nachvollziehbar. Nach etwa drei Wochen prüfen, ob die neue Königin legt.':
+    'The old queen is closed off with a date and a reason and stays in the history. The new one '
+    + 'is added as her own entry, so the succession stays traceable. Check after about three weeks '
+    + 'whether the new queen is laying.',
+  'Was ist mit der alten Königin': 'What happened to the old queen',
+  'Die neue Königin': 'The new queen',
+  'Nur alte beenden': 'Only close the old one',
+  'Umweiseln eintragen': 'Record requeening',
+  'Umweiselung eingetragen.': 'Requeening recorded.',
+  'Königin beendet.': 'Queen closed.',
+  'Legebeginn prüfen ({volk})': 'Check for eggs ({volk})',
+  'Etwa drei Wochen nach dem Umweiseln: legt die neue Königin? Sonst Weiselprobe mit offener Brut aus einem anderen Volk.':
+    'About three weeks after requeening: is the new queen laying? If not, test with open brood '
+    + 'from another colony.',
+  'Drei bis vier Wochen nach der Bildung: legt die junge Königin? Wenn nicht, Weiselprobe mit offener Brut aus einem anderen Volk.':
+    'Three to four weeks after making it up: is the young queen laying? If not, test with open '
+    + 'brood from another colony.',
+  '{n} Ableger als Völker anlegen': 'Create {n} nucleus colonies',
+  'gebildet aus {name} am {d}': 'made up from {name} on {d}',
+  'Jeder Ableger bekommt seine eigene Stockkarte, den Verweis auf das Muttervolk und den Jungvolkstatus – dadurch rechnet BeeWise weniger Winterfutter und legt in drei Wochen die Kontrolle auf Legebeginn an.':
+    'Each nucleus gets its own record, a link to the mother colony and nucleus status – so '
+    + 'BeeWise calculates less winter feed and schedules the laying check in three weeks.',
+  'Bezeichnung {i}': 'Name {i}',
+  'Später': 'Later',
+  '{n} Ableger angelegt.': '{n} nucleus colonies created.',
+  'Kunstschwarm': 'package / artificial swarm',
+  'Wirtschaftsvolk': 'production colony',
+  'Gebildet am': 'Made up on',
+  'Nur bei Ablegern und Schwärmen. Im Jahr der Bildung rechnet die App mit Jungvolk – weniger Winterfutter, kein Honigraum.':
+    'Only for nuclei and swarms. In the year it was made up the app treats it as a nucleus – '
+    + 'less winter feed, no supers.',
+  'gebildet am {d}': 'made up on {d}',
+  'Fotos': 'Photos',
+  '+ Foto aufnehmen': '+ Take a photo',
+  'Bleibt auf diesem Gerät und wandert nicht in den Geräteabgleich.':
+    'Stays on this device and is not carried into the device sync.',
+  'entfernen': 'remove',
+  'Foto': 'Photo',
+  'Foto löschen': 'Delete photo',
+  'Foto nicht gefunden.': 'Photo not found.',
+  'Foto gelöscht.': 'Photo deleted.',
+  'Fotos werden gezählt …': 'Counting photos …',
+  'Bildgröße neuer Fotos': 'Size of new photos',
+  'sparsam (800 Punkte, ca. 60 kB)': 'frugal (800 px, approx. 60 kB)',
+  'normal (1024 Punkte, ca. 100 kB)': 'normal (1024 px, approx. 100 kB)',
+  'genau (1600 Punkte, ca. 250 kB)': 'detailed (1600 px, approx. 250 kB)',
+  'Alte Fotos löschen': 'Delete old photos',
+  'Fotos liegen nur auf diesem Gerät: sie gehen in die Sicherungsdatei mit, nicht in den Geräteabgleich. Sonst würde das Abgleich-Repository mit jeder Woche wachsen.':
+    'Photos live on this device only: they go into the backup file, but not into the device '
+    + 'sync. Otherwise the sync repository would grow week by week.',
+  'Fotos: {n} · etwa {gr}': 'Photos: {n} · about {gr}',
+  'Noch keine Fotos gespeichert.': 'No photos stored yet.',
+  'Es gibt noch keine Fotos.': 'There are no photos yet.',
+  'Gelöscht werden alle Fotos VOR dem gewählten Jahr. Die Durchsichten selbst bleiben vollständig erhalten – nur die Bilder verschwinden.':
+    'All photos BEFORE the selected year are deleted. The inspections themselves stay complete – '
+    + 'only the images go.',
+  '{jahr}: {n} Bilder': '{jahr}: {n} images',
+  'Behalten ab Jahr': 'Keep from year',
+  '{n} Fotos gelöscht.': '{n} photos deleted.',
+  'Bildgröße gespeichert.': 'Image size saved.',
+  'Stand bearbeiten': 'Edit apiary',
+  'Zuerst einen Bienenstand anlegen – aus seiner Lage rechnet BeeWise Tracht und Termine.':
+    'Add an apiary first – BeeWise derives forage and timing from its location.',
 };

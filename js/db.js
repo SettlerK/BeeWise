@@ -11,7 +11,7 @@ import { uid, nowISO } from './util.js';
 // Name der lokalen Datenbank. Bleibt bewusst 'stockkarte', damit bereits
 // erfasste Testdaten beim Umbenennen der App nicht verloren gehen.
 const DB_NAME = 'stockkarte';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 /** true, sobald nur noch im Arbeitsspeicher gearbeitet wird (nichts bleibt erhalten). */
 export const nurFluechtig = () => !!_speicher;
@@ -24,8 +24,18 @@ export const STORES = [
   'tracht',         // bestätigte/verneinte Blühbeobachtungen des Nutzers
   'aufgaben',       // eigene und automatisch ausgelöste Aufgaben (außerhalb des Regelkatalogs)
   'wanderungen',    // Standortwechsel eines Volkes (Wanderung, Umzug beim Auflösen eines Standes)
+  'koeniginnen',    // Königinnen mit Herkunft, Jahrgang und Abstammung
+  'bilder',         // Fotos zu Durchsichten (bleiben auf dem Gerät, siehe exportAlles)
   'meta',           // Einstellungen, Caches (Klimatologie, Wetter)
 ];
+
+/**
+ * Speicher, die beim Geräteabgleich ausgelassen werden.
+ * Fotos sind einzeln klein, in Summe aber das Vielfache aller übrigen Daten –
+ * und jeder Abgleich schreibt die komplette Datei neu. Sie bleiben deshalb auf
+ * dem Gerät und wandern nur über die Sicherung mit.
+ */
+export const NICHT_ABGLEICHEN = ['bilder'];
 
 let _db = null;
 let _speicher = null;   // Notfall: reiner Arbeitsspeicher, wenn IndexedDB fehlt
@@ -91,6 +101,9 @@ export function open() {
         if (!dbx.objectStoreNames.contains(st)) {
           const os = dbx.createObjectStore(st, { keyPath: 'id' });
           if (st !== 'meta') os.createIndex('updatedAt', 'updatedAt');
+          // Fotos werden nie am Stück geladen, sondern immer je Volk – dafür
+          // braucht es einen eigenen Schlüssel.
+          if (st === 'bilder') os.createIndex('volkId', 'volkId');
         }
       }
     };
@@ -206,6 +219,23 @@ export async function leere(store) {
   });
 }
 
+/** Datensätze über einen Index holen (für Fotos je Volk). */
+export async function nachIndex(store, index, wert) {
+  const os = await tx(store);
+  return new Promise((res, rej) => {
+    let r;
+    try {
+      r = os.index(index).getAll(wert);
+    } catch {
+      // Arbeitsspeicher-Ersatz kennt keine Indizes
+      r = os.getAll();
+    }
+    // Der Vergleich läuft in beiden Fällen – gefiltert ist gefiltert.
+    r.onsuccess = () => res((r.result || []).filter((x) => !x.deletedAt && x[index] === wert));
+    r.onerror = () => rej(r.error);
+  });
+}
+
 // ---------------------------------------------------------------- meta / cache
 
 export async function metaLies(key, fallback = null) {
@@ -223,9 +253,12 @@ export async function metaSchreibe(key, wert) {
 
 // ------------------------------------------------------------- Export / Import
 
-export async function exportAlles() {
+export async function exportAlles({ ohneBilder = false } = {}) {
   const daten = {};
-  for (const s of STORES) daten[s] = await alle(s, { mitGeloeschten: true });
+  for (const s of STORES) {
+    if (ohneBilder && NICHT_ABGLEICHEN.includes(s)) continue;
+    daten[s] = await alle(s, { mitGeloeschten: true });
+  }
   // Wetter- und Klimazwischenspeicher gehören nicht in die Sicherung: sie sind
   // jederzeit neu abrufbar, ändern sich stündlich und würden den Abgleich
   // unnötig aufblähen.
@@ -244,6 +277,9 @@ export async function importAlles(dump, { ersetzen = false } = {}) {
   }
   const bericht = {};
   for (const s of STORES) {
+    // Fehlt ein Speicher in der Datei (ältere Sicherung, Abgleichdatei ohne
+    // Bilder), bleibt der örtliche Bestand unangetastet.
+    if (dump.daten && !(s in dump.daten)) continue;
     const rows = dump.daten?.[s] || [];
     if (ersetzen) await leere(s);
     const os = await tx(s, 'readwrite');
