@@ -197,6 +197,8 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--karte);
   border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;
+  /* Am Ende der Liste nicht auf die Seite dahinter durchscrollen */
+  overscroll-behavior:contain;
   transform:translateY(102%);transition:transform .26s cubic-bezier(.3,.8,.4,1);
   padding:0 16px calc(20px + var(--sicher-unten));box-shadow:0 -8px 30px rgba(0,0,0,.18);
 }
@@ -580,3 +582,30 @@ img.fotoklein{object-fit:cover}
 }
 
 .folgen{margin:0 0 12px;color:var(--text-zart);font-size:11.5px;line-height:1.4}
+
+/* Solange ein Fenster offen ist, bleibt der Hintergrund stehen (siehe js/ui.js) */
+body.festgehalten{overflow:hidden}
+.abdunkeln{overscroll-behavior:none;touch-action:none}
+
+
+/* ------------------------------------------------------------ Volksvergleich */
+.vgltitel{font-size:11.5px;color:var(--text-zart);margin:0 0 8px}
+.vgl{display:flex;flex-direction:column;gap:9px}
+.vglzeile{display:grid;grid-template-columns:76px minmax(0,1fr);gap:4px 10px;align-items:center;
+  cursor:pointer}
+.vglname{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vglname small{display:block;font-weight:400;font-size:10.5px;color:var(--text-zart)}
+.vglbalken{position:relative;display:flex;align-items:center;gap:8px;height:16px}
+/* Ein Maß, eine Farbe: die Balken vergleichen, sie bewerten nicht. */
+.vglbalken i{
+  display:block;height:10px;border-radius:0 5px 5px 0;background:var(--honig);
+  min-width:3px;transition:width .3s;
+}
+.vglbalken b{font-size:13px;font-variant-numeric:tabular-nums;color:var(--text)}
+.vglmehr{grid-column:2;font-size:11px;color:var(--text-schwach);margin-top:-2px}
+.einordnung{
+  margin-top:10px;font-size:12px;line-height:1.45;padding:8px 10px;border-radius:9px;
+  background:var(--bg);color:var(--text-schwach);border-left:3px solid var(--rand-stark);
+}
+.einordnung.schwach{border-left-color:var(--faellig)}
+.einordnung.stark{border-left-color:var(--ok)}

@@ -24,6 +24,7 @@ import {
 import { etikettenPDF, grundadresse } from './etiketten.js';
 import * as koe from './koeniginnen.js';
 import * as fotos from './fotos.js';
+import { standVergleich, volkEinordnen } from './vergleich.js';
 import { behandlungsprotokoll, volkHistorie, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
@@ -883,6 +884,7 @@ function ansichtVoelker() {
     }
     t.push(wetterZeileHTML(st));
     t.push('</div>');
+    t.push(vergleichHTML(st));
     t.push(`<div class="knopfreihe" style="margin-top:-4px">
       <button class="knopf leise klein" data-standmodus="${st.id}">${
       esc(t2('Durchgang an diesem Stand'))}</button>
@@ -999,6 +1001,79 @@ function ansichtVolk() {
   </div></div>`;
 }
 
+
+// ------------------------------------------------------------ Volksvergleich
+
+const LAGE_TEXT = { schwach: 'fällt ab', stark: 'trägt den Stand', mittel: '' };
+
+/**
+ * Vergleich der Völker eines Standes. Einklappbar, mit einer Kopfzeile, die
+ * schon allein die Antwort liefert – so muss man nur aufklappen, wenn man es
+ * genauer wissen will.
+ *
+ * Balken tragen alle dieselbe Farbe (siehe js/vergleich.js): eine Färbung nach
+ * Rang würde behaupten, die App bewerte die Völker. Die Bezugslinie ist der
+ * Median des Standes.
+ */
+function vergleichHTML(st) {
+  const v = standVergleich(S, st.id);
+  if (v.mitDaten < 2) return '';          // ohne zwei Werte gibt es nichts zu vergleichen
+  const auf = !!S.offen['vgl:' + st.id];
+  const werte = v.zeilen.map((z) => z.gassen).filter((x) => x != null);
+  const spanne = `${Math.min(...werte)}–${Math.max(...werte)}`;
+
+  const kopf = [t2('{von} Gassen', { von: spanne }),
+    v.median != null ? t2('Median {n}', { n: v.median }) : '',
+    v.schwach.length ? t2('{n} fällt ab', { n: v.schwach.length }) : '']
+    .filter(Boolean).join(' · ');
+
+  const balken = v.zeilen.map((z) => {
+    const breite = z.gassen != null ? Math.max(3, Math.round((z.gassen / v.hoechst) * 100)) : 0;
+    const nebenan = [
+      z.ernte ? t2('{kg} kg', { kg: String(z.ernte).replace('.', ',') }) : '',
+      z.milben != null ? t2('{n} Milben/Tag', { n: z.milben }) : '',
+      z.sanftmut != null ? t2('Sanftmut {n}', { n: z.sanftmut }) : '',
+      koe.istJungvolk(z.volk) ? t2('Jungvolk') : '',
+    ].filter(Boolean).join(' · ');
+    return `<div class="vglzeile" data-volk="${z.volk.id}">
+      <div class="vglname">${esc(z.volk.name)}${z.lage && LAGE_TEXT[z.lage]
+        ? ` <small>${esc(t2(LAGE_TEXT[z.lage]))}</small>` : ''}</div>
+      <div class="vglbalken"><i style="width:${breite}%"></i>
+        <b>${z.gassen != null ? esc(String(z.gassen)) : '–'}</b></div>
+      ${nebenan ? `<div class="vglmehr">${esc(nebenan)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="karte">
+    <div class="klapper" data-klapp="vgl:${st.id}">
+      <span><b>${esc(t2('Vergleich am Stand'))}</b><br><small class="mini">${esc(kopf)}</small></span>
+      <span class="pfeil">${auf ? '⌄' : '›'}</span></div>
+    ${auf ? `<div class="karte-inhalt">
+      <div class="vgltitel">${esc(t2('Von Bienen besetzte Wabengassen, jüngster Wert'))}</div>
+      <div class="vgl">${balken}</div>
+      <div class="mini" style="margin-top:8px">${esc(t2('Die Zahlen stammen aus den letzten '
+      + 'Eintragungen – ein Jungvolk oder ein kürzlich umgeweiseltes Volk liegt naturgemäß '
+      + 'zurück. Ernte und Milbenfall stehen zum Einordnen daneben.'))}</div>
+    </div>` : ''}
+  </div>`;
+}
+
+/** Eine Zeile im Volk: wie steht dieses Volk im Vergleich zum Stand? */
+function einordnungHTML(v) {
+  const e = volkEinordnen(S, v);
+  if (!e || !e.lage || e.lage === 'mittel') {
+    return e ? `<div class="mini" style="margin-top:10px">${esc(t2('{n} Gassen · Median am Stand {m}',
+      { n: e.gassen, m: e.median }))}</div>` : '';
+  }
+  const satz = e.lage === 'schwach'
+    ? t2('{n} Gassen – am Stand liegt der Median bei {m}. Dieses Volk hängt deutlich zurück.',
+      { n: e.gassen, m: e.median })
+    : t2('{n} Gassen – am Stand liegt der Median bei {m}. Eines der stärksten Völker.',
+      { n: e.gassen, m: e.median });
+  return `<div class="einordnung ${e.lage}">${esc(satz)}${koe.istJungvolk(v)
+    ? ' ' + esc(t2('(Jungvolk – das erklärt es meist.)')) : ''}</div>`;
+}
+
 /** Jahresbilanz je Saison: Ernte, Behandlungen, Durchsichten, Stärke. */
 function historieHTML(v) {
   const jahre = new Map();
@@ -1037,6 +1112,7 @@ function historieHTML(v) {
       <tbody>${reihen}</tbody>
     </table>
     ${punkte.length > 1 ? `<div class="mini" style="margin-top:12px">${t2('Volksstärke {jahr} – besetzte Wabengassen', { jahr: jetzt })}</div>${sparkline(punkte)}` : ''}
+    ${einordnungHTML(v)}
   </div></div>`;
 }
 
@@ -2963,20 +3039,28 @@ async function beispieldaten() {
     id: uid(), regelId, zielTyp: 'volk', zielId, datum: iso(addDays(heute(), -tageZurueck)),
     status: 'erledigt', daten, jahr: j,
   });
-  for (const volk of v.slice(0, 3)) {
+  // Die drei Völker bewusst unterschiedlich stark: so zeigt der Standvergleich
+  // gleich, wofür er gedacht ist.
+  const verlauf = [[9, 10], [8, 11], [7, 5]];
+  const sanft = [4, 5, 2];
+  const milben = [0.5, 1, 4];
+  for (let i = 0; i < 3; i++) {
+    const volk = v[i];
     await erl('erste_durchsicht', volk.id, 150, { gassen: 6, brut: 'Stifte, offene Brut' });
     await erl('erweitern', volk.id, 120, { zargen: 2 });
     await erl('baurahmen', volk.id, 118);
     await erl('honigraum', volk.id, 110, { honigraeume: 1 });
-    await erl('fruehtracht', volk.id, 80, { kg: 11.5, wasser: 16.8 });
+    await erl('fruehtracht', volk.id, 80, { kg: 9 + i * 2.5, wasser: 16.8 });
     await erl('schwarmkontrolle', volk.id, 12, { zellen: 0, stimmung: 'keine' });
     await db.schreibe('durchsichten', {
       id: uid(), volkId: volk.id, datum: iso(addDays(heute(), -40)),
-      wabengassen: 9, brut: 'Stifte, offene Brut, verdeckelte Brut', koenigin: 'gesehen', futter: 6,
+      wabengassen: verlauf[i][0], brut: 'Stifte, offene Brut, verdeckelte Brut',
+      koenigin: 'gesehen', futter: 6, sanftmut: sanft[i],
     });
     await db.schreibe('durchsichten', {
       id: uid(), volkId: volk.id, datum: iso(addDays(heute(), -12)),
-      wabengassen: 8, brut: 'verdeckelte Brut', koenigin: 'weiselrichtig', futter: 4,
+      wabengassen: verlauf[i][1], brut: 'verdeckelte Brut', koenigin: 'weiselrichtig',
+      futter: 4, sanftmut: sanft[i], milbenProTag: milben[i],
     });
   }
   await erl('sommertracht', v[0].id, 9, { kg: 14 });

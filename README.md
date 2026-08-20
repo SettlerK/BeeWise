@@ -158,6 +158,7 @@ js/kalenderexport.js    .ics-Export, nach Stichtag gebündelt
 js/stand.js             Stand-Modus: Durchgang Volk für Volk
 js/koeniginnen.js       Königinnen, Jahrgänge, Abstammung
 js/fotos.js             Fotos zu Durchsichten (verkleinern, Speicher im Blick)
+js/vergleich.js         Volksvergleich am Stand
 js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
 js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
@@ -264,6 +265,26 @@ verlässlich, im Browser braucht sie eine Netzverbindung, und in der auf den Sta
 gelegten Fassung arbeitet sie auf iOS nicht zuverlässig. Ein Tippfeld, das immer funktioniert,
 ist am Stand mehr wert als eine Sprachsteuerung, die zweimal von drei Malen klappt.
 
+### Volksvergleich am Stand
+
+Unter *Völker* trägt jeder Stand eine einklappbare Karte **„Vergleich am Stand"**. Die Kopfzeile
+sagt schon das Wesentliche („5–11 Gassen · Median 10 · 1 fällt ab"), aufgeklappt stehen die
+Völker mit Balken für die besetzten Wabengassen, daneben Ernte, Milbenfall und Sanftmut.
+
+Zwei Gestaltungsentscheidungen mit Absicht:
+
+* **Ein Maß bekommt Balken, alles andere Zahlen.** Zwei Größenordnungen in einem Diagramm
+  (Gassen und Kilo) wären nicht vergleichbar.
+* **Alle Balken in derselben Farbe.** Eine Färbung nach Rang würde behaupten, die App bewerte
+  die Völker. Bezugsgröße ist der **Median** des Standes, nicht der Mittelwert – ein einzelnes
+  sehr schwaches Volk soll die Messlatte nicht verschieben. Auffälligkeiten stehen als Text
+  („fällt ab"), nie als Farbe allein.
+
+In der Volksansicht steht dazu eine Zeile: „5 Gassen – am Stand liegt der Median bei 10. Dieses
+Volk hängt deutlich zurück." Bei Jungvölkern ergänzt die App den naheliegenden Grund. Eingeordnet
+wird erst ab drei Völkern mit Daten und einem Median von mindestens vier Gassen – vorher ist die
+Aussage nicht belastbar.
+
 ### Königinnen und Abstammung
 
 Am Volk stand bisher nur ein Jahrgang. Jetzt gibt es je Königin einen eigenen Datensatz mit
@@ -335,6 +356,8 @@ Details, die im Alltag zählen:
 * **Wetter terminiert mit:** Aufgaben tragen einen Wetteranspruch (`oeffnen`, `as`, `os`,
   `trocken`). Passt die Lage nicht, steht am Kärtchen ein Hinweis wie „Bienen wahrscheinlich
   gereizt · besser morgen früh, ab 6 Uhr"; im Aufgabenfenster stehen die Gründe.
+* **Der Hintergrund bleibt stehen,** solange ein Fenster offen ist: der Rumpf wird festgesetzt
+  und die Scrollhöhe danach wiederhergestellt. `overflow:hidden` allein genügt auf iOS nicht.
 * **Zurück kommt man immer:** Fenster haben oben einen Zurück-Knopf und ein Kreuz, reagieren
   auf Escape, auf Wischen nach unten, auf Tippen daneben und auf die Zurück-Taste des Geräts.
   Aus der Volksansicht führt der Pfeil in der Kopfzeile zur Liste.

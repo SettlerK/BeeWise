@@ -1166,4 +1166,23 @@ export const en = {
   '{was} ({a}–{b} Tage später)': '{was} ({a}–{b} days later)',
   'Erledigt. Als Nächstes: {was} ab {d}.': 'Done. Next up: {was} from {d}.',
   'Foto konnte nicht gelesen werden.': 'The photo could not be read.',
+  'Vergleich am Stand': 'Comparison at this apiary',
+  '{von} Gassen': '{von} seams',
+  'Median {n}': 'median {n}',
+  '{n} fällt ab': '{n} lagging',
+  'fällt ab': 'lagging',
+  'trägt den Stand': 'carries the apiary',
+  'Von Bienen besetzte Wabengassen, jüngster Wert': 'Seams of bees, most recent value',
+  'Die Zahlen stammen aus den letzten Eintragungen – ein Jungvolk oder ein kürzlich umgeweiseltes Volk liegt naturgemäß zurück. Ernte und Milbenfall stehen zum Einordnen daneben.':
+    'The figures come from the latest entries – a nucleus or a recently requeened colony is '
+    + 'naturally behind. Yield and mite drop are shown alongside for context.',
+  'Sanftmut {n}': 'temper {n}',
+  Jungvolk: 'nucleus',
+  '{n} Gassen · Median am Stand {m}': '{n} seams · apiary median {m}',
+  '{n} Gassen – am Stand liegt der Median bei {m}. Dieses Volk hängt deutlich zurück.':
+    '{n} seams – the apiary median is {m}. This colony is clearly behind.',
+  '{n} Gassen – am Stand liegt der Median bei {m}. Eines der stärksten Völker.':
+    '{n} seams – the apiary median is {m}. One of the strongest colonies.',
+  '(Jungvolk – das erklärt es meist.)': '(a nucleus – that usually explains it.)',
+  '{kg} kg': '{kg} kg',
 };

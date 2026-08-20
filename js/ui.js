@@ -87,6 +87,41 @@ export function uiInit() {
   });
 }
 
+// ----------------------------------------------------- Hintergrund festhalten
+// Ist ein Fenster offen und man wischt darüber hinaus, scrollt sonst die Seite
+// dahinter mit – man verliert seine Stelle in der Liste und es wirkt kaputt.
+// Zuverlässig verhindern lässt sich das nur, indem der Rumpf für die Dauer
+// festgesetzt wird; `overflow:hidden` allein genügt auf iOS nicht. Die
+// Scrollhöhe wird gemerkt und danach wiederhergestellt.
+let gemerktesY = 0;
+let gesperrt = false;
+
+function hintergrundSperren() {
+  if (gesperrt) return;
+  gesperrt = true;
+  gemerktesY = window.scrollY || document.documentElement.scrollTop || 0;
+  const b = document.body;
+  b.style.position = 'fixed';
+  b.style.top = `-${gemerktesY}px`;
+  b.style.left = '0';
+  b.style.right = '0';
+  b.style.width = '100%';
+  b.classList.add('festgehalten');
+}
+
+function hintergrundFreigeben() {
+  if (!gesperrt) return;
+  gesperrt = false;
+  const b = document.body;
+  b.style.position = '';
+  b.style.top = '';
+  b.style.left = '';
+  b.style.right = '';
+  b.style.width = '';
+  b.classList.remove('festgehalten');
+  window.scrollTo(0, gemerktesY);
+}
+
 export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSchliessen = null }) {
   sheetEl.innerHTML = `<div class="sheetkopf">
       <button type="button" class="sheetzurueck" data-sheet-zu aria-label="${esc(t('Zurück'))}">
@@ -105,6 +140,7 @@ export function sheetAuf({ titel, unter = '', inhalt = '', danach = null, beimSc
   dunkelEl.classList.add('auf');
   sheetEl.scrollTop = 0;
   sheetOffen = true;
+  hintergrundSperren();
   verlaufAbgleichen();
   aufSchliessen = beimSchliessen;
   if (danach) {
@@ -123,6 +159,7 @@ export function sheetZu() {
   sheetOffen = false;
   sheetEl.classList.remove('auf');
   dunkelEl.classList.remove('auf');
+  hintergrundFreigeben();
   if (!ausPopstate) verlaufAbgleichen();
   if (aufSchliessen) { const f = aufSchliessen; aufSchliessen = null; f(); }
 }

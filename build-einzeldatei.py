@@ -9,7 +9,7 @@ import re, base64, pathlib
 W = pathlib.Path(__file__).parent
 MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
           'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'qr.js', 'pdf.js', 'etiketten.js',
-          'berichte.js', 'koeniginnen.js', 'fotos.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
+          'berichte.js', 'koeniginnen.js', 'fotos.js', 'vergleich.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
 
 NAMENSRAUM = {'db.js': 'db', 'sync.js': 'sync', 'koeniginnen.js': 'koe', 'fotos.js': 'fotos'}
 
