@@ -609,3 +609,32 @@ body.festgehalten{overflow:hidden}
 }
 .einordnung.schwach{border-left-color:var(--faellig)}
 .einordnung.stark{border-left-color:var(--ok)}
+
+
+/* --------------------------------------------------------------- Varroa-Kurve */
+.varroalegende{display:flex;flex-wrap:wrap;gap:10px;font-size:10.5px;color:var(--text-schwach);
+  margin-top:2px}
+.varroalegende span{display:flex;align-items:center;gap:5px}
+.varroalegende .mk{width:16px;height:0;border-top-width:2px;border-top-style:solid;flex:none}
+.varroalegende .mk.linie{border-color:var(--honig)}
+.varroalegende .mk.schwelle{border-color:var(--faellig);border-top-style:dashed}
+.varroalegende .mk.behandlung{border-color:var(--ueberfaellig);border-top-style:dashed;opacity:.7}
+.varroasatz{
+  margin-top:9px;font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:9px;
+  background:var(--bg);border-left:3px solid var(--rand-stark);color:var(--text-schwach);
+}
+.varroasatz.warnung{border-left-color:var(--ueberfaellig)}
+
+
+/* ----------------------------------------------------- Warnungen / Sicherung */
+.warnkarte{border-left:4px solid var(--faellig)}
+.warnzeile{display:flex;gap:11px;align-items:flex-start;padding:12px 14px;
+  border-top:1px solid var(--rand)}
+.warnkarte .warnzeile:first-child{border-top:none}
+.warnzeichen{font-size:20px;line-height:1.1;flex:none}
+.warntext{flex:1;min-width:0;font-size:12.5px;line-height:1.45;color:var(--text-schwach)}
+.warntext b{display:block;font-size:13.5px;color:var(--text);margin-bottom:2px}
+.warntext small{display:block;margin-top:3px;color:var(--text-zart);font-size:11px}
+.warnknoepfe{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.warnweg{width:26px;height:26px;border-radius:99px;color:var(--text-zart);font-size:12px}
+.warnweg:active{background:var(--rand)}

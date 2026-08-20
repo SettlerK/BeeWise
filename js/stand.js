@@ -21,6 +21,7 @@ import { esc, iso, uid, heute, fmtDatum, diffTage, parseISO } from './util.js';
 import { t } from './i18n.js';
 import * as db from './db.js';
 import { ausloeserPruefen, abhaken } from './aufgaben.js';
+import { packliste } from './packliste.js';
 
 /** Was im Durchgang abgefragt wird – bewusst kurz gehalten. */
 export const SCHNELL = [
@@ -84,6 +85,53 @@ const aufgabeZeile = (a) => `<div class="standaufgabe" data-saufgabe="${esc(a.sc
   <button type="button" class="mehrknopf" data-sdetail="${esc(a.schluessel)}"
     aria-label="${esc(t('Details'))}">···</button>
 </div>`;
+
+
+/**
+ * Schritt 0: was mitmuss. Steht vor dem ersten Volk, weil das der Moment ist,
+ * in dem man noch am Auto steht. Wer schon an den Beuten ist, wischt in einer
+ * Sekunde weiter.
+ */
+export function packschritt(S, stand, anzahl, wetterzeile = '') {
+  const liste = packliste(S.plan, stand.id);
+  const posten = liste.posten.map((p) => `
+    <div class="standaufgabe" data-packen="${esc(p.was)}">
+      <span class="kasten"></span>
+      <span class="txt">${p.zaehlbar && p.stueck > 1 ? `<b>${p.stueck} ×</b> ` : ''}${esc(t(p.was))}
+        <small style="color:${p.farbe}">${esc(p.wofuer.map((w) => t(w)).join(' · '))}</small></span>
+    </div>`).join('');
+
+  return `
+  <div class="standkopf">
+    <span class="standpfeil" style="visibility:hidden">‹</span>
+    <div class="standtitel">
+      <b>${esc(t('Mitnehmen'))}</b>
+      <small>${esc(stand.name)} · ${esc(t('{n} Völker stehen hier', { n: anzahl }))}</small>
+    </div>
+    <button class="standpfeil" data-sschritt="1" aria-label="${esc(t('weiter'))}">›</button>
+  </div>
+  <div class="standbalken"><i style="width:2%"></i></div>
+
+  ${wetterzeile ? `<div class="karte">${wetterzeile}</div>` : ''}
+
+  ${liste.posten.length ? `<h2 class="abschnitt">${esc(t('Für die heutigen Arbeiten'))}</h2>
+    <div class="karte">${posten}</div>`
+    : `<div class="karte"><div class="karte-inhalt mini">${esc(t('An diesem Stand ist heute '
+      + 'nichts fällig – die Grundausrüstung reicht.'))}</div></div>`}
+
+  <h2 class="abschnitt">${esc(t('Grundausrüstung'))}</h2>
+  <div class="karte">
+    ${liste.grund.map((g) => `<div class="standaufgabe" data-packen="${esc(g)}">
+      <span class="kasten"></span><span class="txt">${esc(t(g))}</span></div>`).join('')}
+  </div>
+
+  <div class="standknoepfe">
+    <button class="knopf gross" data-sschritt="1">${esc(t('Los geht’s'))}</button>
+  </div>
+  <div class="mini" style="padding:6px 6px 0">${esc(t('Die Haken hier sind nur zum Laden gedacht '
+    + 'und werden nicht gespeichert.'))}</div>
+  <div class="knopfreihe"><button class="knopf leise klein" data-sende>${esc(t('Durchgang beenden'))}</button></div>`;
+}
 
 /** Ein Volk im Durchgang. */
 export function volkSchritt(S, volk, stand, nummer, anzahl) {

@@ -586,6 +586,87 @@ export function wetterlage(sw, { jetzt = new Date(), profil = 'oeffnen', trachtl
 }
 
 /**
+ * Wetterwarnungen mit Handlungsbezug.
+ * Nicht „es wird stürmisch", sondern „Deckel beschweren" – eine Warnung ohne
+ * Handlung ist am Bienenstand nur Beunruhigung. Geprüft wird die Stundenvorhersage
+ * der nächsten 48 Stunden, beim Frost die Tagesübersicht.
+ */
+export function wetterwarnungen(sw, { jetzt = new Date() } = {}) {
+  const warnungen = [];
+  if (!sw?.stunden?.length) return warnungen;
+
+  const grenze = jetzt.getTime() - 3600e3;
+  const kommend = sw.stunden.filter((x) => {
+    const z = new Date(x.zeit).getTime();
+    return z > grenze && z <= jetzt.getTime() + 48 * 3600e3;
+  });
+  if (!kommend.length) return warnungen;
+
+  const wann = (s) => new Date(s.zeit);
+
+  // ---- Sturm
+  const boeig = kommend.filter((x) => (x.boen ?? 0) >= 60)
+    .sort((a, b) => (b.boen ?? 0) - (a.boen ?? 0));
+  if (boeig.length) {
+    const spitze = boeig[0];
+    warnungen.push({
+      art: 'sturm',
+      wann: wann(boeig.map((x) => x).sort((a, b) => new Date(a.zeit) - new Date(b.zeit))[0]),
+      titel: t('Sturm angekündigt: Böen bis {n} km/h', { n: Math.round(spitze.boen) }),
+      handlung: t('Deckel beschweren, Beuten gegen Umfallen sichern, lose Teile wegräumen.'),
+      aufgabe: 'Beuten gegen Sturm sichern',
+    });
+  }
+
+  // ---- erster Nachtfrost im Herbst
+  const monat = jetzt.getMonth() + 1;
+  if (monat >= 9 || monat <= 2) {
+    const frost = (sw.tage || []).find((x) => x.min != null && x.min <= 0 && x.datum >= iso(jetzt));
+    if (frost) {
+      warnungen.push({
+        art: 'frost',
+        wann: parseISO(frost.datum),
+        titel: t('Frost angekündigt: {n} °C in der Nacht zum {d}',
+          { n: Math.round(frost.min), d: `${frost.datum.slice(8, 10)}.${frost.datum.slice(5, 7)}.` }),
+        handlung: t('Mäusegitter und Fluglochkeil einhängen, Futtergeschirr raus, '
+          + 'Volk nicht mehr öffnen.'),
+        aufgabe: 'Mäusegitter einhängen',
+      });
+    }
+  }
+
+  // ---- Hitze
+  const heiss = kommend.filter((x) => (x.temp ?? 0) >= 34)
+    .sort((a, b) => (b.temp ?? 0) - (a.temp ?? 0));
+  if (heiss.length) {
+    warnungen.push({
+      art: 'hitze',
+      wann: wann(heiss[0]),
+      titel: t('Hitze angekündigt: bis {n} °C', { n: Math.round(heiss[0].temp) }),
+      handlung: t('Für Schatten und Wasser in der Nähe sorgen, Flugloch weit offen lassen, '
+        + 'volle Honigräume nicht in der Sonne stehen lassen.'),
+      aufgabe: 'Schatten und Wasser am Stand prüfen',
+    });
+  }
+
+  // ---- Dauerregen
+  const regen = (sw.tage || []).filter((x) => (x.regen ?? 0) >= 25 && x.datum >= iso(jetzt));
+  if (regen.length) {
+    warnungen.push({
+      art: 'regen',
+      wann: parseISO(regen[0].datum),
+      titel: t('Starkregen angekündigt: {n} mm am {d}',
+        { n: Math.round(regen[0].regen), d: `${regen[0].datum.slice(8, 10)}.${regen[0].datum.slice(5, 7)}.` }),
+      handlung: t('Standplatz auf Staunässe ansehen, Beuten leicht nach vorn neigen, '
+        + 'Fluglöcher frei halten.'),
+      aufgabe: 'Standplatz nach Starkregen prüfen',
+    });
+  }
+
+  return warnungen.sort((a, b) => a.wann - b.wann);
+}
+
+/**
  * Wärmesumme (Gradtage über 5 °C seit 1. Januar) an einem bestimmten Tag.
  * Wird beim Bestätigen eines Blühbeginns mitgespeichert und dient in den
  * Folgejahren als standortgenaue Schwelle für diese Art.

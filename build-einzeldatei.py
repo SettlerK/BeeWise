@@ -9,7 +9,8 @@ import re, base64, pathlib
 W = pathlib.Path(__file__).parent
 MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
           'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'qr.js', 'pdf.js', 'etiketten.js',
-          'berichte.js', 'koeniginnen.js', 'fotos.js', 'vergleich.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
+          'berichte.js', 'koeniginnen.js', 'fotos.js', 'vergleich.js', 'varroa.js',
+          'packliste.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
 
 NAMENSRAUM = {'db.js': 'db', 'sync.js': 'sync', 'koeniginnen.js': 'koe', 'fotos.js': 'fotos'}
 
@@ -81,6 +82,10 @@ html = html.replace('<link rel="apple-touch-icon" href="icons/icon-192.png">', '
 html = html.replace('<script type="module" src="js/app.js"></script>',
                     '<script type="module">\n' + ''.join(js) + '\n</script>')
 html = html.replace("icon: 'icons/icon-192.png',", f"icon: 'data:image/png;base64,{icon}',")
+# Auch das Bild in der Sprachabfrage: die Einzeldatei hat keinen Ordner neben sich.
+html = html.replace('src="icons/icon-192.png"', f'src="data:image/png;base64,{icon}"')
+if 'icons/' in html:
+    raise SystemExit('Verweis auf den Ordner icons/ ist in der Einzeldatei ubrig geblieben.')
 
 ziel = W.parent / 'beewise-einzeldatei.html'
 ziel.write_text(html, encoding='utf-8')

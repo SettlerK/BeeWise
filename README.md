@@ -159,6 +159,8 @@ js/stand.js             Stand-Modus: Durchgang Volk für Volk
 js/koeniginnen.js       Königinnen, Jahrgänge, Abstammung
 js/fotos.js             Fotos zu Durchsichten (verkleinern, Speicher im Blick)
 js/vergleich.js         Volksvergleich am Stand
+js/packliste.js         Packliste: was die fälligen Arbeiten an Material brauchen
+js/varroa.js            Milbenverlauf je Volk (Kurve, Monatsschwelle, Behandlungen)
 js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
 js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
@@ -284,6 +286,77 @@ In der Volksansicht steht dazu eine Zeile: „5 Gassen – am Stand liegt der Me
 Volk hängt deutlich zurück." Bei Jungvölkern ergänzt die App den naheliegenden Grund. Eingeordnet
 wird erst ab drei Völkern mit Daten und einem Median von mindestens vier Gassen – vorher ist die
 Aussage nicht belastbar.
+
+### Packliste – Schritt 0 des Durchgangs
+
+Das Ärgerliche am Bienenstand ist selten die Arbeit, sondern die vergessene Zarge. Was mitmuss,
+weiß die App aber schon: aus den an diesem Stand fälligen Aufgaben lässt sich das Material
+ableiten. Die Liste steht deshalb **als erster Schritt im Stand-Modus**, vor dem ersten Volk –
+also genau dann, wenn man noch am Auto steht und laden kann.
+
+* Oben **„Für die heutigen Arbeiten"**: je Posten das Stück, klein und farbig die Aufgabe, aus
+  der er kommt („3 × saubere Stockwindel · Varroa-Befall messen"). Stückzahlen wachsen mit der
+  Zahl der betroffenen Völker, wo das sinnvoll ist – bei einer Zarge ist es der ganze Witz, bei
+  der Schutzbrille wäre es albern.
+* Darunter die **Grundausrüstung**, die immer mitkommt (Stockmeißel, Smoker, Schleier …).
+* Die Haken sind **absichtlich flüchtig** und werden nicht gespeichert: die Liste ist eine
+  Ladehilfe, kein Protokoll. Es wäre eine Scheingenauigkeit, das Laden des Autos zu archivieren.
+* „Los geht's" führt zum ersten Volk. Ist am Stand nichts fällig, sagt die Karte genau das –
+  keine leere Liste, die man erst deuten muss.
+
+Steht nichts an, taucht die Liste trotzdem auf: sie ist ein Schritt des Durchgangs, kein
+Warnhinweis. Wer sie überspringen will, wischt oder tippt einmal.
+
+### Milbenverlauf je Volk
+
+Die Milbenzahlen standen bisher einzeln im Verlauf – und dort nützen sie am wenigsten. Die Frage
+des Imkers ist nicht „wie viele waren es am 25. Juli", sondern **„hat die Behandlung gewirkt"**.
+Das ist nur im Vergleich vorher/nachher und im Verhältnis zur Schwelle zu beantworten, die im
+Jahr wandert (Mai 1, Juli 5, August 10 Milben je Tag).
+
+Deshalb drei Dinge in einem Bild, in der Volksansicht unter **„Varroa \<Jahr\>"**:
+
+1. die Messwerte als Linie mit Punkten,
+2. die **Monatsschwelle** als gestufte, gestrichelte Linie – Kurve darüber heißt handeln,
+3. die **Behandlungen** als senkrechte Marken, direkt beschriftet („SB1 180 ml"); biotechnische
+   Maßnahmen (Drohnenbrut, Ableger) mit feinerer Strichelung.
+
+Darunter ein Satz, der die Frage beantwortet: *„Nach ‚Sommerbehandlung 1' fiel der Wert von 9 auf
+1,5 – etwa 83 % weniger."* Bei geringer Wirkung steht dort stattdessen der Hinweis, Anwendung und
+Menge zu prüfen – bei Ameisensäure ist eine schwache Wirkung fast immer eine Frage von Temperatur
+und Verdunstung, nicht des Mittels.
+
+Bewusst **eine** Datenreihe mit Bezugslinie statt zweier Achsen: Milben je Tag und Milliliter
+Säure haben nichts miteinander zu tun, also bekommt die Menge auch keine Achse, sondern steht als
+Text an der Marke. Ohne Messwert erscheint die Karte gar nicht – ein leeres Diagramm ist
+schlechter als keines.
+
+### Wetterwarnungen mit Handlungsbezug
+
+Auf *Heute* stehen ganz oben Warnungen, die aus der Stundenvorhersage der nächsten 48 Stunden
+entstehen – jede mit dem Handgriff, der dazugehört, nicht nur mit der Wetterlage:
+
+| Auslöser | Handlung |
+|---|---|
+| Böen ab 60 km/h | Deckel beschweren, Beuten gegen Umfallen sichern |
+| Nachtfrost ≤ 0 °C (ab September) | Mäusegitter und Fluglochkeil einhängen, Futtergeschirr raus |
+| ab 34 °C | Schatten und Wasser, Flugloch weit offen |
+| ab 25 mm Regen am Tag | Standplatz auf Staunässe ansehen, Beuten nach vorn neigen |
+
+Zwei Knöpfe je Zeile: **„Als Aufgabe"** legt sie als eigene Aufgabe am Stand an (mit Frist bis zum
+Tag nach dem Ereignis, damit sie nicht liegen bleibt), **✕** blendet sie aus. Wetter ist regional,
+also fasst die App gleiche Warnungen für mehrere Stände zu **einer** Zeile zusammen und nennt die
+betroffenen Stände – drei gleichlautende Sturmwarnungen wären Lärm. Der Frost hat absichtlich eine
+Jahreszeit: eine Frostmeldung im Mai betrifft die Blüte, nicht das Mäusegitter.
+
+### Sicherungs-Erinnerung
+
+Alle Daten liegen im Browser des Geräts. Das ist gut für die Unabhängigkeit und schlecht für den
+Fall, dass das Handy in den Honigeimer fällt. Sind vier Wochen ohne Sicherung (Export **oder**
+Geräteabgleich – was jünger ist) vergangen, erinnert eine Karte auf *Heute* daran, mit dem
+Sicherungsknopf direkt darin. „Später" schiebt sie um eine Woche auf; nach einem Export
+verschwindet sie von selbst. Sie erscheint erst, wenn überhaupt Völker angelegt sind – vor dem
+ersten Volk gibt es nichts zu verlieren.
 
 ### Königinnen und Abstammung
 
@@ -558,6 +631,29 @@ freiwillige Aufgabe **»Wenn nötig: erste kleine Futtergabe«** direkt nach der
 fünf Kilo, wenn ein Volk auffällig leicht wiegt. Nicht voll auffüttern – die Ameisensäure
 braucht Platz zum Verdunsten –, abends geben, und die Behandlung deswegen nicht verschieben.
 Die Hauptmenge kommt wie bisher nach der ersten Behandlung.
+
+## Fachliche Rückfragen – warum (noch) kein Chatbot
+
+Naheliegender Wunsch: eine Frage eintippen („Darf ich vor der ersten Sommerbehandlung schon ein
+wenig füttern?“) und eine Antwort bekommen. Bewusst nicht eingebaut, aus drei Gründen:
+
+* **Offline und ohne Server.** BeeWise braucht am Stand kein Netz. Ein Sprachmodell im Gerät ist
+  zu groß, eines in der Cloud braucht Netz, einen Schlüssel und laufende Kosten.
+* **Der Schaden ist einseitig.** Eine erfundene Menge Ameisensäure oder ein falsches Fenster
+  kostet Völker. Für Mengen und Anwendung gilt ohnehin die Gebrauchsinformation des zugelassenen
+  Präparats – nicht der Rat einer Software.
+* **Regionalität.** Trachtende und Behandlungsfenster verschieben sich um Wochen. Dafür sind der
+  Imkerpate, der Verein und die Infobriefe der Bieneninstitute die besseren Quellen.
+
+Was stattdessen trägt und geplant ist: eine **durchsuchbare Fragen-und-Antworten-Sammlung**
+(offline, kuratiert, je Antwort eine Quelle und ein Verweis auf die betroffene Regel). Die
+Erklärtexte in `js/regeln.js` sind die Grundlage – sie beantworten heute schon viele Fragen, aber
+nur, wenn die Aufgabe gerade fällig ist. Ein Sprachmodell wäre erst danach sinnvoll: als Aufsatz,
+der **aus** dieser Sammlung antwortet, freiwillig, mit eigenem Schlüssel und gekennzeichnet als
+ungeprüft – nie für Dosierungen.
+
+Und der Teil, den keine Antwort ersetzt: die App macht Fehler **sichtbar**. Die Milbenkurve zeigt,
+ob eine Behandlung gewirkt hat; das ist mehr wert als eine Auskunft vorab.
 
 ## Was bewusst noch fehlt
 

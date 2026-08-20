@@ -1,11 +1,11 @@
 // BeeWise – Hauptmodul: Zustand, Ansichten, Interaktionen.
 import {
-  iso, parseISO, heute, addDays, diffTage, fmtDatum, fmtRelativ, esc, uid, MON_LANG,
+  iso, parseISO, heute, addDays, diffTage, fmtDatum, fmtRelativ, esc, uid, nowISO, MON_LANG,
 } from './util.js';
 import * as db from './db.js';
 import {
   ARTEN, trachtFuerStandort, wetterEreignisse, waermesummeAm,
-  stundenWetter, wetterlage, stundeBewerten, stufeVon,
+  stundenWetter, wetterlage, stundeBewerten, stufeVon, wetterwarnungen,
   wetterZeichen as wetterZeichenVon, wetterText as wetterTextVon,
 } from './tracht.js';
 import {
@@ -18,13 +18,14 @@ import { trachtBild, platzhalter, wikiSeite, bildVerwerfen } from './bilder.js';
 import { videoSuche, videoSucheAllgemein, PLAYLIST, KANAL } from './hilfe.js';
 import { icsHerunterladen } from './kalenderexport.js';
 import {
-  SCHNELL, OHNE_BEFUND, standVoelker, offeneFuer, volkSchritt, abschlussSchritt,
+  SCHNELL, OHNE_BEFUND, standVoelker, offeneFuer, volkSchritt, abschlussSchritt, packschritt,
   grobWerteLesen, schrittSpeichern,
 } from './stand.js';
 import { etikettenPDF, grundadresse } from './etiketten.js';
 import * as koe from './koeniginnen.js';
 import * as fotos from './fotos.js';
 import { standVergleich, volkEinordnen } from './vergleich.js';
+import { varroaVerlauf, varroaBild } from './varroa.js';
 import { behandlungsprotokoll, volkHistorie, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
@@ -83,6 +84,8 @@ async function datenLaden() {
   S.sync = await sync.einstellungen();
   S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
   S.imkereiName = await db.metaLies('imkerei', '');
+  S.letzteSicherung = await db.metaLies('letzteSicherung', null);
+  S.sicherungAufgeschoben = await db.metaLies('sicherungAufgeschoben', null);
   await fotos.kanteLaden();       // muss vorliegen, bevor jemand auf „Foto" tippt
   S.standorte.sort((a, b) => a.name.localeCompare(b.name));
   S.voelker.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { numeric: true }));
@@ -213,6 +216,8 @@ function ansichtHeute() {
     <div><b>${S.voelker.length}</b><span>Völker</span></div>
   </div>`);
 
+  t.push(warnungenHTML());
+  t.push(sicherungHTML());
   t.push(wetterUebersichtHTML());
   if (S.voelker.length) {
     t.push(`<div class="knopfreihe" style="margin:0 0 12px">
@@ -606,7 +611,9 @@ function wetterSheet(standortId) {
 // liegen in js/stand.js – hier steht nur, was mit dem Zustand der App zu tun hat.
 
 function standStarten(standortId) {
-  S.stand = { standortId, i: 0, bilanz: { voelker: 0, aufgaben: 0, neu: 0 }, erfasst: new Set() };
+  // Schritt -1 ist die Packliste: der Durchgang beginnt beim Beladen, nicht am
+  // ersten Volk.
+  S.stand = { standortId, i: -1, bilanz: { voelker: 0, aufgaben: 0, neu: 0 }, erfasst: new Set() };
   gehe('stand');
 }
 
@@ -645,6 +652,7 @@ function ansichtStand() {
       <div class="knopfreihe" style="margin-top:16px">
         <button class="knopf" data-neu-volk>Volk anlegen</button></div></div></div>`;
   }
+  if (S.stand.i < 0) return packschritt(S, stand, liste.length, wetterZeileHTML(stand));
   if (S.stand.i >= liste.length) return abschlussSchritt(S, stand, S.stand.bilanz);
   return volkSchritt(S, liste[S.stand.i], stand, S.stand.i + 1, liste.length);
 }
@@ -667,7 +675,7 @@ function standSammeln(ohneBefund = false) {
  */
 async function standSpeichern({ ohneBefund = false } = {}) {
   const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
-  if (!stand) return { leer: true };
+  if (!stand || S.stand.i < 0) return { leer: true };
   const liste = standVoelker(S, stand.id);
   const volk = liste[S.stand.i];
   const { werte, abgehakt } = standSammeln(ohneBefund && !!volk);
@@ -727,7 +735,7 @@ function standBlaettern(richtung) {
   const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
   const liste = stand ? standVoelker(S, stand.id) : [];
   const vorher = S.stand.i;
-  S.stand.i = Math.max(0, Math.min(liste.length, S.stand.i + richtung));
+  S.stand.i = Math.max(-1, Math.min(liste.length, S.stand.i + richtung));
   if (S.stand.i === vorher) { render(); return; }   // am Anfang oder Ende: kein Schub
   schubAnimation(richtung, () => { render(); window.scrollTo(0, 0); });
 }
@@ -778,6 +786,116 @@ function standWaehlen() {
       });
     },
   });
+}
+
+
+// -------------------------------------------------- Warnungen und Sicherung
+
+/** Wetterwarnungen aller Stände, nach Zeitpunkt sortiert. */
+function warnungenSammeln() {
+  const raus = [];
+  for (const st of S.standorte) {
+    const sw = S.stunden[st.id];
+    if (!sw) continue;
+    for (const w of wetterwarnungen(sw)) raus.push({ ...w, stand: st });
+  }
+  return raus.sort((a, b) => a.wann - b.wann);
+}
+
+const WARNZEICHEN = { sturm: '🌪', frost: '❄', hitze: '🌡', regen: '🌧' };
+
+/**
+ * Warnungen zusammenfassen: Wetter ist regional, also trifft derselbe Sturm
+ * meist alle Stände. Drei gleichlautende Zeilen wären Lärm und würden die
+ * anderen Warnungen aus der Karte drängen – deshalb eine Zeile, die alle
+ * betroffenen Stände nennt.
+ */
+function warnungenGruppiert() {
+  const gruppen = new Map();
+  for (const w of warnungenSammeln()) {
+    const k = `${w.art}|${w.titel}|${w.handlung}`;
+    const g = gruppen.get(k) || { ...w, staende: [] };
+    g.staende.push(w.stand);
+    if (w.wann < g.wann) g.wann = w.wann;
+    gruppen.set(k, g);
+  }
+  return [...gruppen.values()]
+    .map((g) => ({ ...g, schluessel: `${g.art}|${g.staende.map((s) => s.id).join(',')}` }))
+    .filter((g) => !S.warnungWeg?.[g.schluessel])
+    .sort((a, b) => a.wann - b.wann);
+}
+
+function warnungenHTML() {
+  const liste = warnungenGruppiert();
+  if (!liste.length) return '';
+  return `<div class="karte warnkarte">${liste.slice(0, 3).map((w) => `
+    <div class="warnzeile">
+      <span class="warnzeichen">${WARNZEICHEN[w.art] || '!'}</span>
+      <div class="warntext">
+        <b>${esc(w.titel)}</b>
+        <div>${esc(w.handlung)}</div>
+        <small>${esc(w.staende.map((s) => s.name).join(' · '))}</small>
+      </div>
+      <div class="warnknoepfe">
+        <button class="knopf leise klein" data-warn-aufgabe="${esc(w.schluessel)}">${
+    esc(t2('Als Aufgabe'))}</button>
+        <button class="warnweg" data-warn-weg="${esc(w.schluessel)}"
+          aria-label="${esc(t2('ausblenden'))}">✕</button>
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+async function warnungAlsAufgabe(schluessel) {
+  const w = warnungenGruppiert().find((x) => x.schluessel === schluessel);
+  if (!w) return;
+  const bis = iso(addDays(w.wann > heute() ? w.wann : heute(), 1));
+  await eigeneAnlegen({
+    titel: t(w.aufgabe),
+    info: `${w.titel} – ${w.handlung}`,
+    kategorie: 'betrieb', wichtig: true,
+    von: iso(heute()), bis,
+    ziele: w.staende.map((s) => ({ typ: 'stand', id: s.id, name: s.name })),
+  });
+  S.warnungWeg = { ...(S.warnungWeg || {}), [schluessel]: true };
+  await datenLaden(); render();
+  toast(t('Aufgabe angelegt: {was}', { was: t(w.aufgabe) }));
+}
+
+// ---- Sicherung
+
+const SICHERUNG_TAGE = 28;
+
+/** Wann wurde zuletzt gesichert – Export oder Abgleich, was jünger ist. */
+function letzteSicherung() {
+  const kandidaten = [S.letzteSicherung, S.sync?.letzter].filter(Boolean);
+  if (!kandidaten.length) return null;
+  return kandidaten.sort().pop();
+}
+
+function sicherungHTML() {
+  if (!S.voelker.length) return '';
+  const letzte = letzteSicherung();
+  const tage = letzte ? diffTage(heute(), parseISO(String(letzte).slice(0, 10))) : null;
+  if (tage != null && tage < SICHERUNG_TAGE) return '';
+  if (S.sicherungAufgeschoben && diffTage(heute(), parseISO(S.sicherungAufgeschoben)) < 7) return '';
+
+  return `<div class="karte warnkarte">
+    <div class="warnzeile">
+      <span class="warnzeichen">💾</span>
+      <div class="warntext">
+        <b>${esc(letzte
+    ? t2('Letzte Sicherung vor {n} Tagen', { n: tage })
+    : t2('Noch nie gesichert'))}</b>
+        <div>${esc(t2('Alles liegt nur auf diesem Gerät. Eine Sicherung dauert zwei '
+    + 'Fingertipps – ohne sie ist die Arbeit von Jahren an ein Handy gebunden.'))}</div>
+      </div>
+      <div class="warnknoepfe">
+        <button class="knopf klein" data-export>${esc(t2('Sichern'))}</button>
+        <button class="warnweg" data-sicherung-spaeter
+          aria-label="${esc(t2('später'))}">✕</button>
+      </div>
+    </div>
+  </div>`;
 }
 
 // ---------------------------------------------------------------- Kalender
@@ -986,6 +1104,8 @@ function ansichtVolk() {
   ${aufgaben.length ? `<h2 class="abschnitt">Anstehend</h2><div class="karte">
     ${aufgaben.map((a) => aufgabeHTML(a, true)).join('')}</div>` : ''}
 
+  ${varroaKarteHTML(v)}
+
   ${historieHTML(v)}
 
   <h2 class="abschnitt">Verlauf</h2>
@@ -1072,6 +1192,53 @@ function einordnungHTML(v) {
       { n: e.gassen, m: e.median });
   return `<div class="einordnung ${e.lage}">${esc(satz)}${koe.istJungvolk(v)
     ? ' ' + esc(t2('(Jungvolk – das erklärt es meist.)')) : ''}</div>`;
+}
+
+
+/**
+ * Varroa-Karte im Volk: Kurve, Schwelle, Behandlungen – und ein Satz, der die
+ * Frage beantwortet, um die es eigentlich geht: hat es gewirkt?
+ */
+function varroaKarteHTML(v) {
+  const verlauf = varroaVerlauf(S, v.id);
+  if (!verlauf.messungen.length) {
+    // Ohne Messung keine Kurve, aber ein Hinweis, was dafür nötig wäre.
+    return '';
+  }
+  const l = verlauf.lage;
+  const saetze = [];
+  if (l) {
+    saetze.push(t2('Zuletzt {n} Milben je Tag am {d} – Schwelle für diesen Monat: {s}.',
+      { n: String(l.wert).replace('.', ','), d: fmtDatum(l.datum), s: l.schwelle }));
+    if (l.ueber) saetze.push(t2('Damit über der Schwelle: behandeln.'));
+    if (l.nachBehandlung) {
+      const nb = l.nachBehandlung;
+      saetze.push(nb.wirkung != null && nb.wirkung >= 50
+        ? t2('Nach „{was}“ fiel der Wert von {von} auf {auf} – etwa {p} % weniger.',
+          { was: t2(nb.behandlung), von: String(nb.von).replace('.', ','),
+            auf: String(nb.auf).replace('.', ','), p: nb.wirkung })
+        : t2('Nach „{was}“ ging der Wert von {von} auf {auf} – das ist wenig. '
+          + 'Anwendung und Menge prüfen.',
+        { was: t2(nb.behandlung), von: String(nb.von).replace('.', ','),
+          auf: String(nb.auf).replace('.', ',') }));
+    }
+  }
+
+  return `<h2 class="abschnitt">Varroa ${verlauf.jahr}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    ${varroaBild(verlauf)}
+    <div class="varroalegende">
+      <span><i class="mk linie"></i>${esc(t2('gemessener Milbenfall je Tag'))}</span>
+      <span><i class="mk schwelle"></i>${esc(t2('Monatsschwelle'))}</span>
+      ${verlauf.behandlungen.length ? `<span><i class="mk behandlung"></i>${
+    esc(t2('Behandlung'))}</span>` : ''}
+    </div>
+    ${saetze.length ? `<div class="varroasatz${l?.ueber ? ' warnung' : ''}">${
+    esc(saetze.join(' '))}</div>` : ''}
+    ${verlauf.behandlungen.length ? `<div class="mini" style="margin-top:8px">${
+    esc(verlauf.behandlungen.map((b) => `${fmtDatum(b.datum)} ${t2(b.kurz)}${
+      b.mittel ? ', ' + b.mittel : ''}${b.menge ? ', ' + b.menge : ''}`).join(' · '))}</div>` : ''}
+  </div></div>`;
 }
 
 /** Jahresbilanz je Saison: Ernte, Behandlungen, Durchsichten, Stärke. */
@@ -1484,7 +1651,11 @@ function ansichtMehr() {
   <h2 class="abschnitt">Daten</h2>
   <div class="karte"><div class="karte-inhalt">
     <div class="mini" style="margin-bottom:10px">Alles liegt nur auf diesem Gerät.
-      Sichere regelmäßig – und vor jedem Gerätewechsel.</div>
+      Sichere regelmäßig – und vor jedem Gerätewechsel.<br>
+      ${(() => { const l = letzteSicherung(); return l
+    ? esc(t2('Letzte Sicherung: {d} (vor {n} Tagen)',
+      { d: fmtDatum(String(l).slice(0, 10)), n: diffTage(heute(), parseISO(String(l).slice(0, 10))) }))
+    : `<b>${esc(t2('Noch nie gesichert.'))}</b>`; })()}</div>
     <div class="knopfreihe">
       <button class="knopf leise" data-export>Sicherung exportieren</button>
       <button class="knopf leise" data-import>Sicherung einspielen</button>
@@ -1654,6 +1825,7 @@ function verdrahten() {
   on('[data-sohne]', 'click', () => standWeiter({ ohneBefund: true }));
   on('[data-sende]', 'click', () => standBeenden());
   on('[data-saufgabe]', 'click', (e) => e.currentTarget.classList.toggle('an'));
+  on('[data-packen]', 'click', (e) => e.currentTarget.classList.toggle('an'));
   on('[data-sdetail]', 'click', (e) => {
     e.stopPropagation();
     const a = S.plan.find((x) => x.schluessel === e.currentTarget.dataset.sdetail);
@@ -1741,6 +1913,17 @@ function verdrahten() {
     toast('Bildgröße gespeichert.');
   });
   on('[data-fotos-aufraeumen]', 'click', fotosAufraeumenSheet);
+  on('[data-warn-aufgabe]', 'click', (e) => warnungAlsAufgabe(e.currentTarget.dataset.warnAufgabe));
+  on('[data-warn-weg]', 'click', (e) => {
+    S.warnungWeg = { ...(S.warnungWeg || {}), [e.currentTarget.dataset.warnWeg]: true };
+    render();
+  });
+  on('[data-sicherung-spaeter]', 'click', async () => {
+    S.sicherungAufgeschoben = iso(heute());
+    await db.metaSchreibe('sicherungAufgeschoben', S.sicherungAufgeschoben);
+    render();
+    toast('In einer Woche erinnere ich wieder.');
+  });
   on('[data-export]', 'click', exportieren);
   on('[data-import]', 'click', importieren);
   on('[data-demo]', 'click', beispieldaten);
@@ -2936,6 +3119,9 @@ async function exportieren() {
   a.download = `beewise-${iso(heute())}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  S.letzteSicherung = nowISO();
+  await db.metaSchreibe('letzteSicherung', S.letzteSicherung);
+  render();
   toast('Sicherung erstellt.');
 }
 
@@ -2989,6 +3175,10 @@ function erinnern({ erzwingen = false } = {}) {
     const w = S.plan.filter((a) => a.quelle === 'auto'
       && ['ueberfaellig', 'faellig'].includes(a.zustand));
     if (w.length) zeilen.push(t('{n} Warnungen', { n: w.length }) + ': ' + t(w[0].titel));
+    // Wetterwarnungen gehören in dieselbe Meldung: Sturm und Frost warten nicht,
+    // bis man die App das nächste Mal öffnet.
+    const ww = warnungenSammeln();
+    if (ww.length) zeilen.push(ww[0].titel + ' – ' + ww[0].handlung);
   }
   if (m.tracht && S.fragen.length) {
     zeilen.push(t('Trachtfrage offen') + ': ' + t(S.fragen[0].name));
