@@ -1162,4 +1162,8 @@ export const en = {
   'Stand bearbeiten': 'Edit apiary',
   'Zuerst einen Bienenstand anlegen – aus seiner Lage rechnet BeeWise Tracht und Termine.':
     'Add an apiary first – BeeWise derives forage and timing from its location.',
+  Danach: 'Next',
+  '{was} ({a}–{b} Tage später)': '{was} ({a}–{b} days later)',
+  'Erledigt. Als Nächstes: {was} ab {d}.': 'Done. Next up: {was} from {d}.',
+  'Foto konnte nicht gelesen werden.': 'The photo could not be read.',
 };

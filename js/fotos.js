@@ -24,41 +24,88 @@ export const KANTEN = [800, 1024, 1600];
 const VORSCHAU = 220;
 const GUETE = 0.72;
 
-export async function kanteLesen() {
-  const k = await db.metaLies('fotoKante', 1024);
-  return KANTEN.includes(Number(k)) ? Number(k) : 1024;
-}
-export const kanteSchreiben = (k) => db.metaSchreibe('fotoKante', Number(k));
+// Die eingestellte Bildgröße wird beim Start EINMAL gelesen und hier gehalten.
+// Grund: `fotoAufnehmen()` muss ohne jedes `await` auskommen (siehe dort).
+let aktuelleKante = 1024;
 
-/** Bild aus Datei oder Kamera holen und auf zwei Größen bringen. */
-export function fotoAufnehmen({ kante = 1024 } = {}) {
+export async function kanteLaden() {
+  try {
+    const k = await db.metaLies('fotoKante', 1024);
+    aktuelleKante = KANTEN.includes(Number(k)) ? Number(k) : 1024;
+  } catch { aktuelleKante = 1024; }
+  return aktuelleKante;
+}
+
+export const kante = () => aktuelleKante;
+
+export async function kanteSchreiben(k) {
+  aktuelleKante = KANTEN.includes(Number(k)) ? Number(k) : 1024;
+  return db.metaSchreibe('fotoKante', aktuelleKante);
+}
+
+/**
+ * Bild aus Kamera oder Galerie holen und auf zwei Größen bringen.
+ *
+ * Diese Funktion MUSS unmittelbar aus dem Antippen heraus aufgerufen werden –
+ * ohne ein `await` davor. Am Handy erlauben die Browser das Öffnen des
+ * Dateidialogs nur innerhalb der Nutzergeste; wartet der Code vorher auch nur
+ * eine Runde auf die Datenbank, gilt die Geste als verbraucht und der Dialog
+ * öffnet sich ohne Fehlermeldung einfach nicht. Genau daran lag es.
+ *
+ * Zwei weitere Fallen, die hier umgangen werden:
+ *   * Das Feld wird kurz in die Seite gehängt. Ein nur im Speicher erzeugtes
+ *     Feld ignoriert Safari gelegentlich.
+ *   * Kein `capture`-Attribut. Es erzwingt die Kamera und nimmt einem damit die
+ *     Wahl, ein vorhandenes Bild aus der Galerie zu nehmen.
+ */
+export function fotoAufnehmen() {
+  const max = aktuelleKante;
   return new Promise((fertig) => {
     const inp = document.createElement('input');
     inp.type = 'file';
     inp.accept = 'image/*';
-    inp.capture = 'environment';
+    inp.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0';
+    document.body.appendChild(inp);
+    let erledigt = false;
+    const schluss = (wert) => {
+      if (erledigt) return;
+      erledigt = true;
+      try { inp.remove(); } catch { /* egal */ }
+      fertig(wert);
+    };
+
     inp.onchange = () => {
       const datei = inp.files?.[0];
-      if (!datei) return fertig(null);
+      if (!datei) return schluss(null);
       const url = URL.createObjectURL(datei);
       const bild = new Image();
       bild.onload = () => {
-        const mal = (max) => {
-          const s = Math.min(1, max / Math.max(bild.width, bild.height));
+        const mal = (kanteMax) => {
+          const s = Math.min(1, kanteMax / Math.max(bild.width, bild.height));
           const c = document.createElement('canvas');
-          c.width = Math.round(bild.width * s);
-          c.height = Math.round(bild.height * s);
+          c.width = Math.max(1, Math.round(bild.width * s));
+          c.height = Math.max(1, Math.round(bild.height * s));
           c.getContext('2d').drawImage(bild, 0, 0, c.width, c.height);
           return c.toDataURL('image/jpeg', GUETE);
         };
-        const daten = mal(kante);
-        const klein = mal(VORSCHAU);
-        URL.revokeObjectURL(url);
-        fertig({ daten, klein, bytes: Math.round(daten.length * 0.75) });
+        try {
+          const daten = mal(max);
+          const klein = mal(VORSCHAU);
+          URL.revokeObjectURL(url);
+          schluss({ daten, klein, bytes: Math.round(daten.length * 0.75) });
+        } catch (e) {
+          URL.revokeObjectURL(url);
+          schluss({ fehler: e?.message || 'Bild konnte nicht verkleinert werden' });
+        }
       };
-      bild.onerror = () => { URL.revokeObjectURL(url); fertig(null); };
+      bild.onerror = () => {
+        URL.revokeObjectURL(url);
+        schluss({ fehler: 'Bild konnte nicht gelesen werden' });
+      };
       bild.src = url;
     };
+    // Bricht der Nutzer ab, meldet das nur ein Teil der Browser.
+    inp.oncancel = () => schluss(null);
     inp.click();
   });
 }

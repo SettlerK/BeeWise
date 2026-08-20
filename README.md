@@ -242,7 +242,10 @@ große Flächen, wenige Angaben, sofort gespeichert.
 * Gespeichert wird bei jedem Blättern – über die Pfeile **oder durch Wischen** nach links und
   rechts. Ein leerer Akku kostet höchstens das Volk, an dem du gerade stehst.
 * **Foto je Durchsicht:** ein Bild sagt bei Brutbildern und Krankheitsverdacht mehr als jede
-  Notiz. Aufgenommen wird mit der Kamera, gespeichert die längste Kante mit 1024 Punkten
+  Notiz. Wichtig für die Umsetzung: der Dateidialog muss **innerhalb der Nutzergeste** geöffnet
+  werden – ein einziges `await` davor (etwa auf eine Einstellung aus der Datenbank) und Handy-
+  Browser blocken ihn ohne Fehlermeldung. Die Bildgröße wird deshalb beim Start gelesen und
+  gehalten; `capture` setzt die App nicht, damit auch die Galerie zur Auswahl steht. Aufgenommen wird mit der Kamera, gespeichert die längste Kante mit 1024 Punkten
   (etwa 100 kB je Bild, einstellbar). Fotos bleiben auf dem Gerät und gehen in die
   Sicherungsdatei mit, aber **nicht in den Geräteabgleich** – sonst wüchse das Sync-Repository
   mit jeder Woche. Unter *Mehr → Daten* steht, wie viel Platz sie belegen, und alte Jahrgänge
@@ -303,6 +306,10 @@ Details, die im Alltag zählen:
 
 * **Gleiche Aufgabe über mehrere Völker** wird zu einer Zeile zusammengefasst; im Sheet wählt
   man ab, welche Völker erledigt sind.
+* **„Danach: …"** – eine kleine Zeile im Aufgabenfenster nennt, was an dieser Aufgabe hängt,
+  mit dem Abstand in Tagen („Sommerbehandlung 1 (1–10 Tage später)"). Nach dem Abhaken sagt die
+  Meldung konkret, was nachgerückt ist. Bewusst grau und höchstens zwei Nachfolger: es ist
+  Einordnung, keine zweite Aufgabenliste.
 * **Automatische Folgeaufgaben:** Milbenfall über der Monatsschwelle (Mai/Juni 1, Juli 5,
   August 10 pro Tag), weiselloses Volk, verdeckelte Weiselzellen oder knappes Futter erzeugen
   sofort eine eigene, terminierte Aufgabe – sichtbar am Vermerk „automatisch".

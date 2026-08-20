@@ -8,7 +8,9 @@ import {
   stundenWetter, wetterlage, stundeBewerten, stufeVon,
   wetterZeichen as wetterZeichenVon, wetterText as wetterTextVon,
 } from './tracht.js';
-import { REGELN, KATEGORIEN, regelNach, futterBedarf, varroaSchwelle } from './regeln.js';
+import {
+  REGELN, KATEGORIEN, regelNach, folgeRegeln, futterBedarf, varroaSchwelle,
+} from './regeln.js';
 import { planBerechnen, trachtFragen, zusammenfassung } from './engine.js';
 import { ausloeserPruefen, eigeneAnlegen, abhaken as eigenAbhaken } from './aufgaben.js';
 import { statischesLuftbild, MiniKarte, adresseSuchen, adresseZuKoordinaten } from './karte.js';
@@ -80,6 +82,7 @@ async function datenLaden() {
   S.sync = await sync.einstellungen();
   S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
   S.imkereiName = await db.metaLies('imkerei', '');
+  await fotos.kanteLaden();       // muss vorliegen, bevor jemand auf „Foto" tippt
   S.standorte.sort((a, b) => a.name.localeCompare(b.name));
   S.voelker.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'de', { numeric: true }));
   neuRechnen();
@@ -698,13 +701,34 @@ async function standSpeichern({ ohneBefund = false } = {}) {
   }
 }
 
+/**
+ * Kurzer Schub zur Seite beim Blättern. Zwei Bilder wären ehrlicher (das alte
+ * schiebt raus, das neue rein), aber die Ansicht wird bei jedem Schritt neu
+ * aufgebaut – deshalb: altes leicht wegschieben, neu zeichnen, von der anderen
+ * Seite hereinschieben. Insgesamt gut ein Sechstel Sekunde, damit es zügig
+ * bleibt. Wer Bewegung im System abgeschaltet hat, bekommt keine.
+ */
+function schubAnimation(richtung, malen) {
+  const sparsam = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  if (sparsam) { malen(); return; }
+  AN.classList.remove('rein-links', 'rein-rechts');
+  AN.classList.add(richtung > 0 ? 'raus-links' : 'raus-rechts');
+  setTimeout(() => {
+    AN.classList.remove('raus-links', 'raus-rechts');
+    malen();
+    AN.classList.add(richtung > 0 ? 'rein-rechts' : 'rein-links');
+    setTimeout(() => AN.classList.remove('rein-links', 'rein-rechts'), 220);
+  }, 110);
+}
+
 function standBlaettern(richtung) {
   fotoPufferLeeren();     // nicht gespeicherte Bilder gehören nicht zum nächsten Volk
   const stand = S.standorte.find((x) => x.id === S.stand?.standortId);
   const liste = stand ? standVoelker(S, stand.id) : [];
+  const vorher = S.stand.i;
   S.stand.i = Math.max(0, Math.min(liste.length, S.stand.i + richtung));
-  render();
-  window.scrollTo(0, 0);
+  if (S.stand.i === vorher) { render(); return; }   // am Anfang oder Ende: kein Schub
+  schubAnimation(richtung, () => { render(); window.scrollTo(0, 0); });
 }
 
 /** Pfeiltasten: erst sichern, dann blättern. */
@@ -836,7 +860,7 @@ function ansichtVoelker() {
         : t2('Zuerst einen Bienenstand anlegen – aus seiner Lage rechnet BeeWise Tracht und Termine.')}
       <div class="knopfreihe" style="margin-top:16px">
         ${S.standorte.length ? '<button class="knopf" data-neu-volk>Volk anlegen</button>' : ''}
-        <button class="knopf${S.standorte.length ? ' leise' : ''}" data-neu-standort-hier>Bienenstand anlegen</button>
+        <button class="knopf" data-neu-standort-hier>Bienenstand anlegen</button>
       </div></div></div>`;
   }
   const t = [];
@@ -874,7 +898,7 @@ function ansichtVoelker() {
   }
   t.push(`<div class="knopfreihe">
     <button class="knopf" data-neu-volk>Volk anlegen</button>
-    <button class="knopf leise" data-neu-standort-hier>Bienenstand anlegen</button>
+    <button class="knopf" data-neu-standort-hier>Bienenstand anlegen</button>
   </div>`);
   return t.join('');
 }
@@ -1779,12 +1803,15 @@ function fotoFeldVerdrahten(root) {
       x.onclick = () => { fotoPuffer.splice(Number(x.dataset.fotoWeg), 1); zeichnen(); };
     });
   };
-  knopf.onclick = async () => {
-    const kante = await fotos.kanteLesen();
-    const bild = await fotos.fotoAufnehmen({ kante });
-    if (!bild) return;
-    fotoPuffer.push(bild);
-    zeichnen();
+  // Bewusst nicht `async`: vor dem Öffnen des Dateidialogs darf nichts awaitet
+  // werden, sonst blockt das Handy den Dialog (siehe js/fotos.js).
+  knopf.onclick = () => {
+    fotos.fotoAufnehmen().then((bild) => {
+      if (!bild) return;                         // abgebrochen
+      if (bild.fehler) return toast('Foto konnte nicht gelesen werden.');
+      fotoPuffer.push(bild);
+      zeichnen();
+    }).catch((e) => fehlerZeigen('Foto', e));
   };
   zeichnen();
 }
@@ -1887,6 +1914,23 @@ function futterRechnerVerdrahten(root) {
   rechne();
 }
 
+
+/**
+ * „Danach: …" – eine Zeile, die zeigt, was an dieser Aufgabe hängt.
+ * Bewusst klein und ohne Farbe: es ist Einordnung, nicht Handlungsaufforderung.
+ * Höchstens zwei Nachfolger, sonst wird aus dem Hinweis eine zweite Liste.
+ */
+function folgenHTML(a) {
+  if (!a.regelId) return '';
+  const folgen = folgeRegeln(a.regelId);
+  if (!folgen.length) return '';
+  const teile = folgen.slice(0, 2).map((f) => (f.fenster
+    ? t2('{was} ({a}–{b} Tage später)', { was: t2(f.kurz), a: f.fenster[0], b: f.fenster[1] })
+    : t2(f.kurz)));
+  if (folgen.length > 2) teile.push('…');
+  return `<div class="mini folgen">↳ ${esc(t2('Danach'))}: ${esc(teile.join(' · '))}</div>`;
+}
+
 function aufgabeOeffnen(a) {
   const zeit = a.von && a.bis ? t2('{von} bis {bis}', { von: fmtDatum(a.von), bis: fmtDatum(a.bis) }) : t2('Termin noch offen');
   sheetAuf({
@@ -1896,7 +1940,8 @@ function aufgabeOeffnen(a) {
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
       ${wetterBlockHTML(a)}
       ${hilfeBlock(a)}
-      ${a.bezug ? `<div class="mini" style="margin:2px 0 12px">Terminbezug: ${esc(a.bezug)}</div>` : ''}
+      ${a.bezug ? `<div class="mini" style="margin:2px 0 2px">Terminbezug: ${esc(a.bezug)}</div>` : ''}
+      ${folgenHTML(a)}
       ${a.wartetAuf ? `<div class="hinweis" style="border-color:var(--wartet)">Wartet auf: ${esc(a.wartetAuf)}.
         Sobald das erledigt ist, rückt dieser Termin automatisch nach.</div>` : ''}
       ${a.checkliste.length ? `<ul class="checkliste">${a.checkliste.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
@@ -1955,8 +2000,20 @@ async function aufgabeSpeichern(a, root, status) {
   sheetZu();
   await datenLaden();
   render();
-  toast(neu ? t('Erledigt. {n} neue Aufgaben automatisch angelegt.', { n: neu })
-    : (status === 'erledigt' ? 'Erledigt – Folgetermine neu berechnet.' : 'Übersprungen.'));
+  if (neu) {
+    toast(t('Erledigt. {n} neue Aufgaben automatisch angelegt.', { n: neu }));
+  } else if (status !== 'erledigt') {
+    toast('Übersprungen.');
+  } else {
+    // Wenn möglich benennen, was durch dieses Abhaken nachgerückt ist.
+    const folgeIds = a.regelId ? folgeRegeln(a.regelId).map((f) => f.id) : [];
+    const naechste = S.plan.find((x) => folgeIds.includes(x.regelId)
+      && x.ziel.id === a.ziel.id && ['ueberfaellig', 'faellig', 'bald'].includes(x.zustand));
+    toast(naechste && naechste.von
+      ? t('Erledigt. Als Nächstes: {was} ab {d}.',
+        { was: t(naechste.kurz || naechste.titel), d: fmtDatum(naechste.von) })
+      : 'Erledigt – Folgetermine neu berechnet.');
+  }
 
   // Aus „Ableger gebildet" werden echte Völker – mit Abstammung und Jungvolkstatus.
   if (status === 'erledigt' && a.aktion === 'ableger' && a.ziel.typ === 'volk'
@@ -2038,6 +2095,7 @@ function gruppeOeffnen(gruppe) {
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
       ${wetterBlockGruppeHTML(gruppe)}
       ${hilfeBlock(a)}
+      ${folgenHTML(a)}
       ${a.checkliste.length ? `<ul class="checkliste">${a.checkliste.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>` : ''}
       ${a.rechner === 'futter' ? `<div class="hinweis" style="border-color:var(--faellig)">
         Die Futtermenge hängt an Volksstärke und vorhandenem Vorrat und ist je Volk verschieden.
@@ -2632,28 +2690,16 @@ function volkSheet(v = null) {
   });
 }
 
-/** Foto aufnehmen oder wählen, verkleinert speichern. */
+/** Bild des Volkes: derselbe Weg wie bei den Durchsichtsfotos. */
 function volksbildWaehlen(volkId) {
-  const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'image/*'; inp.capture = 'environment';
-  inp.onchange = () => {
-    const datei = inp.files?.[0];
-    if (!datei) return;
-    const bild = new Image();
-    bild.onload = async () => {
-      const kante = 640;
-      const s = Math.min(1, kante / Math.max(bild.width, bild.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(bild.width * s); c.height = Math.round(bild.height * s);
-      c.getContext('2d').drawImage(bild, 0, 0, c.width, c.height);
-      const v = S.voelker.find((x) => x.id === volkId);
-      await db.schreibe('voelker', { ...v, foto: c.toDataURL('image/jpeg', 0.72) });
-      URL.revokeObjectURL(bild.src);
-      await datenLaden(); render(); toast('Foto gespeichert.');
-    };
-    bild.src = URL.createObjectURL(datei);
-  };
-  inp.click();
+  fotos.fotoAufnehmen().then(async (bild) => {
+    if (!bild) return;
+    if (bild.fehler) return toast('Foto konnte nicht gelesen werden.');
+    const v = S.voelker.find((x) => x.id === volkId);
+    if (!v) return;
+    await db.schreibe('voelker', { ...v, foto: bild.klein });
+    await datenLaden(); render(); toast('Foto gespeichert.');
+  }).catch((e) => fehlerZeigen('Foto', e));
 }
 
 // ----------------------------------------------------------------- Durchsicht
@@ -2768,7 +2814,7 @@ function fotobilanzZeigen() {
   const el = AN.querySelector('#fotobilanz');
   if (!el) return;
   const wahl = AN.querySelector('[data-fotokante]');
-  fotos.kanteLesen().then((k) => { if (wahl) wahl.value = String(k); });
+  if (wahl) wahl.value = String(fotos.kante());
   fotos.bilanz().then((b) => {
     el.textContent = b.anzahl
       ? t('Fotos: {n} · etwa {gr}', { n: b.anzahl, gr: fotos.groesse(b.bytes) })

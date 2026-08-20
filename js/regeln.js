@@ -488,6 +488,32 @@ for (const r of REGELN) if (WETTERBEDARF[r.id]) r.wetterbedarf = WETTERBEDARF[r.
 
 export const regelNach = (id) => REGELN.find((r) => r.id === id);
 
+/**
+ * Welche Aufgaben hängen an dieser? Zwei Wege führen dorthin:
+ *   * Anker `nachAufgabe` – der Termin rechnet direkt vom Erledigungsdatum aus.
+ *     Nur hier gibt es einen Abstand in Tagen, den man nennen kann.
+ *   * `benoetigt` – die Aufgabe ist Voraussetzung, ihr Termin kommt aber aus
+ *     einer anderen Quelle (Blüte, Wetter). Dann ohne Tagesangabe.
+ */
+export function folgeRegeln(regelId) {
+  const direkt = REGELN.filter((r) => r.anker?.typ === 'nachAufgabe'
+    && (r.anker.regel === regelId || r.anker.regelAlternativ === regelId));
+  const weitere = REGELN.filter((r) => (r.benoetigt || []).includes(regelId)
+    && !direkt.includes(r));
+  // Reihenfolge nach Wichtigkeit, dann nach Nähe: die Sommerbehandlung gehört
+  // vor das Abfüllen, auch wenn sie im Katalog weiter unten steht.
+  const sortiert = [...direkt, ...weitere].sort((a, b) => (b.wichtig ? 1 : 0) - (a.wichtig ? 1 : 0)
+    || ((a.fenster?.[0] ?? 99) - (b.fenster?.[0] ?? 99)));
+  return sortiert.map((r) => ({
+    id: r.id,
+    kurz: r.kurz || r.titel,
+    wichtig: !!r.wichtig,
+    // Abstand nur, wenn er sich wirklich von dieser Aufgabe aus rechnet
+    fenster: (r.anker?.typ === 'nachAufgabe'
+      && (r.anker.regel === regelId || r.anker.regelAlternativ === regelId)) ? r.fenster : null,
+  }));
+}
+
 // ============================================================================
 // Automatische Auslöser
 // ----------------------------------------------------------------------------
