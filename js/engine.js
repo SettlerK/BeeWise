@@ -204,8 +204,13 @@ export function planBerechnen(ctx) {
       let bezug = f.bezug; let quelle = f.quelle;
       let letzte = eigene[0] || null;
 
+      // Kommt diese Aufgabe zum wiederholten Mal? Für Ernten heißt das: die
+      // erste ist Pflicht, jede weitere ein Angebot (siehe wiederholungFreiwillig).
+      let wiederholt = false;
+
       if (regel.wiederholung) {
         if (letzte) {
+          wiederholt = true;
           const basis = parseISO(letzte.datum);
           von = addDays(basis, regel.wiederholung.min);
           bis = addDays(basis, regel.wiederholung.max);
@@ -246,7 +251,12 @@ export function planBerechnen(ctx) {
       const bisTage = bis ? diffTage(bis, datum) : null;
       const vonTage = von ? diffTage(von, datum) : null;
 
-      if (bisTage != null && (bisTage < -VERPASST_TAGE || (regel.freiwillig && bisTage < 0))) {
+      // Freiwillig ist eine Aufgabe entweder von Haus aus – oder ab der zweiten
+      // Runde, wenn die Regel das so vorsieht (mehrfaches Ernten).
+      const istFreiwillig = !!regel.freiwillig
+        || (wiederholt && !!regel.wiederholungFreiwillig);
+
+      if (bisTage != null && (bisTage < -VERPASST_TAGE || (istFreiwillig && bisTage < 0))) {
         zustand = 'verpasst';                       // Fenster endgültig vorbei
       } else if (blockiert) zustand = 'wartet';
       else if (bisTage != null && bisTage < 0) zustand = 'ueberfaellig';
@@ -256,6 +266,7 @@ export function planBerechnen(ctx) {
 
       aufgaben.push(bauen(regel, ziel, von, bis, zustand, {
         bezug, quelle, wartetAuf: blockiert || wartetAuf, letzte,
+        wiederholt, freiwillig: istFreiwillig,
       }));
     }
   }

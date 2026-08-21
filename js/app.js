@@ -151,6 +151,31 @@ const TITEL = {
   kassenbuch: 'Kassenbuch', winterbilanz: 'Winterbilanz',
 };
 
+/**
+ * Zoomzustand sichtbar machen.
+ * Ist die Anzeige hineingezoomt, verschiebt jede Bewegung mit seitlichem Anteil
+ * das ganze Bild – das sieht wie ein Fehler der App aus, ist aber der Zoom des
+ * Geräts. Unter „Mehr → Diagnose" steht deshalb, wie es gerade steht.
+ */
+function zoomZeigen() {
+  const el = document.getElementById('zoomwert');
+  if (!el) return;
+  const vv = window.visualViewport;
+  const stufe = vv ? Math.round((vv.scale || 1) * 100) : 100;
+  const seitlich = vv ? Math.round(vv.offsetLeft || 0) : 0;
+  el.textContent = t('{n} % Zoom, {b} px Breite, seitlich {s} px',
+    { n: stufe, b: Math.round(vv?.width || window.innerWidth), s: seitlich });
+  el.style.color = stufe > 105 || seitlich > 2 ? 'var(--ueberfaellig)' : '';
+}
+
+/**
+ * Sicherheitsnetz: sollte die Seite doch einmal seitlich stehen (etwa nach einem
+ * Zoom), wird sie beim nächsten Atemzug an den linken Rand zurückgeholt.
+ */
+function seitlichZuruecksetzen() {
+  if (window.scrollX !== 0) window.scrollTo(0, window.scrollY);
+}
+
 function render() {
   lageLeeren();
   KOPF.textContent = S.ansicht === 'volk'
@@ -177,6 +202,7 @@ function render() {
   uebersetzeDom(document.body);
   verdrahten();
   nachladen();
+  zoomZeigen();
 }
 
 /** Ansichten, die „unter" einem Tab liegen und einen Zurück-Weg brauchen. */
@@ -341,7 +367,9 @@ function aufgabeHTML(a, kompakt = false) {
     <div class="streifen b-${streifen(a.zustand)}"></div>
     <div class="haken"><svg viewBox="0 0 24 24"><path d="m5 13 4 4 10-10"/></svg></div>
     <div class="mitte">
-      <div class="titel">${esc(t2(a.titel))}${a.wichtig ? ' <span class="marke wichtig">wichtig</span>' : ''}${a.quelle === 'auto' ? ' <span class="marke auto">automatisch</span>' : ''}</div>
+      <div class="titel">${esc(t2(a.titel))}${a.wichtig ? ' <span class="marke wichtig">wichtig</span>' : ''}${a.quelle === 'auto' ? ' <span class="marke auto">automatisch</span>' : ''}${
+    a.wiederholt && a.freiwillig ? ` <span class="marke freiwillig">${
+      esc(t2('nur wenn nötig'))}</span>` : ''}</div>
       <div class="zeile2">
         <span class="marke" style="background:${kat.farbe}22;color:${kat.farbe}">
           <i class="punkt" style="background:${kat.farbe}"></i>${esc(t2(kat.name))}</span>
@@ -1935,7 +1963,8 @@ function ansichtMehr() {
     ${t2('Datensätze: {st} Stände · {vo} Völker · {du} Durchsichten · {er} Erledigungen · {wa} Umzüge',
       { st: S.standorte.length, vo: S.voelker.length, du: S.durchsichten.length,
         er: S.erledigungen.length, wa: S.wanderungen.length })}<br>
-    <span>Adresse:</span> <code>${esc(location.protocol)}//…</code>
+    <span>Adresse:</span> <code>${esc(location.protocol)}//…</code><br>
+    <span>Anzeige:</span> <b id="zoomwert">–</b>
     ${db.letzterFehler?.() ? `<div style="color:var(--ueberfaellig);margin-top:8px">
       <b>Datenbank:</b> ${esc(db.letzterFehler())}</div>` : ''}
     ${letzterAppFehler ? `<div style="color:var(--ueberfaellig);margin-top:6px">
@@ -2328,6 +2357,19 @@ function fotoAnsehen(id) {
 
 // ---------------------------------------------------------- Aufgaben-Sheets
 
+/**
+ * Erklärt eine wiederkehrende, freiwillige Aufgabe – im Klartext die Ernte:
+ * „du hast schon geerntet, das hier wäre eine weitere".
+ */
+function wiederholungHinweis(a) {
+  if (!a.wiederholt || !a.freiwillig) return '';
+  return `<div class="hinweis">${esc(a.letzte
+    ? t2('Zuletzt am {d} erledigt. Mehrfach zu ernten ist normal – diese Aufgabe steht '
+      + 'deshalb wieder da, aber nur als Angebot. Wer fertig ist, lässt sie stehen; sie '
+      + 'verschwindet am Ende der Saison von selbst.', { d: fmtDatum(a.letzte.datum) })
+    : t2('Nur erledigen, wenn es nötig ist.'))}</div>`;
+}
+
 function hilfeBlock(a) {
   const begriff = a.hilfe || a.titel;
   return `<div class="hilfezeile">
@@ -2415,6 +2457,7 @@ function aufgabeOeffnen(a) {
     unter: `${a.ziel.typ === 'imkerei' ? t2('Ganze Imkerei') : a.ziel.name}${a.ziel.typ === 'volk' && a.ziel.standortName ? ' · ' + a.ziel.standortName : ''} · ${zeit}`,
     inhalt: `
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
+      ${wiederholungHinweis(a)}
       ${wetterBlockHTML(a)}
       ${hilfeBlock(a)}
       ${a.bezug ? `<div class="mini" style="margin:2px 0 2px">Terminbezug: ${esc(a.bezug)}</div>` : ''}
@@ -2911,8 +2954,16 @@ function ansichtKassenbuch() {
   </div>
   <div class="knopfreihe">
     <button class="knopf leise klein" data-ernte-nachtragen>${
-    esc(t2('Ernte nachtragen oder ändern'))}</button>
-  </div>` : `<h2 class="abschnitt">${esc(t2('Ernte'))}</h2>
+    esc(t2('Ernte erfassen oder ändern'))}</button>
+  </div>
+  ${(() => { const tm = kasse.ernteTermine(S, b.jahr);
+    return tm.length > 1 ? `<div class="karte"><div class="karte-inhalt">
+      <div class="vgltitel">${esc(t2('Einzelne Ernten dieses Jahres'))}</div>
+      <table class="bilanz"><tbody>${tm.map((x) => `<tr>
+        <td>${esc(fmtDatum(x.datum))}</td><td style="text-align:left">${esc(t2(x.sorte))}</td>
+        <td>${esc(t2('{n} Völker', { n: x.voelker }))}</td>
+        <td>${esc(kassKg(x.kg))}</td></tr>`).join('')}</tbody></table>
+    </div></div>` : ''; })()}` : `<h2 class="abschnitt">${esc(t2('Ernte'))}</h2>
   <div class="karte"><div class="karte-inhalt">
     <div class="mini">${esc(t2('Für dieses Jahr ist keine Ernte erfasst. Normalerweise kommt '
     + 'sie beim Abhaken der Ernteaufgabe herein – schon geschleuderten Honig kannst du hier '
@@ -3040,34 +3091,47 @@ function mhdLesen(text) {
  * passen, was auf dem Glas klebt, und das entscheidet der Imker.
  */
 /**
- * Ernte nachtragen.
- * Wer die App mitten in der Saison anfängt, hat die Frühtracht schon im Eimer –
- * und über das Abhaken der Aufgabe kommt er nicht mehr dran, weil deren Fenster
- * längst zu ist. Deshalb hier derselbe Weg von Hand: geschrieben wird eine
- * ERLEDIGUNG der Ernteregel, nicht ein Sonderdatensatz. Damit sieht das
- * Kassenbuch die Ernte, die Volkshistorie sieht sie, die Gewichtskurve setzt
- * ihre Marke, und die Folgetermine rechnen damit – genau wie beim Abhaken.
+ * Ernte erfassen oder nachtragen.
+ *
+ * Zwei Dinge sind hier wichtig und waren im ersten Wurf falsch:
+ *
+ *  1. **Mehrfach ernten ist der Normalfall.** Raps, dann Robinie; Juni-Tracht,
+ *     dann späte Linde. Zugeordnet wird deshalb nach **Tag**, nicht nach Jahr:
+ *     ein neues Datum legt eine neue Ernte an, ein bereits erfasstes Datum
+ *     bearbeitet die vorhandene. Vorher überschrieb ein Nachtrag im Juni die
+ *     Ernte vom August – der Fehler, den das hier behebt.
+ *  2. **Nichts still überschreiben.** Oben stehen alle Ernten des Jahres mit
+ *     Datum und Menge; ein Tipp darauf lädt sie zum Ändern. Man sieht also
+ *     immer, was es schon gibt, bevor man etwas einträgt.
+ *
+ * Geschrieben wird wie beim Abhaken eine Erledigung der Ernteregel – damit
+ * sehen Kassenbuch, Volkshistorie, Gewichtskurve und die Folgetermine dasselbe.
+ * Die Folgetermine hängen an der JÜNGSTEN Ernte (siehe js/engine.js), eine
+ * spätere Ernte verschiebt die Sommerbehandlung also richtigerweise nach hinten.
  */
-function ernteNachtragenSheet() {
+function ernteNachtragenSheet(vorgabe = null) {
   const jahr = kassJahr();
   const regelWahl = Object.entries(kasse.ERNTE_SORTE);      // [regelId, Sorte]
   const voelker = S.voelker.filter((v) => v.status !== 'aufgeloest');
   if (!voelker.length) return toast(t2('Erst Völker anlegen.'));
 
-  // Was ist für dieses Jahr schon erfasst? Die Felder zeigen den Bestand, damit
-  // Nachtragen und Ändern derselbe Handgriff sind.
-  const bestand = (regelId) => {
+  const termine = kasse.ernteTermine(S, jahr);
+  const start = vorgabe || { regelId: regelWahl[0][0], datum: '' };
+
+  /** Was ist an DIESEM Tag für diese Ernteart schon erfasst? */
+  const bestand = (regelId, datum) => {
     const raus = new Map();
+    if (!datum) return raus;
     for (const e of S.erledigungen) {
-      if (e.deletedAt || e.status === 'uebersprungen' || e.regelId !== regelId) continue;
-      if (parseISO(e.datum).getFullYear() !== jahr) continue;
+      if (e.deletedAt || e.status === 'uebersprungen') continue;
+      if (e.regelId !== regelId || e.datum !== datum) continue;
       raus.set(e.zielId, e);
     }
     return raus;
   };
 
-  const zeilen = (regelId) => {
-    const vorhanden = bestand(regelId);
+  const zeilen = (regelId, datum) => {
+    const vorhanden = bestand(regelId, datum);
     return voelker.map((v) => {
       const e = vorhanden.get(v.id);
       return `<div class="erntezeile">
@@ -3083,23 +3147,36 @@ function ernteNachtragenSheet() {
 
   const felder = [
     { key: 'regel', label: 'Welche Ernte', typ: 'chips', einfach: true,
-      optionen: regelWahl.map(([, sorte]) => sorte), standard: regelWahl[0][1] },
+      optionen: regelWahl.map(([, sorte]) => sorte),
+      standard: kasse.ERNTE_SORTE[start.regelId] },
     { key: 'datum', label: 'Tag der Ernte', typ: 'datum',
-      standard: iso(new Date(jahr, 5, 15)),
-      hinweis: 'Ungefähr genügt. Das Datum bestimmt, wo die Ernte im Verlauf steht.' },
+      standard: start.datum || iso(heute()),
+      hinweis: 'Ein neuer Tag wird als weitere Ernte angelegt. Ein Tag, an dem schon '
+        + 'geerntet wurde, wird bearbeitet.' },
     { key: 'wasser', label: 'Wassergehalt', typ: 'zahl', einheit: '% (falls gemessen)',
       schritt: 0.1 },
   ];
 
   sheetAuf({
-    titel: t2('Ernte nachtragen'),
+    titel: t2('Ernte erfassen'),
     unter: t2('für {jahr}', { jahr }),
     inhalt: `<div class="hinweis">${esc(t2('Wird genauso eingetragen wie eine abgehakte '
       + 'Ernteaufgabe: die Ernte erscheint im Kassenbuch, in der Volkshistorie und als Marke '
       + 'in der Gewichtskurve – und die Folgetermine rechnen damit.'))}</div>
+
+      ${termine.length ? `<div class="erntetermine">
+        <div class="mini">${esc(t2('Schon erfasst – antippen zum Ändern:'))}</div>
+        ${termine.map((tm) => `<button type="button" class="ernteterm"
+          data-term="${tm.regelId}|${tm.datum}">
+          <b>${esc(fmtDatum(tm.datum))}</b>
+          <span>${esc(t2(tm.sorte))} · ${esc(t2('{n} Völker', { n: tm.voelker }))}</span>
+          <i>${esc(String(tm.kg).replace('.', ','))} kg</i>
+        </button>`).join('')}
+      </div>` : ''}
+
       ${felder.map((f) => feldHTML(f, f.standard)).join('')}
 
-      <div class="ernteliste" id="ernteliste">${zeilen(regelWahl[0][0])}</div>
+      <div class="ernteliste" id="ernteliste">${zeilen(start.regelId, start.datum)}</div>
 
       <div class="erntealle">
         <input type="number" inputmode="decimal" step="0.5" min="0" data-alle
@@ -3117,16 +3194,32 @@ function ernteNachtragenSheet() {
     danach(root) {
       felderVerdrahten(root, felder);
       const liste = root.querySelector('#ernteliste');
+      const datumEl = root.querySelector('[data-key=datum] input');
       const regelJetzt = () => {
         const gewaehlt = root.querySelector('[data-key=regel] button.an')?.dataset.wert;
         return regelWahl.find(([, sorte]) => sorte === gewaehlt)?.[0] || regelWahl[0][0];
       };
-      // Wechselt die Ernteart, zeigt die Liste den Bestand DIESER Ernte.
+      // Die Liste zeigt immer den Bestand von Ernteart UND Tag.
+      const neuZeichnen = () => { liste.innerHTML = zeilen(regelJetzt(), datumEl.value); };
       root.querySelectorAll('[data-key=regel] button').forEach((b) => {
-        b.addEventListener('click', () => setTimeout(() => {
-          liste.innerHTML = zeilen(regelJetzt());
-        }, 0));
+        b.addEventListener('click', () => setTimeout(neuZeichnen, 0));
       });
+      datumEl.addEventListener('change', neuZeichnen);
+
+      // Vorhandenen Termin antippen: Ernteart und Tag übernehmen
+      root.querySelectorAll('[data-term]').forEach((b) => {
+        b.onclick = () => {
+          const [regelId, datum] = b.dataset.term.split('|');
+          datumEl.value = datum;
+          root.querySelectorAll('[data-key=regel] button').forEach((x) => {
+            x.classList.toggle('an', x.dataset.wert === kasse.ERNTE_SORTE[regelId]);
+          });
+          neuZeichnen();
+          root.querySelectorAll('.ernteterm').forEach((x) => x.classList.remove('an'));
+          b.classList.add('an');
+        };
+      });
+
       root.querySelector('[data-alle-uebertragen]').onclick = () => {
         const wert = root.querySelector('[data-alle]').value;
         if (!wert) return;
@@ -3136,9 +3229,9 @@ function ernteNachtragenSheet() {
       root.querySelector('[data-ok]').onclick = async () => {
         const w = werteLesen(root);
         const regelId = regelJetzt();
-        const datum = w.datum || iso(new Date(jahr, 5, 15));
-        const vorhanden = bestand(regelId);
-        let geschrieben = 0; let gelöscht = 0; let summe = 0;
+        const datum = w.datum || iso(heute());
+        const vorhanden = bestand(regelId, datum);
+        let geschrieben = 0; let entfernt = 0; let summe = 0;
 
         for (const feld of liste.querySelectorAll('[data-ernte]')) {
           const volkId = feld.dataset.ernte;
@@ -3146,8 +3239,8 @@ function ernteNachtragenSheet() {
           const alt = vorhanden.get(volkId);
 
           if (kg == null || !(kg > 0)) {
-            // Feld geleert: was einmal hier stand, soll auch verschwinden.
-            if (alt) { await db.loesche('erledigungen', alt.id); gelöscht += 1; }
+            // Feld geleert: nur der Eintrag von DIESEM Tag verschwindet.
+            if (alt) { await db.loesche('erledigungen', alt.id); entfernt += 1; }
             continue;
           }
           const daten = { ...(alt?.daten || {}), kg };
@@ -3166,12 +3259,14 @@ function ernteNachtragenSheet() {
 
         sheetZu();
         await datenLaden();
+        S.kassenJahr = parseISO(datum).getFullYear();
         render();
-        if (!geschrieben && !gelöscht) return toast(t2('Nichts eingetragen.'));
+        if (!geschrieben && !entfernt) return toast(t2('Nichts eingetragen.'));
         toast(geschrieben
-          ? t2('{n} Völker, {kg} kg nachgetragen.',
-            { n: geschrieben, kg: String(Math.round(summe * 10) / 10).replace('.', ',') })
-          : t2('{n} Einträge entfernt.', { n: gelöscht }));
+          ? t2('{n} Völker, {kg} kg am {d}.',
+            { n: geschrieben, kg: String(Math.round(summe * 10) / 10).replace('.', ','),
+              d: fmtDatum(datum) })
+          : t2('{n} Einträge entfernt.', { n: entfernt }));
       };
     },
   });
@@ -4729,6 +4824,13 @@ ZURUECK?.addEventListener('click', () => zurueck());
 // Einmal anmelden, nicht bei jedem Bildaufbau: der Bereich bleibt derselbe,
 // sonst würden sich die Zuhörer stapeln und ein Wisch mehrere Schritte machen.
 wischenVerdrahten();
+
+// Zoom und seitlichen Stand im Blick behalten
+window.addEventListener('scroll', seitlichZuruecksetzen, { passive: true });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', zoomZeigen);
+  window.visualViewport.addEventListener('scroll', zoomZeigen);
+}
 
 /** Beim allerersten Start nach der Sprache fragen – zweisprachig beschriftet. */
 function spracheAbfragen() {

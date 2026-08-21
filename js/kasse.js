@@ -97,6 +97,29 @@ export function ernteJahr(S, jahr) {
   };
 }
 
+/**
+ * Ernten eines Jahres nach Tagen: mehrfaches Schleudern ist der Normalfall
+ * (Raps, dann Robinie; Juni-Tracht, dann späte Linde). Die Termine getrennt zu
+ * zeigen ist der einzige Weg, versehentliches Überschreiben sichtbar zu machen.
+ */
+export function ernteTermine(S, jahr) {
+  const je = new Map();
+  for (const e of S.erledigungen) {
+    if (!lebt(e) || e.status === 'uebersprungen') continue;
+    const sorte = ERNTE_SORTE[e.regelId];
+    if (!sorte || !imJahr(e, jahr)) continue;
+    const kg = zahl(e.daten?.kg);
+    if (!kg) continue;
+    const k = `${e.datum}|${e.regelId}`;
+    const t = je.get(k) || { datum: e.datum, regelId: e.regelId, sorte, kg: 0, voelker: 0 };
+    t.kg += kg;
+    t.voelker += 1;
+    je.set(k, t);
+  }
+  return [...je.values()].map((t) => ({ ...t, kg: runde(t.kg) }))
+    .sort((a, b) => (a.datum < b.datum ? -1 : 1));
+}
+
 const runde = (x) => Math.round(x * 10) / 10;
 const rundeKg = (o) => ({ ...o, kg: runde(o.kg) });
 const cent = (x) => Math.round(x * 100) / 100;

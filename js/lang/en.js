@@ -1683,4 +1683,17 @@ export const en = {
   'Nichts eingetragen.': 'Nothing entered.',
   '{n} Völker, {kg} kg nachgetragen.': '{n} colonies, {kg} kg added.',
   '{n} Einträge entfernt.': '{n} entries removed.',
+  '{n} % Zoom, {b} px Breite, seitlich {s} px': '{n} % zoom, {b} px wide, {s} px sideways',
+  'Ernte erfassen': 'Record a harvest',
+  'Ernte erfassen oder ändern': 'Record or change a harvest',
+  'Einzelne Ernten dieses Jahres': 'Individual harvests this year',
+  'Schon erfasst – antippen zum Ändern:': 'Already recorded – tap to change:',
+  '{n} Völker, {kg} kg am {d}.': '{n} colonies, {kg} kg on {d}.',
+  'Ein neuer Tag wird als weitere Ernte angelegt. Ein Tag, an dem schon geerntet wurde, wird bearbeitet.':
+    'A new day is added as a further harvest. A day that already has a harvest is edited.',
+  'nur wenn nötig': 'only if needed',
+  'Zuletzt am {d} erledigt. Mehrfach zu ernten ist normal – diese Aufgabe steht deshalb wieder da, aber nur als Angebot. Wer fertig ist, lässt sie stehen; sie verschwindet am Ende der Saison von selbst.':
+    'Last done on {d}. Harvesting more than once is normal, so this task comes back – but only '
+    + 'as an offer. If you are finished, just leave it; it disappears at the end of the season.',
+  'Nur erledigen, wenn es nötig ist.': 'Only do this if it is needed.',
 };

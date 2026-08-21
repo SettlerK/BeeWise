@@ -213,6 +213,13 @@ export const REGELN = [
     anker: { typ: 'bluete', art: 'raps', ereignis: 'ende' },
     fenster: [-3, 21],
     benoetigt: ['honigraum'],
+    // Mehrfach ernten ist der Normalfall, nicht die Ausnahme: Raps, dann
+    // Robinie oder Frühsommerblüte. Nach der ersten Ernte kommt die Aufgabe
+    // deshalb wieder – aber als Angebot (siehe wiederholungFreiwillig), damit
+    // sie niemanden drängt, der nur einmal schleudert.
+    wiederholung: { min: 12, max: 40 },
+    wiederholungFreiwillig: true,
+    saisonEnde: [7, 10],
     hilfe: 'Honig ernten schleudern Wassergehalt',
     felder: [
       F.kg('Erntemenge'),
@@ -227,6 +234,13 @@ export const REGELN = [
     info: 'Der Stichtag des Jahres. Sobald die Lindentracht endet, wird abgeerntet – und damit startet unmittelbar die Varroabehandlung und die Einfütterung. Alles Weitere hängt an diesem Datum.',
     anker: { typ: 'bluete', art: 'linde', ereignis: 'ende' },
     fenster: [-5, 21],
+    // Auch im Sommer wird oft zweimal geschleudert (Juni-Tracht und späte
+    // Linde/Wald). Jede weitere Ernte verschiebt die Sommerbehandlung
+    // automatisch nach hinten, weil die Folgetermine an der JÜNGSTEN Ernte
+    // hängen – genau so soll es sein: behandelt wird nach der letzten Ernte.
+    wiederholung: { min: 12, max: 40 },
+    wiederholungFreiwillig: true,
+    saisonEnde: [8, 10],
     hilfe: 'Sommertracht ernten letzte Ernte',
     felder: [
       F.kg('Erntemenge'),

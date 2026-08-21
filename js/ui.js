@@ -89,42 +89,58 @@ export function uiInit() {
 }
 
 // ------------------------------------------------------------- Achsensperre
-// Zwei Bereiche blättern absichtlich waagerecht (Filterchips, Stundenband).
-// Beim senkrechten Scrollen liegt der Daumen aber oft genau darüber und driftet
-// ein paar Pixel zur Seite – dann wandert der Streifen mit, und es sieht aus,
-// als verschiebe sich das Bild. Deshalb: sobald eine Bewegung klar senkrecht
-// ist, wird das seitliche Blättern für die Dauer dieser Bewegung gesperrt.
-// Umgekehrt bleibt eindeutig seitliches Blättern erlaubt.
-const QUER = '.filter,.stundenband,[data-querscroll]';
+// Beim Blättern soll sich NUR senkrecht etwas bewegen. Dagegen arbeiten zwei
+// Dinge, die beide nicht von der App kommen:
+//
+//   1. Das Wischen von der Bildschirmkante („zurück"): sobald ein Eintrag im
+//      Verlauf liegt – und den legt die App an, solange ein Fenster offen ist –,
+//      zieht das Betriebssystem beim seitlichen Wischen das GANZE Bild mit,
+//      samt feststehendem Fenster. Genau das sieht aus wie „das Fenster
+//      verrutscht", und `overscroll-behavior` hilft dagegen nicht.
+//   2. Das Verschieben der Anzeige im hineingezoomten Zustand.
+//
+// Gegenmittel: eine Achsenentscheidung nach den ersten acht Pixeln. Überwiegt
+// die waagerechte Richtung, wird die Geste abgefangen (`preventDefault`) – das
+// Betriebssystem bekommt sie nicht mehr, und nichts verrutscht. Überwiegt die
+// senkrechte, bleibt alles unberührt und die Seite scrollt wie immer.
+//
+// Der Zuhörer muss dafür `passive: false` sein. Das kostet einen Hauch
+// Scrollleistung, aber nur bis zur Entscheidung – danach greift die Sperre nicht
+// mehr ein.
+//
+// Ausgenommen sind Eingabefelder (Textmarkierung, Datumsrad) und Bereiche, die
+// ausdrücklich waagerecht blättern sollen (`[data-querscroll]`). Der Durchgang
+// braucht keine Ausnahme: sein Wischen wertet `touchend` aus und funktioniert
+// auch dann, wenn die Geste unterwegs abgefangen wurde.
+const AUSNAHME = 'input,textarea,select,[data-querscroll]';
 
 function achsenSperre() {
-  let start = null;
-  let ziel = null;
+  let x0 = null;
+  let y0 = null;
   let entschieden = false;
+  let sperren = false;
 
-  const frei = () => {
-    if (ziel) ziel.classList.remove('achse-senkrecht');
-    ziel = null; start = null; entschieden = false;
-  };
+  const frei = () => { x0 = null; entschieden = false; sperren = false; };
 
   document.addEventListener('touchstart', (e) => {
-    frei();
-    if (e.touches.length !== 1) return;
-    ziel = e.target.closest?.(QUER) || null;
-    if (!ziel) return;
-    start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.touches.length !== 1 || e.target.closest?.(AUSNAHME)) { frei(); return; }
+    x0 = e.touches[0].clientX;
+    y0 = e.touches[0].clientY;
+    entschieden = false;
+    sperren = false;
   }, { passive: true });
 
   document.addEventListener('touchmove', (e) => {
-    if (!ziel || !start || entschieden || e.touches.length !== 1) return;
-    const dx = Math.abs(e.touches[0].clientX - start.x);
-    const dy = Math.abs(e.touches[0].clientY - start.y);
-    if (dx > 10) { entschieden = true; return; }        // klar seitwärts: zulassen
-    if (dy > 10 && dy > dx * 2) {                       // klar senkrecht: sperren
+    if (x0 == null || e.touches.length !== 1) return;
+    const dx = Math.abs(e.touches[0].clientX - x0);
+    const dy = Math.abs(e.touches[0].clientY - y0);
+    if (!entschieden) {
+      if (dx < 8 && dy < 8) return;         // noch nicht eindeutig
       entschieden = true;
-      ziel.classList.add('achse-senkrecht');
+      sperren = dx > dy;                    // waagerecht überwiegt
     }
-  }, { passive: true });
+    if (sperren && e.cancelable) e.preventDefault();
+  }, { passive: false });
 
   document.addEventListener('touchend', frei, { passive: true });
   document.addEventListener('touchcancel', frei, { passive: true });

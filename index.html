@@ -2,7 +2,10 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<!-- Kein maximum-scale: iOS ignoriert es ohnehin, und Zoom zu verbieten waere
+     eine Barriere. Das Doppeltippen-Zoom, das ungewollt hineinzoomt, wird
+     stattdessen in css/app.css ueber touch-action abgeschaltet. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#E0A02C">
 <meta name="description" content="Digitale Stockkarte für Imkerinnen und Imker: Bienenvölker führen, Durchsichten protokollieren, Aufgaben automatisch nach Tracht und Wetter terminieren.">
 <title>BeeWise</title>

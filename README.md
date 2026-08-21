@@ -701,7 +701,7 @@ letzten Ernte vor. So wird einmal erfasst, was einmal passiert ist.
   Gläser da sind. Zugeordnet wird nach „wer zuerst abgefüllt wurde, geht zuerst weg" – eine
   glasgenaue Verfolgung wäre Scheingenauigkeit, weil beim Verkauf niemand die Charge notiert.
 
-### Ernte nachtragen
+### Mehrfach ernten und Ernte nachtragen
 
 Wer die App mitten in der Saison anfängt, hat die Frühtracht schon im Eimer – und über das
 Abhaken der Aufgabe kommt er nicht mehr dran, weil deren Zeitfenster längst zu ist. Im
@@ -716,8 +716,24 @@ Gewichtskurve setzt ihre Marke – und die **Folgetermine rechnen damit**. Träg
 Sommertracht nach, steht die erste Sommerbehandlung sofort im Plan, denn genau an diesem Datum
 hängt die halbe zweite Saisonhälfte.
 
-Das Fenster zeigt immer den aktuellen Bestand des gewählten Jahres: eine Zahl ändern heißt
-ändern, ein Feld leeren heißt löschen. Nachtragen und Korrigieren sind derselbe Handgriff.
+**Mehrfach ernten ist der Normalfall**, nicht die Ausnahme: Raps, dann Robinie; Juni-Tracht, dann
+späte Linde. Zwei Dinge folgen daraus:
+
+* **Zugeordnet wird nach Tag, nicht nach Jahr.** Ein neues Datum legt eine weitere Ernte an, ein
+  bereits erfasstes Datum bearbeitet die vorhandene. Oben im Fenster stehen alle Ernten des
+  Jahres mit Datum und Menge; ein Tipp darauf lädt sie zum Ändern. So kann eine nachgetragene
+  Juni-Ernte die Ernte vom August nicht überschreiben – vorher tat sie es, weil der Schlüssel
+  nur aus Regel, Volk und Jahr bestand.
+* **Auch die Aufgabe kommt wieder.** `fruehtracht` und `sommertracht` haben `wiederholung`
+  (12–40 Tage) und `wiederholungFreiwillig: true`: die erste Ernte ist Pflicht, jede weitere ein
+  Angebot – erkennbar an der Marke „nur wenn nötig" und einem Satz im Fenster. Begrenzt wird das
+  durch `saisonEnde` (Frühtracht 10. Juli, Sommertracht 10. August), damit im Herbst nichts mehr
+  nachrückt. Die Folgetermine hängen an der **jüngsten** Ernte (`erledigungenVon` sortiert
+  absteigend), eine spätere Ernte verschiebt die Sommerbehandlung also richtig nach hinten –
+  behandelt wird nach der letzten Ernte.
+
+Im Kassenbuch stehen bei mehr als einer Ernte die **einzelnen Termine** mit Datum, Sorte,
+Völkerzahl und Menge; ein Feld leeren heißt löschen, aber nur den Eintrag dieses Tages.
 
 ## Wabenalter
 
@@ -876,9 +892,21 @@ waagerecht scrollbar wird. Drei Maßnahmen dagegen:
   man schieben muss, wird ohnehin oft nicht entdeckt.
 * Das **Fenster** (Bottom-Sheet) hat `overflow: hidden auto` – es scrollt senkrecht und kann
   seitwärts nicht wandern, was auch immer an Inhalt hineinkommt.
-* Als Netz bleibt eine **Achsensperre** in `js/ui.js` für `[data-querscroll]`: käme wieder ein
-  waagerechter Streifen hinzu, wird sein seitliches Blättern gesperrt, sobald eine Bewegung klar
-  senkrecht ist (mehr als 10 px senkrecht und doppelt so viel wie waagerecht).
+* Und der eigentliche Übeltäter im geöffneten Fenster: die **Zurück-Wischgeste des Systems**.
+  Solange ein Fenster offen ist, liegt ein Eintrag im Verlauf (das braucht die Zurück-Taste) –
+  und damit zieht ein seitliches Wischen das *ganze* Bild mit, samt feststehendem Fenster.
+  `overscroll-behavior` hilft dagegen nicht. Die **Achsensperre** in `js/ui.js` entscheidet
+  deshalb nach den ersten 8 px: überwiegt die waagerechte Richtung, wird die Geste mit
+  `preventDefault()` abgefangen und das System bekommt sie nicht mehr; überwiegt die senkrechte,
+  bleibt alles unberührt. Ausgenommen sind Eingabefelder (Textmarkierung, Datumsrad) und
+  `[data-querscroll]`. Der Durchgang braucht keine Ausnahme, weil sein Wischen `touchend`
+  auswertet.
+* Dazu `touch-action: manipulation` auf `html`: das **Doppeltipp-Zoom** ist abgeschaltet. In
+  einer App, die viel und schnell angetippt wird, zoomt es sonst versehentlich hinein – und im
+  gezoomten Zustand verschiebt jede Bewegung die ganze Anzeige. Bewusstes Zusammenziehen bleibt
+  möglich; `maximum-scale=1` ist aus dem Viewport-Tag entfernt (iOS ignoriert es ohnehin und
+  Zoom zu verbieten wäre eine Barriere). Unter *Mehr → Diagnose* steht der aktuelle Zoomwert –
+  damit lässt sich „verrutscht" von „hineingezoomt" unterscheiden.
 
 Das **Wischen im Durchgang** ist die einzige gewollte Seitwärtsbewegung und verlangt deshalb eine
 eindeutige Geste: mindestens 70 px waagerecht, höchstens 55 px senkrechte Drift, mindestens
@@ -902,6 +930,7 @@ Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
 | `test_winter.py` | Ein- und Auswinterung, Verlustgründe, Auflösen, Mehrjahresreihe |
 | `test_gewicht.py` | Nullpunkt, Differenzen, Futterrechnung, Zehrung, Winterwarnung |
 | `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
+| `test_achse.py` | echte Touch-Gesten über das Chrome-Protokoll: waagerechte werden abgefangen, senkrechte scrollen, Eingabefelder bleiben frei, Wischen im Durchgang blättert weiter |
 | `pruef_quer.py` | sucht mit echten Wetterdaten **jede** waagerecht scrollbare Stelle in allen Ansichten und Fenstern |
 | `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
 
