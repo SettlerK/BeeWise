@@ -39,6 +39,58 @@ const F = {
     hinweis: 'Gassen zählen, in denen Bienen sitzen – nicht die Futterwaben.' },
 };
 
+// --------------------------------------------------------------- Fütterung
+// Der Imker füttert in Litern (oder in Ballons), die Regel rechnet in Kilo
+// Winterfutter. Die Umrechnung steht hier, weil sie imkerliches Wissen ist –
+// und an genau einer Stelle, damit Aufgabe, Futterkarte und Rechner dieselbe
+// Zahl verwenden.
+//
+// Grundlage: 1 kg Zucker ergibt rund 1 kg Winterfutter.
+//   Fertigsirup (Invertzucker) ~73 % Zucker bei 1,4 kg/l  → 1,0 kg je Liter
+//   Zuckerwasser 3:2 (3 kg Zucker auf 2 l Wasser)          → 0,77 kg je Liter
+//   Zuckerwasser 1:1 (1 kg Zucker auf 1 l Wasser)          → 0,61 kg je Liter
+//   Futterteig                                              → 1,0 kg je Kilo
+// Ein 2-Liter-Ballon 3:2 bringt also rund 1,5 kg Winterfutter.
+
+/** Übliche Ballongröße. Zwei Liter, weil mehr nicht hineingeht. */
+export const BALLON_LITER = 2;
+
+export const FUTTERMITTEL = [
+  { name: 'Fertigsirup (Invertzucker)', einheit: 'l', kgJeEinheit: 1.0 },
+  { name: 'Zuckerwasser 3:2', einheit: 'l', kgJeEinheit: 0.77 },
+  { name: 'Zuckerwasser 1:1', einheit: 'l', kgJeEinheit: 0.61 },
+  { name: 'Futterteig', einheit: 'kg', kgJeEinheit: 1.0 },
+];
+
+export const futtermittelNach = (name) =>
+  FUTTERMITTEL.find((m) => m.name === name) || null;
+
+/** Menge in der Einheit des Futtermittels → kg Winterfutter (Faustwert). */
+export function kgAusMenge(mittelName, menge) {
+  const m = futtermittelNach(mittelName);
+  const z = Number(menge);
+  if (!m || !z || Number.isNaN(z)) return null;
+  return Math.round(z * m.kgJeEinheit * 10) / 10;
+}
+
+/**
+ * Felder einer Futtergabe: erfasst wird die MENGE wie gefüttert, die Kilo
+ * Winterfutter rechnet die App daraus – überschreibbar, weil Faustwerte
+ * Faustwerte sind.
+ */
+const FUTTER_FELDER = (mengeLabel = 'Gegebene Menge') => [
+  { key: 'futtermittel', label: 'Futtermittel', typ: 'auswahl',
+    optionen: FUTTERMITTEL.map((m) => m.name), standard: 'Zuckerwasser 3:2' },
+  { key: 'menge', label: mengeLabel, typ: 'zahl', einheit: 'Liter (Teig: kg)', schritt: 0.5,
+    hinweis: 'Ein 2-Liter-Ballon: 2 eintragen, zwei Ballons: 4. Nur DIESE Gabe, nicht die '
+      + 'Summe – die rechnet BeeWise.' },
+  { key: 'kg', label: 'Ergibt Winterfutter', typ: 'zahl', einheit: 'kg', schritt: 0.1,
+    abgeleitet: { aus: ['menge', 'futtermittel'],
+      rechne: (w) => kgAusMenge(w.futtermittel, w.menge) },
+    hinweis: 'Faustwert aus Menge und Futtermittel; lässt sich überschreiben.' },
+  F.notiz,
+];
+
 /** Ameisensäure-Anwendung: Menge hängt an Verdunster und Beutenvolumen. */
 const AS_FELDER = [
   {
@@ -317,15 +369,12 @@ export const REGELN = [
     anker: { typ: 'nachAufgabe', regel: 'sommertracht' },
     fenster: [0, 4],
     benoetigt: ['sommertracht'],
+    // Mit 2-Liter-Ballons sind mehrere Gaben der Normalfall, nicht die Ausnahme.
+    wiederholung: { min: 2, max: 10 },
     wetterbedarf: 'trocken',
     hilfe: 'Anfüttern nach der letzten Ernte vor der Behandlung',
-    felder: [
-      { key: 'kg', label: 'Gegebene Menge', typ: 'zahl', einheit: 'kg', schritt: 0.5,
-        hinweis: 'Richtwert 2–5 kg. Die große Menge kommt nach der ersten Behandlung.' },
-      { key: 'futtermittel', label: 'Futtermittel', typ: 'auswahl',
-        optionen: ['Fertigsirup (Invertzucker)', 'Zuckerwasser 3:2', 'Futterteig'] },
-      F.notiz,
-    ],
+    // Richtwert 2–5 kg insgesamt; mit 2-Liter-Ballons sind das zwei bis drei Gaben.
+    felder: FUTTER_FELDER('Diese Gabe'),
   },
   {
     id: 'sommerbehandlung1',
@@ -398,12 +447,14 @@ export const REGELN = [
     benoetigt: ['sommerbehandlung1'],
     rechner: 'futter',
     hilfe: 'Auffüttern einfüttern Winterfutter Menge',
-    felder: [
-      F.kg('Erste Gabe'),
-      { key: 'futtermittel', label: 'Futtermittel', typ: 'auswahl',
-        optionen: ['Fertigsirup (Invertzucker)', 'Zuckerwasser 3:2', 'Futterteig'], standard: 'Fertigsirup (Invertzucker)' },
-      F.notiz,
-    ],
+    // Wer in Ballons füttert, gibt zehnmal anderthalb Kilo statt einmal sechzehn.
+    // Die Aufgabe kommt deshalb nach jeder Gabe wieder – als Angebot, nicht als
+    // Mahnung –, bis die Saison zu ist. Die Summe steht in der Futterkarte des
+    // Volkes und in „Auffütterung abschließen".
+    wiederholung: { min: 3, max: 21 },
+    wiederholungFreiwillig: true,
+    saisonEnde: [9, 20],
+    felder: FUTTER_FELDER('Diese Gabe'),
   },
   {
     id: 'auffuettern_ende',
@@ -415,10 +466,13 @@ export const REGELN = [
     haerteFrist: [9, 20],
     benoetigt: ['auffuettern'],
     rechner: 'futter',
+    // Wichtig: hier steht die LETZTE Gabe, nicht die Summe. Die Summe rechnet die
+    // App aus allen Gaben – „insgesamt" als Eingabefeld hätte jede Bilanz doppelt
+    // gezählt.
     felder: [
-      F.kg('Insgesamt gegeben'),
-      { key: 'endgewicht', label: 'Beutengewicht danach', typ: 'zahl', einheit: 'kg', schritt: 0.5 },
-      F.notiz,
+      ...FUTTER_FELDER('Letzte Gabe'),
+      { key: 'endgewicht', label: 'Beutengewicht danach', typ: 'zahl', einheit: 'kg',
+        schritt: 0.5 },
     ],
   },
   {

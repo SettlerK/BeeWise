@@ -1696,4 +1696,54 @@ export const en = {
     'Last done on {d}. Harvesting more than once is normal, so this task comes back – but only '
     + 'as an offer. If you are finished, just leave it; it disappears at the end of the season.',
   'Nur erledigen, wenn es nötig ist.': 'Only do this if it is needed.',
+
+  // ------------------------------------------------------------------ Futter
+  Futter: 'Feed',
+  'Futtergabe erfassen': 'Record a feed',
+  'Futtergabe ändern': 'Change a feed',
+  'Noch keine Futtergabe erfasst. Ziel für diese Beute wären {ziel} kg Winterfutter – mit 2-Liter-Ballons und 3:2-Zuckerwasser etwa {n} Gaben.':
+    'No feed recorded yet. The target for this hive would be {ziel} kg of winter stores – with '
+    + '2-litre jars of 3:2 syrup that is about {n} feeds.',
+  '{n} von {ziel} kg': '{n} of {ziel} kg',
+  'Winterfutter im Volk, gerechnet aus den Gaben': 'Winter stores in the colony, from the feeds',
+  '{n} Ballons': '{n} jars',
+  'Anfüttern': 'Pre-treatment feed',
+  'bisher {kg} kg Winterfutter': '{kg} kg of winter stores so far',
+  'noch keine Gabe': 'no feed yet',
+  'Jede Gabe einzeln erfassen – die Summe rechnet BeeWise. Ein 2-Liter-Ballon 3:2-Zuckerwasser ergibt rund 1,5 kg Winterfutter.':
+    'Record each feed separately – BeeWise does the sum. A 2-litre jar of 3:2 syrup gives '
+    + 'roughly 1.5 kg of winter stores.',
+  'Gabe löschen': 'Delete feed',
+  'Menge fehlt.': 'The amount is missing.',
+  '{kg} kg gebucht.': '{kg} kg recorded.',
+  'Gabe gelöscht.': 'Feed deleted.',
+  'Bisher gefüttert: {kg} kg von {ziel} kg': 'Fed so far: {kg} kg of {ziel} kg',
+  'Es fehlen noch {kg} kg.': '{kg} kg still missing.',
+  'Noch keine Futtergabe erfasst. Ziel für diese Beute: {ziel} kg Winterfutter.':
+    'No feed recorded yet. Target for this hive: {ziel} kg of winter stores.',
+  '{n} Gaben, zusammen {kg} kg Winterfutter.': '{n} feeds, {kg} kg of winter stores in total.',
+  'Dazu {kg} kg beim Anfüttern – die zählen nicht zum Wintervorrat, weil sie vorher zum Teil verbraucht werden.':
+    'Plus {kg} kg as a pre-treatment feed – that does not count towards the winter stores, '
+    + 'because part of it is used up beforehand.',
+  'Ziel {ziel} kg, es fehlen noch {fehlt} kg – das sind etwa {ballons} Ballons 3:2-Zuckerwasser.':
+    'Target {ziel} kg, {fehlt} kg still missing – about {ballons} jars of 3:2 syrup.',
+  'Ziel {ziel} kg ist erreicht.': 'Target of {ziel} kg reached.',
+  'Anfüttern zählt getrennt: die kleine Gabe vor der ersten Behandlung wird zum Teil vorher verbraucht.':
+    'Pre-treatment feed counts separately: part of that small feed is used up before winter.',
+  Ballons: 'Jars',
+  'à {n} l': 'of {n} l each',
+  'Füllt die Menge unten aus – oder die Menge direkt eintragen.':
+    'Fills in the amount below – or enter the amount directly.',
+  'Liter (Teig: kg)': 'litres (fondant: kg)',
+  'Ergibt Winterfutter': 'Gives winter stores',
+  'Faustwert; lässt sich überschreiben.': 'Rule of thumb; can be overwritten.',
+  'Diese Gabe': 'This feed',
+  'Letzte Gabe': 'Final feed',
+  'Ein 2-Liter-Ballon: 2 eintragen, zwei Ballons: 4. Nur DIESE Gabe, nicht die Summe – die rechnet BeeWise.':
+    'One 2-litre jar: enter 2, two jars: 4. Only THIS feed, not the total – BeeWise sums it up.',
+  'Faustwert aus Menge und Futtermittel; lässt sich überschreiben.':
+    'Rule of thumb from amount and feed type; can be overwritten.',
+  'Zuckerwasser 1:1': 'Sugar syrup 1:1',
+  Liter: 'litres',
+  '1 Ballon': '1 jar',
 };

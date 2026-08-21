@@ -30,6 +30,7 @@ import * as kasse from './kasse.js';
 import * as waben from './waben.js';
 import * as winter from './winter.js';
 import * as gewicht from './gewicht.js';
+import * as futter from './futter.js';
 import { behandlungsprotokoll, volkHistorie, kassenbuchPDF, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
@@ -1177,6 +1178,8 @@ function ansichtVolk() {
 
   ${wabenKarteHTML(v)}
 
+  ${futterKarteHTML(v)}
+
   ${gewichtKarteHTML(v)}
 
   ${historieHTML(v)}
@@ -1521,7 +1524,10 @@ const datenKurz = (d, regelId) => {
   const einheit = (k) => (felder.find((f) => f.key === k)?.einheit || '').split(' ')[0];
   return Object.entries(d || {})
     .filter(([k]) => k !== 'notiz')
-    .map(([k, val]) => `${t2(label(k))}: ${val}${einheit(k) ? ' ' + t2(einheit(k)) : ''}`)
+    // Auch die WERTE übersetzen, soweit sie aus einer Auswahlliste kommen
+    // („Zuckerwasser 3:2", „Ameisensäure 60 %"). Unbekannte Texte bleiben stehen.
+    .map(([k, val]) => `${t2(label(k))}: ${typeof val === 'string' ? t2(val) : val}${
+      einheit(k) ? ' ' + t2(einheit(k)) : ''}`)
     .concat(d?.notiz ? [d.notiz] : []).join(' · ');
 };
 
@@ -2090,6 +2096,8 @@ function verdrahten() {
   on('[data-standfoto]', 'click', (e) => standbildWaehlen(e.currentTarget.dataset.standfoto));
   on('[data-waben]', 'click', (e) => wabenSheet(e.currentTarget.dataset.waben));
   on('[data-wiegen]', 'click', (e) => wiegenSheet(e.currentTarget.dataset.wiegen));
+  on('[data-futter-neu]', 'click', (e) => futterGabeSheet(e.currentTarget.dataset.futterNeu));
+  on('[data-futter]', 'click', (e) => futterGabeSheet(S.volkId, e.currentTarget.dataset.futter));
   on('[data-koe-neu]', 'click', (e) => koeniginSheet(e.currentTarget.dataset.koeNeu));
   on('[data-koe-bearbeiten]', 'click', (e) => koeniginSheet(null,
     S.koeniginnen.find((k) => k.id === e.currentTarget.dataset.koeBearbeiten)));
@@ -2458,6 +2466,7 @@ function aufgabeOeffnen(a) {
     inhalt: `
       ${a.info ? `<div class="hinweis">${esc(a.info)}</div>` : ''}
       ${wiederholungHinweis(a)}
+      ${futterStandBlock(a)}
       ${wetterBlockHTML(a)}
       ${hilfeBlock(a)}
       ${a.bezug ? `<div class="mini" style="margin:2px 0 2px">Terminbezug: ${esc(a.bezug)}</div>` : ''}
@@ -3529,6 +3538,181 @@ function kasseCSV() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   toast(t2('Buchungen als CSV gespeichert.'));
+}
+
+// ------------------------------------------------------------------- Futter
+// Wer in 2-Liter-Ballons füttert, gibt zehnmal anderthalb Kilo statt einmal
+// sechzehn. Deshalb ist die Fütterung eine REIHE von Gaben, und die Karte zeigt
+// das, was allein zählt: die Summe gegen den Zielvorrat. Erfasst wird über die
+// Aufgabe oder hier – beides schreibt dieselben Datensätze, damit die Summe
+// nicht von der Eingabestelle abhängt.
+
+/** Karte im Volk: Summe, Ziel, Fehlbetrag, alle Gaben zum Ändern. */
+function futterKarteHTML(v) {
+  const b = futter.futterBilanz(S, v);
+  const knopf = `<div class="knopfreihe">
+    <button class="knopf leise klein" data-futter-neu="${v.id}">${
+    esc(t2('Futtergabe erfassen'))}</button></div>`;
+
+  if (!b.gaben.length) {
+    return `<h2 class="abschnitt">${esc(t2('Futter'))} ${b.jahr}</h2>
+    <div class="karte"><div class="karte-inhalt">
+      <div class="mini">${esc(t2('Noch keine Futtergabe erfasst. Ziel für diese Beute wären '
+      + '{ziel} kg Winterfutter – mit 2-Liter-Ballons und 3:2-Zuckerwasser etwa {n} Gaben.',
+    { ziel: b.ziel, n: Math.ceil(b.ziel / (futter.BALLON_LITER * 0.77)) }))}</div>
+      ${knopf}
+    </div></div>`;
+  }
+
+  const anteil = Math.min(100, Math.round((b.winter / Math.max(b.ziel, 1)) * 100));
+  const saetze = futter.futterSaetze(b, t2);
+
+  return `<h2 class="abschnitt">${esc(t2('Futter'))} ${b.jahr}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="futterbalken" role="img"
+      aria-label="${esc(t2('{n} von {ziel} kg', { n: String(b.winter).replace('.', ','),
+    ziel: b.ziel }))}">
+      <i style="width:${anteil}%"></i>
+      <b>${esc(String(b.winter).replace('.', ','))} / ${b.ziel} kg</b>
+    </div>
+    <div class="mini">${esc(t2('Winterfutter im Volk, gerechnet aus den Gaben'))}</div>
+
+    ${saetze.length ? `<div class="wabensatz${b.fehlt > 0 ? '' : ' gut'}">${
+    esc(saetze.join(' '))}</div>` : ''}
+
+    <div class="futterliste">
+      ${b.gaben.map((g) => `<div class="futterzeile" data-futter="${g.id}">
+        <div class="ftext">
+          <b>${esc(fmtDatum(g.datum))}</b>
+          <small>${esc([g.ballons ? futter.ballonText(g.ballons, t2)
+    : (g.menge != null ? `${String(g.menge).replace('.', ',')} ${t2(g.einheit || 'kg')}` : ''),
+  g.mittel ? t2(g.mittel) : '',
+  g.zweck === 'anfuettern' ? t2('Anfüttern') : ''].filter(Boolean).join(' · '))}</small>
+        </div>
+        <div class="fwert">${esc(String(g.kg).replace('.', ','))} kg</div>
+        <span class="pfeil">›</span>
+      </div>`).join('')}
+    </div>
+    ${knopf}
+  </div></div>`;
+}
+
+/**
+ * Eine Futtergabe erfassen oder ändern.
+ * Eingegeben wird, was man tatsächlich gegeben hat – Ballons oder Liter. Die
+ * Kilo Winterfutter rechnet die App daraus und zeigt sie sofort an; überschreiben
+ * kann man sie trotzdem, denn Faustwerte bleiben Faustwerte.
+ */
+function futterGabeSheet(volkId, gabeId = null) {
+  const v = S.voelker.find((x) => x.id === volkId);
+  if (!v) return;
+  const b = futter.futterBilanz(S, v);
+  const alt = gabeId
+    ? S.erledigungen.find((e) => e.id === gabeId && !e.deletedAt) : null;
+  const altGabe = gabeId ? b.gaben.find((g) => g.id === gabeId) : null;
+
+  const felder = [
+    { key: 'zweck', label: 'Wofür', typ: 'chips', einfach: true,
+      optionen: ['Einwinterung', 'Anfüttern'],
+      standard: altGabe?.zweck === 'anfuettern' ? 'Anfüttern' : 'Einwinterung',
+      hinweis: 'Anfüttern zählt getrennt: die kleine Gabe vor der ersten Behandlung wird '
+        + 'zum Teil vorher verbraucht.' },
+    { key: 'datum', label: 'Tag', typ: 'datum', standard: altGabe?.datum || iso(heute()) },
+    { key: 'futtermittel', label: 'Futtermittel', typ: 'auswahl',
+      optionen: futter.FUTTERMITTEL.map((m) => m.name),
+      standard: altGabe?.mittel || 'Zuckerwasser 3:2' },
+    { key: 'ballons', label: 'Ballons', typ: 'zahl', einheit: `à ${futter.BALLON_LITER} l`,
+      schritt: 1, standard: altGabe?.ballons ?? '',
+      hinweis: 'Füllt die Menge unten aus – oder die Menge direkt eintragen.' },
+    { key: 'menge', label: 'Menge', typ: 'zahl', einheit: 'Liter (Teig: kg)', schritt: 0.5,
+      standard: altGabe?.menge ?? '' },
+    { key: 'kg', label: 'Ergibt Winterfutter', typ: 'zahl', einheit: 'kg', schritt: 0.1,
+      standard: altGabe?.kg ?? '',
+      abgeleitet: { aus: ['menge', 'futtermittel'],
+        rechne: (w) => futter.kgAus(w.futtermittel, w.menge) },
+      hinweis: 'Faustwert; lässt sich überschreiben.' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: altGabe?.notiz || '' },
+  ];
+
+  sheetAuf({
+    titel: altGabe ? t2('Futtergabe ändern') : t2('Futtergabe erfassen'),
+    unter: `${v.name} · ${b.gaben.length
+      ? t2('bisher {kg} kg Winterfutter', { kg: String(b.winter).replace('.', ',') })
+      : t2('noch keine Gabe')}`,
+    inhalt: `<div class="hinweis">${esc(t2('Jede Gabe einzeln erfassen – die Summe rechnet '
+      + 'BeeWise. Ein 2-Liter-Ballon 3:2-Zuckerwasser ergibt rund 1,5 kg Winterfutter.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        ${alt ? `<button class="knopf leise loeschen" data-del>${
+    esc(t2('Gabe löschen'))}</button>` : ''}
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      // Ballons → Menge: der eine Weg, den man am Stand wirklich rechnet.
+      const ballonEl = root.querySelector('[data-key=ballons] input');
+      const mengeEl = root.querySelector('[data-key=menge] input');
+      ballonEl.addEventListener('input', () => {
+        if (!ballonEl.value) return;
+        mengeEl.value = futter.literAusBallons(ballonEl.value);
+        mengeEl.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        const kg = w.kg != null && w.kg !== ''
+          ? Number(w.kg) : futter.kgAus(w.futtermittel, w.menge);
+        if (!kg || Number.isNaN(kg)) return toast(t2('Menge fehlt.'));
+        const anfuettern = String(w.zweck || '').includes('Anfüttern');
+        const datum = w.datum || iso(heute());
+        // Die Regel bestimmt den Zweck. Eine geänderte Gabe behält ihre Regel,
+        // solange der Zweck derselbe bleibt – sonst wandert sie mit.
+        let regelId = anfuettern ? 'anfuettern' : 'auffuettern';
+        if (!anfuettern && alt && alt.regelId === 'auffuettern_ende') regelId = 'auffuettern_ende';
+
+        await db.schreibe('erledigungen', {
+          ...(alt || {}),
+          id: alt?.id || uid(),
+          regelId, zielTyp: 'volk', zielId: volkId,
+          datum, status: 'erledigt',
+          daten: { ...(alt?.daten || {}), kg,
+            futtermittel: w.futtermittel || null,
+            menge: w.menge != null && w.menge !== '' ? Number(w.menge) : null,
+            notiz: w.notiz || '' },
+          jahr: parseISO(datum).getFullYear(),
+          quelle: alt?.quelle || 'futterkarte',
+        });
+        sheetZu(); await datenLaden(); render();
+        toast(t2('{kg} kg gebucht.', { kg: String(kg).replace('.', ',') }));
+      };
+
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        await db.loesche('erledigungen', alt.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Gabe gelöscht.'));
+      });
+    },
+  });
+}
+
+/**
+ * Block im Aufgabenfenster einer Futteraufgabe: was ist schon gefüttert?
+ * Genau das, was beim Abschließen niemand im Kopf hat – und der Grund, warum
+ * „insgesamt gegeben" als Eingabefeld eine schlechte Idee war.
+ */
+function futterStandBlock(a) {
+  if (!futter.FUTTER_REGELN[a.regelId] || a.ziel.typ !== 'volk') return '';
+  const v = S.voelker.find((x) => x.id === a.ziel.id);
+  if (!v) return '';
+  const b = futter.futterBilanz(S, v);
+  if (!b.gaben.length) return '';
+  return `<div class="hinweis">
+    <b>${esc(t2('Bisher gefüttert: {kg} kg von {ziel} kg',
+    { kg: String(b.winter).replace('.', ','), ziel: b.ziel }))}</b>
+    <div class="mini" style="margin-top:5px">${esc(b.gaben.map((g) =>
+    futter.gabeText(g, t2)).join('  ·  '))}</div>
+    ${b.fehlt > 0 ? `<div class="mini" style="margin-top:5px">${esc(t2('Es fehlen noch {kg} kg.',
+    { kg: String(b.fehlt).replace('.', ',') }))}</div>` : ''}
+  </div>`;
 }
 
 // ------------------------------------------------------------------- Gewicht
@@ -4874,7 +5058,7 @@ function spracheAbfragen() {
   }
 })();
 
-window.__beewise = { S, db, planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
+window.__beewise = { S, db, futter, planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
   gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText,
   standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen,
   get fotoPuffer() { return fotoPuffer; } };

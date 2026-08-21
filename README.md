@@ -165,6 +165,7 @@ js/kasse.js             Honigbilanz und Kassenbuch (Chargen, Verkäufe, Ausgaben
 js/waben.js             Wabenalter je Volk (Jahrgänge, Ausschmelz-Vorschlag)
 js/winter.js            Ein- und Auswinterung, Verlustrate je Saison und Stand
 js/gewicht.js           Wägungen: Nullpunkt, Differenzen, Futterstand, Winterzehrung
+js/futter.js            Futtergaben: Umrechnung Liter → kg, Summe gegen Zielvorrat
 js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
 js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
@@ -829,6 +830,50 @@ die Einwinterung beginnt (letzte Ernte, Behandlung, Auffüttern) – nicht im Ja
 * **Reihe über die Jahre** als Balken: ein Maß (Verlustrate), eine Farbe. Ein einzelner Winter
   sagt wenig, die Reihe sagt viel.
 
+## Fütterung: viele kleine Gaben, eine Summe
+
+Wer mit **2-Liter-Ballons** und Zuckerwasser füttert, gibt nicht einmal 16 kg, sondern zehnmal
+anderthalb. Drei Entscheidungen folgen daraus:
+
+**Eine Gabe ist ein Datensatz mit Datum und Menge** – geschrieben als Erledigung der Futterregel,
+genau wie beim Abhaken. Es gibt also nicht „Aufgaben hier, Nachträge dort", sondern eine Reihe, in
+die beide Wege schreiben. Der Grund ist nicht Ästhetik: zwei Eingabewege für dieselbe Sache führen
+zu doppelt oder gar nicht erfassten Gaben, und die Summe ist beim Einwintern das Einzige, worauf
+es ankommt. Aus demselben Grund heißt das Feld in *Auffütterung abschließen* jetzt **„Letzte
+Gabe"** und nicht mehr „Insgesamt gegeben" – ein Summenfeld neben Einzelgaben hätte jede Bilanz
+doppelt gezählt.
+
+**Die Aufgaben wiederholen sich.** `anfuettern` (2–10 Tage) und `auffuettern` (3–21 Tage) kommen
+nach jeder Gabe wieder, bis `saisonEnde` (20. September) – als Angebot, nicht als Mahnung
+(`wiederholungFreiwillig`, Marke „nur wenn nötig"). *Auffütterung abschließen* bleibt der eine
+Abschluss und zeigt oben die Summe aller Gaben samt Fehlbetrag.
+
+**Erfasst wird in Litern, gerechnet in Kilo Winterfutter.** Der Imker denkt in Ballons, die Regel
+denkt in Kilo. Die Umrechnung steht in `js/regeln.js` (dort liegt das imkerliche Wissen) und wird
+in `js/futter.js` weitergegeben – an einer Stelle, damit Aufgabe, Futterkarte und Rechner dieselbe
+Zahl verwenden. Grundlage: 1 kg Zucker ergibt rund 1 kg Winterfutter.
+
+| Futtermittel | je Liter bzw. Kilo |
+|---|---|
+| Fertigsirup (Invertzucker), ~73 % Zucker bei 1,4 kg/l | 1,0 kg |
+| Zuckerwasser 3:2 (3 kg Zucker auf 2 l Wasser) | 0,77 kg |
+| Zuckerwasser 1:1 (1 kg Zucker auf 1 l Wasser) | 0,61 kg |
+| Futterteig | 1,0 kg je kg |
+
+Ein 2-Liter-Ballon 3:2 bringt also **rund 1,5 kg** – zwei Ballons etwa 3 kg. Bis 16 kg Zielvorrat
+sind das gut zehn Gaben; genau deshalb muss mehrfaches Füttern der Normalfall sein und nicht die
+Ausnahme. Die errechneten Kilo lassen sich in jedem Fenster überschreiben: Faustwerte bleiben
+Faustwerte.
+
+**Die Futterkarte im Volk** zeigt einen Balken (erreichtes Winterfutter gegen den Zielvorrat aus
+`futterBedarf`), die Sätze dazu („5 Gaben, zusammen 18,8 kg … es fehlen noch 4 kg – das sind etwa
+3 Ballons") und alle Gaben mit Datum, Ballons, Futtermittel und Kilo. Jede Zeile lässt sich
+antippen, ändern oder löschen; „Futtergabe erfassen" trägt eine neue nach.
+
+**Anfüttern zählt getrennt.** Die kleine Gabe vor der ersten Behandlung wird zum Teil wieder
+verbraucht; sie auf den Zielvorrat anzurechnen wäre geschönt. Sie steht deshalb neben, nicht in
+der Wintersumme – und die Karte sagt das auch so.
+
 ## Gewicht über das Jahr
 
 Handwägungen mit der Kofferwaage taugen für **Differenzen**, nicht für Absolutwerte. Die Methode
@@ -932,6 +977,7 @@ Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
 | `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
 | `test_achse.py` | echte Touch-Gesten über das Chrome-Protokoll: waagerechte werden abgefangen, senkrechte scrollen, Eingabefelder bleiben frei, Wischen im Durchgang blättert weiter |
 | `pruef_quer.py` | sucht mit echten Wetterdaten **jede** waagerecht scrollbare Stelle in allen Ansichten und Fenstern |
+| `test_futter.py` | Ballon-Umrechnung, viele Gaben an verschiedenen Tagen, Summe, Ändern und Löschen, wiederkehrende Aufgabe, Stand im Abschluss-Fenster |
 | `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
 
 Dazu bei jedem Bau: `node --check` für jede Datei **und** für das erzeugte Bündel (fängt
