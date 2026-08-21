@@ -868,11 +868,17 @@ waagerecht scrollbar wird. Drei Maßnahmen dagegen:
   das Dokument lässt sich überhaupt nicht mehr seitlich schieben.
 * Tabellen bekommen `table-layout: fixed` und dürfen umbrechen, damit gar nichts erst zu breit
   wird und geklippt werden müsste.
-* Die zwei Bereiche, die absichtlich waagerecht blättern (Filterchips, Stundenband), bekommen
-  `overscroll-behavior-x: contain` und eine **Achsensperre** in `js/ui.js`: sobald eine Bewegung
-  klar senkrecht ist (mehr als 10 px senkrecht und doppelt so viel wie waagerecht), wird ihr
-  seitliches Blättern für die Dauer dieser Bewegung gesperrt. Eindeutig seitliche Bewegungen
-  bleiben unberührt.
+* **Kein Bereich blättert mehr waagerecht.** Die zwei, die es taten, sind umgebaut: die
+  Filterchips über der Aufgabenliste **umbrechen** jetzt in zwei Zeilen, und das Stundenband im
+  Wetterfenster ist ein **Raster** aus 24 Kacheln statt eines Schiebestreifens. Beide saßen genau
+  dort, wo der Daumen zum Scrollen ansetzt – jede Drift zog sie mit, und das sah aus, als
+  verrutsche das Bild. Nebenbei sieht man die 24 Stunden jetzt alle auf einmal; ein Streifen, den
+  man schieben muss, wird ohnehin oft nicht entdeckt.
+* Das **Fenster** (Bottom-Sheet) hat `overflow: hidden auto` – es scrollt senkrecht und kann
+  seitwärts nicht wandern, was auch immer an Inhalt hineinkommt.
+* Als Netz bleibt eine **Achsensperre** in `js/ui.js` für `[data-querscroll]`: käme wieder ein
+  waagerechter Streifen hinzu, wird sein seitliches Blättern gesperrt, sobald eine Bewegung klar
+  senkrecht ist (mehr als 10 px senkrecht und doppelt so viel wie waagerecht).
 
 Das **Wischen im Durchgang** ist die einzige gewollte Seitwärtsbewegung und verlangt deshalb eine
 eindeutige Geste: mindestens 70 px waagerecht, höchstens 55 px senkrechte Drift, mindestens
@@ -896,6 +902,7 @@ Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
 | `test_winter.py` | Ein- und Auswinterung, Verlustgründe, Auflösen, Mehrjahresreihe |
 | `test_gewicht.py` | Nullpunkt, Differenzen, Futterrechnung, Zehrung, Winterwarnung |
 | `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
+| `pruef_quer.py` | sucht mit echten Wetterdaten **jede** waagerecht scrollbare Stelle in allen Ansichten und Fenstern |
 | `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
 
 Dazu bei jedem Bau: `node --check` für jede Datei **und** für das erzeugte Bündel (fängt

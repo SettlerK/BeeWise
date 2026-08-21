@@ -207,7 +207,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
 .abdunkeln.auf{opacity:1;pointer-events:auto}
 .sheet{
   position:fixed;left:0;right:0;bottom:0;z-index:60;background:var(--karte);
-  border-radius:20px 20px 0 0;max-height:92vh;overflow-y:auto;
+  /* x hidden, y auto: das Fenster scrollt senkrecht und kann nie seitwärts
+     wandern, was auch immer an Inhalt hineinkommt. */
+  border-radius:20px 20px 0 0;max-height:92vh;overflow:hidden auto;
   /* Am Ende der Liste nicht auf die Seite dahinter durchscrollen */
   overscroll-behavior:contain;
   transform:translateY(102%);transition:transform .26s cubic-bezier(.3,.8,.4,1);
@@ -249,8 +251,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
 .mini{font-size:12px;color:var(--text-zart)}
 
 /* ------------------------------------------------------------- Ergänzungen */
-.filter{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;
-  overscroll-behavior-x:contain}
+/* Umbrechen statt seitwärts blättern: der Streifen sitzt genau dort, wo der
+   Daumen zum Scrollen ansetzt – jede Drift hätte ihn mitgezogen. Zwei Zeilen
+   Chips kosten weniger als eine Bewegung, die falsch aussieht. */
+.filter{display:flex;flex-wrap:wrap;gap:6px;padding:2px 2px 10px}
 /* Wird von js/ui.js für die Dauer einer senkrechten Bewegung gesetzt. */
 .achse-senkrecht{overflow-x:hidden!important;touch-action:pan-y}
 .filter button{
@@ -447,11 +451,16 @@ label.feld > span em{font-style:normal;opacity:.65;font-weight:400}
 .aufgabe .wetterwink{
   font-size:11.5px;color:var(--text-schwach);margin-top:3px;display:flex;gap:5px;align-items:center;
 }
-.stundenband{display:flex;gap:4px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin;
-  overscroll-behavior-x:contain}
+/* 24 Stunden als Raster, nicht als Schiebestreifen: waagerechtes Blättern war
+   die zweite Stelle, an der eine senkrechte Wischbewegung seitwärts wirkte –
+   und ein Streifen, den man schieben muss, wird ohnehin oft nicht entdeckt. */
+.stundenband{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(46px,1fr));gap:4px;
+  padding:4px 0 8px;
+}
 .stundenband .h{
-  flex:none;width:52px;text-align:center;font-size:11px;color:var(--text-schwach);
-  background:var(--bg);border-radius:9px;padding:6px 2px;
+  text-align:center;font-size:11px;color:var(--text-schwach);
+  background:var(--bg);border-radius:9px;padding:6px 2px;min-width:0;
 }
 .stundenband .h b{display:block;font-size:13px;color:var(--text);font-weight:600;margin:2px 0}
 .stundenband .h .z{font-size:15px;line-height:1.2}
