@@ -17,6 +17,17 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
+
+/* Beim Blättern soll es nur senkrecht gehen.
+   Ein Daumen wischt nie exakt gerade – ohne die folgenden Zeilen genügt die
+   kleine Seitwärtsbewegung, um die ganze Seite mitzuziehen: sobald irgendein
+   Element ein paar Pixel zu breit ist (eine Tabelle bei großer Systemschrift
+   reicht), wird die Seite waagerecht scrollbar und rutscht beim Scrollen zur
+   Seite. `clip` unterbindet das, ohne einen weiteren Scrollbereich anzulegen;
+   `hidden` steht als Rückfall für ältere Browser davor.
+   Waagerechtes Blättern gibt es nur noch, wo es ausdrücklich gewollt ist:
+   in den Streifen (Filter, Stundenband) und beim Wischen im Durchgang. */
+html,body{overflow-x:hidden;overflow-x:clip;max-width:100%;overscroll-behavior-x:none}
 body{
   background:var(--bg); color:var(--text); font:16px/1.45 -apple-system,BlinkMacSystemFont,
   "Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -238,7 +249,10 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
 .mini{font-size:12px;color:var(--text-zart)}
 
 /* ------------------------------------------------------------- Ergänzungen */
-.filter{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch}
+.filter{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 10px;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain}
+/* Wird von js/ui.js für die Dauer einer senkrechten Bewegung gesetzt. */
+.achse-senkrecht{overflow-x:hidden!important;touch-action:pan-y}
 .filter button{
   border:1.3px solid var(--rand-stark);border-radius:99px;padding:6px 11px;font-size:12.5px;
   white-space:nowrap;background:var(--karte);display:flex;align-items:center;gap:5px;
@@ -340,7 +354,9 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
 .warnung{font-size:12px;color:var(--ueberfaellig);margin-top:7px;font-weight:600}
 
 /* Tabelle Historie */
-table.bilanz{width:100%;border-collapse:collapse;font-size:12.5px}
+table.bilanz{width:100%;max-width:100%;table-layout:fixed;border-collapse:collapse;
+  font-size:12.5px}
+table.bilanz td,table.bilanz th{overflow-wrap:anywhere}
 table.bilanz th{text-align:left;font-size:10.5px;color:var(--text-zart);font-weight:600;
   padding-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
 table.bilanz td{padding:6px 0;border-top:1px solid var(--rand)}
@@ -431,7 +447,8 @@ label.feld > span em{font-style:normal;opacity:.65;font-weight:400}
 .aufgabe .wetterwink{
   font-size:11.5px;color:var(--text-schwach);margin-top:3px;display:flex;gap:5px;align-items:center;
 }
-.stundenband{display:flex;gap:4px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin}
+.stundenband{display:flex;gap:4px;overflow-x:auto;padding:4px 0 8px;scrollbar-width:thin;
+  overscroll-behavior-x:contain}
 .stundenband .h{
   flex:none;width:52px;text-align:center;font-size:11px;color:var(--text-schwach);
   background:var(--bg);border-radius:9px;padding:6px 2px;
@@ -687,5 +704,25 @@ body.festgehalten{overflow:hidden}
 .auswkopf small{font-size:11.5px;color:var(--text-zart)}
 .auswzeile select{
   width:100%;margin-top:8px;padding:10px 12px;font-size:14px;
+  border:1px solid var(--rand-stark);border-radius:10px;background:var(--karte);color:var(--text);
+}
+
+/* ------------------------------------------------------- Ernte nachtragen */
+.ernteliste{display:flex;flex-direction:column;margin:6px 0 4px}
+.erntezeile{
+  display:grid;grid-template-columns:minmax(0,1fr) 92px 22px;gap:10px;align-items:center;
+  padding:8px 2px;border-top:1px solid var(--rand);
+}
+.ernteliste .erntezeile:first-child{border-top:0}
+.erntename b{display:block;font-size:14px;font-weight:600}
+.erntename small{display:block;font-size:11px;color:var(--text-zart)}
+.erntezeile input{
+  padding:10px 11px;font-size:15px;text-align:right;
+  border:1px solid var(--rand-stark);border-radius:10px;background:var(--karte);color:var(--text);
+}
+.ernteeinheit{font-size:12px;color:var(--text-schwach)}
+.erntealle{display:flex;gap:8px;align-items:center;margin:10px 0 6px}
+.erntealle input{
+  flex:0 0 110px;padding:9px 11px;font-size:14px;text-align:right;
   border:1px solid var(--rand-stark);border-radius:10px;background:var(--karte);color:var(--text);
 }

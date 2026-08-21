@@ -54,6 +54,7 @@ export { verlaufAbgleichen };
 export const sheetIstAuf = () => sheetOffen;
 
 export function uiInit() {
+  achsenSperre();
   dunkelEl = document.getElementById('abdunkeln');
   sheetEl = document.getElementById('sheet');
   toastEl = document.getElementById('toast');
@@ -85,6 +86,48 @@ export function uiInit() {
     if (start != null && e.changedTouches[0].clientY - start > 90) sheetZu();
     start = null;
   });
+}
+
+// ------------------------------------------------------------- Achsensperre
+// Zwei Bereiche blättern absichtlich waagerecht (Filterchips, Stundenband).
+// Beim senkrechten Scrollen liegt der Daumen aber oft genau darüber und driftet
+// ein paar Pixel zur Seite – dann wandert der Streifen mit, und es sieht aus,
+// als verschiebe sich das Bild. Deshalb: sobald eine Bewegung klar senkrecht
+// ist, wird das seitliche Blättern für die Dauer dieser Bewegung gesperrt.
+// Umgekehrt bleibt eindeutig seitliches Blättern erlaubt.
+const QUER = '.filter,.stundenband,[data-querscroll]';
+
+function achsenSperre() {
+  let start = null;
+  let ziel = null;
+  let entschieden = false;
+
+  const frei = () => {
+    if (ziel) ziel.classList.remove('achse-senkrecht');
+    ziel = null; start = null; entschieden = false;
+  };
+
+  document.addEventListener('touchstart', (e) => {
+    frei();
+    if (e.touches.length !== 1) return;
+    ziel = e.target.closest?.(QUER) || null;
+    if (!ziel) return;
+    start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!ziel || !start || entschieden || e.touches.length !== 1) return;
+    const dx = Math.abs(e.touches[0].clientX - start.x);
+    const dy = Math.abs(e.touches[0].clientY - start.y);
+    if (dx > 10) { entschieden = true; return; }        // klar seitwärts: zulassen
+    if (dy > 10 && dy > dx * 2) {                       // klar senkrecht: sperren
+      entschieden = true;
+      ziel.classList.add('achse-senkrecht');
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', frei, { passive: true });
+  document.addEventListener('touchcancel', frei, { passive: true });
 }
 
 // ----------------------------------------------------- Hintergrund festhalten

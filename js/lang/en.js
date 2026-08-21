@@ -1655,4 +1655,32 @@ export const en = {
     'Note: two different weighing methods were used. Only weighings of the same kind are '
     + 'compared.',
   'keine Koordinaten': 'no coordinates',
+
+  // -------------------------------------------------------- Ernte nachtragen
+  'Ernte nachtragen': 'Add a past harvest',
+  'Ernte nachtragen oder ändern': 'Add or change a harvest',
+  'Für dieses Jahr ist keine Ernte erfasst. Normalerweise kommt sie beim Abhaken der Ernteaufgabe herein – schon geschleuderten Honig kannst du hier von Hand nachtragen.':
+    'No harvest recorded for this year. Normally it arrives when you tick off the harvest task – '
+    + 'honey you have already extracted can be entered here by hand.',
+  'Erntemenge {name}': 'Harvest for {name}',
+  'für {jahr}': 'for {jahr}',
+  'Wird genauso eingetragen wie eine abgehakte Ernteaufgabe: die Ernte erscheint im Kassenbuch, in der Volkshistorie und als Marke in der Gewichtskurve – und die Folgetermine rechnen damit.':
+    'Recorded exactly like a ticked-off harvest task: the harvest shows up in the cash book, in '
+    + 'the colony history and as a mark on the weight curve – and the follow-up dates take it '
+    + 'into account.',
+  'Welche Ernte': 'Which harvest',
+  'Tag der Ernte': 'Day of the harvest',
+  'Ungefähr genügt. Das Datum bestimmt, wo die Ernte im Verlauf steht.':
+    'Roughly is enough. The date decides where the harvest sits in the timeline.',
+  '% (falls gemessen)': '% (if measured)',
+  'kg je Volk': 'kg per colony',
+  'gleiche Menge für alle Völker': 'same amount for every colony',
+  'auf alle übertragen': 'apply to all',
+  'Eine Zahl je Volk ist mehr Arbeit, aber nur so trägt der Volksvergleich später etwas. Wer nur die Gesamtmenge weiß, teilt sie durch die Zahl der Völker und trägt sie hier gleichmäßig ein.':
+    'A figure per colony is more work, but it is the only way the colony comparison can say '
+    + 'anything later. If you only know the total, divide it by the number of colonies and enter '
+    + 'it evenly here.',
+  'Nichts eingetragen.': 'Nothing entered.',
+  '{n} Völker, {kg} kg nachgetragen.': '{n} colonies, {kg} kg added.',
+  '{n} Einträge entfernt.': '{n} entries removed.',
 };

@@ -634,21 +634,35 @@ function standStarten(standortId) {
  * und Vorrang für die Senkrechte: beim Scrollen durch den Kurzbefund darf nicht
  * versehentlich das Volk wechseln.
  */
+/**
+ * Wischen zum nächsten Volk – nur im Durchgang.
+ *
+ * Ein Daumen wischt nie exakt gerade, und beim Scrollen driftet er zur Seite.
+ * Deshalb muss die Bewegung eindeutig waagerecht sein: weit genug, deutlich
+ * weiter als senkrecht, ohne große senkrechte Drift – und die Seite darf
+ * während der Bewegung nicht gescrollt sein. Letzteres ist das sicherste
+ * Merkmal: wer gescrollt hat, wollte lesen, nicht blättern.
+ */
 function wischenVerdrahten() {
   const flaeche = AN;
-  let x0 = null; let y0 = null; let gesperrt = false;
+  let x0 = null; let y0 = null; let scroll0 = 0; let gesperrt = false;
   flaeche.addEventListener('touchstart', (e) => {
     if (S.ansicht !== 'stand' || e.touches.length !== 1) { x0 = null; return; }
-    // In Eingabefeldern und auf Chips nicht wischen
-    gesperrt = !!e.target.closest('input,textarea,select,button,.grobchips');
+    // In Eingabefeldern, auf Chips und in waagerechten Streifen nicht wischen
+    gesperrt = !!e.target.closest('input,textarea,select,button,.grobchips,'
+      + '.filter,.stundenband,table');
     x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    scroll0 = window.scrollY;
   }, { passive: true });
   flaeche.addEventListener('touchend', (e) => {
     if (x0 == null || gesperrt || S.ansicht !== 'stand') { x0 = null; return; }
     const dx = e.changedTouches[0].clientX - x0;
     const dy = e.changedTouches[0].clientY - y0;
+    const gescrollt = Math.abs(window.scrollY - scroll0) > 8;
     x0 = null;
-    if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.6) return;
+    if (gescrollt) return;
+    if (Math.abs(dx) < 70 || Math.abs(dy) > 55) return;
+    if (Math.abs(dx) < Math.abs(dy) * 2) return;
     standWechseln(dx < 0 ? 1 : -1);
   });
 }
@@ -2066,6 +2080,7 @@ function verdrahten() {
     S.kassenJahr = Number(e.currentTarget.dataset.kassenjahr);
     render();
   });
+  on('[data-ernte-nachtragen]', 'click', () => ernteNachtragenSheet());
   on('[data-neu-abfuellung]', 'click', () => abfuellungSheet());
   on('[data-neu-verkauf]', 'click', () => verkaufSheet());
   on('[data-neu-ausgabe]', 'click', () => ausgabeSheet());
@@ -2893,7 +2908,19 @@ function ansichtKassenbuch() {
       <table class="bilanz"><tbody>${b.ernte.jeVolk.map((v) => `<tr>
         <td>${esc(v.name)}</td><td>${esc(kassKg(v.kg))}</td></tr>`).join('')}</tbody></table>
       </div>` : ''}
-  </div>` : ''}
+  </div>
+  <div class="knopfreihe">
+    <button class="knopf leise klein" data-ernte-nachtragen>${
+    esc(t2('Ernte nachtragen oder ändern'))}</button>
+  </div>` : `<h2 class="abschnitt">${esc(t2('Ernte'))}</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="mini">${esc(t2('Für dieses Jahr ist keine Ernte erfasst. Normalerweise kommt '
+    + 'sie beim Abhaken der Ernteaufgabe herein – schon geschleuderten Honig kannst du hier '
+    + 'von Hand nachtragen.'))}</div>
+    <div class="knopfreihe">
+      <button class="knopf" data-ernte-nachtragen>${esc(t2('Ernte nachtragen'))}</button>
+    </div>
+  </div></div>`}
 
   ${b.lager.zeilen.length ? `<h2 class="abschnitt">${esc(t2('Lagerbestand'))}</h2>
   <div class="karte"><div class="karte-inhalt">
@@ -3012,6 +3039,144 @@ function mhdLesen(text) {
  * Los-Nummer und MHD sind vorbelegt, aber änderbar: die Nummer muss zu dem
  * passen, was auf dem Glas klebt, und das entscheidet der Imker.
  */
+/**
+ * Ernte nachtragen.
+ * Wer die App mitten in der Saison anfängt, hat die Frühtracht schon im Eimer –
+ * und über das Abhaken der Aufgabe kommt er nicht mehr dran, weil deren Fenster
+ * längst zu ist. Deshalb hier derselbe Weg von Hand: geschrieben wird eine
+ * ERLEDIGUNG der Ernteregel, nicht ein Sonderdatensatz. Damit sieht das
+ * Kassenbuch die Ernte, die Volkshistorie sieht sie, die Gewichtskurve setzt
+ * ihre Marke, und die Folgetermine rechnen damit – genau wie beim Abhaken.
+ */
+function ernteNachtragenSheet() {
+  const jahr = kassJahr();
+  const regelWahl = Object.entries(kasse.ERNTE_SORTE);      // [regelId, Sorte]
+  const voelker = S.voelker.filter((v) => v.status !== 'aufgeloest');
+  if (!voelker.length) return toast(t2('Erst Völker anlegen.'));
+
+  // Was ist für dieses Jahr schon erfasst? Die Felder zeigen den Bestand, damit
+  // Nachtragen und Ändern derselbe Handgriff sind.
+  const bestand = (regelId) => {
+    const raus = new Map();
+    for (const e of S.erledigungen) {
+      if (e.deletedAt || e.status === 'uebersprungen' || e.regelId !== regelId) continue;
+      if (parseISO(e.datum).getFullYear() !== jahr) continue;
+      raus.set(e.zielId, e);
+    }
+    return raus;
+  };
+
+  const zeilen = (regelId) => {
+    const vorhanden = bestand(regelId);
+    return voelker.map((v) => {
+      const e = vorhanden.get(v.id);
+      return `<div class="erntezeile">
+        <div class="erntename"><b>${esc(v.name)}</b>
+          <small>${esc(standortName(v.standortId) || t2('ohne Standort'))}</small></div>
+        <input type="number" inputmode="decimal" step="0.5" min="0"
+          data-ernte="${v.id}" value="${e?.daten?.kg ?? ''}"
+          aria-label="${esc(t2('Erntemenge {name}', { name: v.name }))}">
+        <span class="ernteeinheit">kg</span>
+      </div>`;
+    }).join('');
+  };
+
+  const felder = [
+    { key: 'regel', label: 'Welche Ernte', typ: 'chips', einfach: true,
+      optionen: regelWahl.map(([, sorte]) => sorte), standard: regelWahl[0][1] },
+    { key: 'datum', label: 'Tag der Ernte', typ: 'datum',
+      standard: iso(new Date(jahr, 5, 15)),
+      hinweis: 'Ungefähr genügt. Das Datum bestimmt, wo die Ernte im Verlauf steht.' },
+    { key: 'wasser', label: 'Wassergehalt', typ: 'zahl', einheit: '% (falls gemessen)',
+      schritt: 0.1 },
+  ];
+
+  sheetAuf({
+    titel: t2('Ernte nachtragen'),
+    unter: t2('für {jahr}', { jahr }),
+    inhalt: `<div class="hinweis">${esc(t2('Wird genauso eingetragen wie eine abgehakte '
+      + 'Ernteaufgabe: die Ernte erscheint im Kassenbuch, in der Volkshistorie und als Marke '
+      + 'in der Gewichtskurve – und die Folgetermine rechnen damit.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+
+      <div class="ernteliste" id="ernteliste">${zeilen(regelWahl[0][0])}</div>
+
+      <div class="erntealle">
+        <input type="number" inputmode="decimal" step="0.5" min="0" data-alle
+          placeholder="${esc(t2('kg je Volk'))}"
+          aria-label="${esc(t2('gleiche Menge für alle Völker'))}">
+        <button type="button" class="knopf leise klein" data-alle-uebertragen>${
+  esc(t2('auf alle übertragen'))}</button>
+      </div>
+      <div class="mini">${esc(t2('Eine Zahl je Volk ist mehr Arbeit, aber nur so trägt der '
+      + 'Volksvergleich später etwas. Wer nur die Gesamtmenge weiß, teilt sie durch die Zahl '
+      + 'der Völker und trägt sie hier gleichmäßig ein.'))}</div>
+
+      <div class="knopfreihe"><button class="knopf" data-ok>${
+  esc(t2('Speichern'))}</button></div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      const liste = root.querySelector('#ernteliste');
+      const regelJetzt = () => {
+        const gewaehlt = root.querySelector('[data-key=regel] button.an')?.dataset.wert;
+        return regelWahl.find(([, sorte]) => sorte === gewaehlt)?.[0] || regelWahl[0][0];
+      };
+      // Wechselt die Ernteart, zeigt die Liste den Bestand DIESER Ernte.
+      root.querySelectorAll('[data-key=regel] button').forEach((b) => {
+        b.addEventListener('click', () => setTimeout(() => {
+          liste.innerHTML = zeilen(regelJetzt());
+        }, 0));
+      });
+      root.querySelector('[data-alle-uebertragen]').onclick = () => {
+        const wert = root.querySelector('[data-alle]').value;
+        if (!wert) return;
+        liste.querySelectorAll('[data-ernte]').forEach((i) => { i.value = wert; });
+      };
+
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        const regelId = regelJetzt();
+        const datum = w.datum || iso(new Date(jahr, 5, 15));
+        const vorhanden = bestand(regelId);
+        let geschrieben = 0; let gelöscht = 0; let summe = 0;
+
+        for (const feld of liste.querySelectorAll('[data-ernte]')) {
+          const volkId = feld.dataset.ernte;
+          const kg = feld.value === '' ? null : Number(String(feld.value).replace(',', '.'));
+          const alt = vorhanden.get(volkId);
+
+          if (kg == null || !(kg > 0)) {
+            // Feld geleert: was einmal hier stand, soll auch verschwinden.
+            if (alt) { await db.loesche('erledigungen', alt.id); gelöscht += 1; }
+            continue;
+          }
+          const daten = { ...(alt?.daten || {}), kg };
+          if (w.wasser) daten.wasser = Number(w.wasser);
+          await db.schreibe('erledigungen', {
+            ...(alt || {}),
+            id: alt?.id || uid(),
+            regelId, zielTyp: 'volk', zielId: volkId,
+            datum, status: 'erledigt', daten,
+            jahr: parseISO(datum).getFullYear(),
+            quelle: alt?.quelle || 'nachgetragen',
+          });
+          geschrieben += 1;
+          summe += kg;
+        }
+
+        sheetZu();
+        await datenLaden();
+        render();
+        if (!geschrieben && !gelöscht) return toast(t2('Nichts eingetragen.'));
+        toast(geschrieben
+          ? t2('{n} Völker, {kg} kg nachgetragen.',
+            { n: geschrieben, kg: String(Math.round(summe * 10) / 10).replace('.', ',') })
+          : t2('{n} Einträge entfernt.', { n: gelöscht }));
+      };
+    },
+  });
+}
+
 function abfuellungSheet(id = null, vorgabe = {}) {
   const alt = id ? S.abfuellungen.find((a) => a.id === id) : null;
   const start = alt || vorgabe;

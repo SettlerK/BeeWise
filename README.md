@@ -701,6 +701,24 @@ letzten Ernte vor. So wird einmal erfasst, was einmal passiert ist.
   Gläser da sind. Zugeordnet wird nach „wer zuerst abgefüllt wurde, geht zuerst weg" – eine
   glasgenaue Verfolgung wäre Scheingenauigkeit, weil beim Verkauf niemand die Charge notiert.
 
+### Ernte nachtragen
+
+Wer die App mitten in der Saison anfängt, hat die Frühtracht schon im Eimer – und über das
+Abhaken der Aufgabe kommt er nicht mehr dran, weil deren Zeitfenster längst zu ist. Im
+Kassenbuch steht deshalb **Ernte nachtragen**: Ernteart wählen (Früh- oder Sommertracht), Datum,
+optional der Wassergehalt, und darunter eine Zeile je Volk mit einem Feld für die Kilo. „Auf alle
+übertragen" füllt alle Zeilen mit derselben Zahl – wer nur die Gesamtmenge weiß, teilt sie durch
+die Zahl der Völker.
+
+Entscheidend ist, **was** dabei geschrieben wird: eine ganz normale **Erledigung der Ernteregel**,
+kein Sonderdatensatz. Damit sieht das Kassenbuch die Ernte, die Volkshistorie zeigt sie, die
+Gewichtskurve setzt ihre Marke – und die **Folgetermine rechnen damit**. Trägt man die
+Sommertracht nach, steht die erste Sommerbehandlung sofort im Plan, denn genau an diesem Datum
+hängt die halbe zweite Saisonhälfte.
+
+Das Fenster zeigt immer den aktuellen Bestand des gewählten Jahres: eine Zahl ändern heißt
+ändern, ein Feld leeren heißt löschen. Nachtragen und Korrigieren sind derselbe Handgriff.
+
 ## Wabenalter
 
 Wabenerneuerung ist die billigste Hygienemaßnahme der Imkerei. Sie scheitert nur daran, dass
@@ -838,6 +856,28 @@ der konkreten Handlung („Futterteig direkt über den Sitz legen, kein Zuckerwa
 Eine Ungenauigkeit bleibt bewusst stehen: am Nullpunkt ist der Vorrat nicht genau null – im
 Brutnest hängen meist zwei bis vier Kilo. Die Rechnung unterschätzt den Vorrat also leicht. Das
 ist die sichere Richtung.
+
+## Nur senkrecht scrollen
+
+Ein Daumen wischt nie exakt gerade. Ohne Gegenmaßnahme genügt diese kleine Drift, um beim
+Scrollen die ganze Seite seitwärts mitzuziehen – es reicht, wenn irgendein Element ein paar Pixel
+zu breit ist (eine fünfspaltige Tabelle bei großer Systemschrift zum Beispiel), damit das Dokument
+waagerecht scrollbar wird. Drei Maßnahmen dagegen:
+
+* `html, body { overflow-x: clip }` (mit `hidden` als Rückfall) plus `overscroll-behavior-x: none`:
+  das Dokument lässt sich überhaupt nicht mehr seitlich schieben.
+* Tabellen bekommen `table-layout: fixed` und dürfen umbrechen, damit gar nichts erst zu breit
+  wird und geklippt werden müsste.
+* Die zwei Bereiche, die absichtlich waagerecht blättern (Filterchips, Stundenband), bekommen
+  `overscroll-behavior-x: contain` und eine **Achsensperre** in `js/ui.js`: sobald eine Bewegung
+  klar senkrecht ist (mehr als 10 px senkrecht und doppelt so viel wie waagerecht), wird ihr
+  seitliches Blättern für die Dauer dieser Bewegung gesperrt. Eindeutig seitliche Bewegungen
+  bleiben unberührt.
+
+Das **Wischen im Durchgang** ist die einzige gewollte Seitwärtsbewegung und verlangt deshalb eine
+eindeutige Geste: mindestens 70 px waagerecht, höchstens 55 px senkrechte Drift, mindestens
+doppelt so weit waagerecht wie senkrecht – und die Seite darf während der Bewegung nicht
+gescrollt worden sein. Wer gescrollt hat, wollte lesen, nicht blättern.
 
 ## Prüfstand
 
