@@ -29,7 +29,9 @@ export const STORES = [
   'abfuellungen',   // Chargen: Sorte, Glasgröße, Stückzahl, Los-Nummer, MHD
   'verkaeufe',      // verkaufte Gläser mit Betrag (Lagerbestand = abgefüllt minus verkauft)
   'ausgaben',       // Zucker, Mittelwände, Gläser, Behandlungsmittel, Gebühren
-  'waben',          // Wabenalter: Jahrgang und Stückzahl je Volk
+  // `waben` ist stillgelegt (siehe js/waben.js): der Speicher bleibt, damit
+  // bereits erfasste Einträge und Sicherungen unversehrt bleiben.
+  'waben',          // stillgelegt: Wabenalter je Volk
   'winterung',      // Ein- und Auswinterung je Volk und Saison (Verlustrate)
   'wiegungen',      // Gewicht je Volk: Kippprobe oder ganze Beute, Nullpunkt
   'meta',           // Einstellungen, Caches (Klimatologie, Wetter)

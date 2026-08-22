@@ -10,10 +10,10 @@ W = pathlib.Path(__file__).parent
 MODULE = ['lang/en.js', 'i18n.js', 'util.js', 'db.js', 'tracht.js', 'regeln.js', 'engine.js', 'aufgaben.js',
           'karte.js', 'bilder.js', 'hilfe.js', 'kalenderexport.js', 'qr.js', 'pdf.js', 'etiketten.js',
           'berichte.js', 'koeniginnen.js', 'fotos.js', 'vergleich.js', 'varroa.js',
-          'packliste.js', 'kasse.js', 'waben.js', 'winter.js', 'gewicht.js', 'futter.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
+          'packliste.js', 'kasse.js', 'winter.js', 'gewicht.js', 'futter.js', 'bildschau.js', 'stand.js', 'sync.js', 'ui.js', 'app.js']
 
 NAMENSRAUM = {'db.js': 'db', 'sync.js': 'sync', 'koeniginnen.js': 'koe', 'fotos.js': 'fotos',
-              'kasse.js': 'kasse', 'waben.js': 'waben', 'winter.js': 'winter', 'gewicht.js': 'gewicht', 'futter.js': 'futter'}
+              'kasse.js': 'kasse', 'winter.js': 'winter', 'gewicht.js': 'gewicht', 'futter.js': 'futter'}
 
 def namensraum(datei, alias):
     """Baut `const alias = { ... }` aus allen Ausfuhren einer Datei."""

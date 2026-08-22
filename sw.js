@@ -2,7 +2,7 @@
 // Wetterabrufe laufen "network first" mit Rückfall auf den Cache – am Bienenstand
 // ist Funkloch der Normalfall, die App muss trotzdem starten.
 
-const VERSION = 'beewise-v19';
+const VERSION = 'beewise-v20';
 const HUELLE = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/db.js', './js/engine.js', './js/regeln.js',
@@ -10,7 +10,7 @@ const HUELLE = [
   './js/karte.js', './js/bilder.js', './js/hilfe.js', './js/kalenderexport.js',
   './js/pdf.js', './js/berichte.js', './js/sync.js', './js/i18n.js', './js/lang/en.js',
   './js/qr.js', './js/etiketten.js', './js/stand.js', './js/koeniginnen.js',
-  './js/fotos.js', './js/vergleich.js', './js/varroa.js', './js/packliste.js', './js/kasse.js', './js/waben.js', './js/winter.js', './js/gewicht.js', './js/futter.js',
+  './js/fotos.js', './js/vergleich.js', './js/varroa.js', './js/packliste.js', './js/kasse.js', './js/winter.js', './js/gewicht.js', './js/futter.js', './js/bildschau.js',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
 ];
 

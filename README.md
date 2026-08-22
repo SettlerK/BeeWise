@@ -166,6 +166,8 @@ js/waben.js             Wabenalter je Volk (Jahrgänge, Ausschmelz-Vorschlag)
 js/winter.js            Ein- und Auswinterung, Verlustrate je Saison und Stand
 js/gewicht.js           Wägungen: Nullpunkt, Differenzen, Futterstand, Winterzehrung
 js/futter.js            Futtergaben: Umrechnung Liter → kg, Summe gegen Zielvorrat
+js/bildschau.js         Bilder ansehen: zoomen, schieben, in die Galerie sichern
+js/waben.js             STILLGELEGT: Wabenalter (Ausbaustufe, nicht eingebunden)
 js/qr.js                QR-Erzeugung (Byte-Modus, Fehlerkorrektur M, Version 1–10)
 js/etiketten.js         Aufkleberbogen für die Beuten
 js/pdf.js               kleiner PDF-Schreiber (A4, Helvetica, Tabellen)
@@ -736,31 +738,28 @@ späte Linde. Zwei Dinge folgen daraus:
 Im Kassenbuch stehen bei mehr als einer Ernte die **einzelnen Termine** mit Datum, Sorte,
 Völkerzahl und Menge; ein Feld leeren heißt löschen, aber nur den Eintrag dieses Tages.
 
-## Wabenalter
+## Wabenalter – gebaut, geprüft, stillgelegt
 
-Wabenerneuerung ist die billigste Hygienemaßnahme der Imkerei. Sie scheitert nur daran, dass
-niemand weiß, welche Wabe wie alt ist. Die Erfassungstiefe ist deshalb die eigentliche
-Entscheidung – und sie fällt hier bewusst grob: **je Volk und Jahr eine Stückzahl.**
+Die Funktion zählte Rähmchen je Volk und Jahrgang und schlug Waben ab drei Jahren zum
+Ausschmelzen vor. Sie ist nach dem Feldtest **wieder ausgebaut** worden, und der Einwand dahinter
+ist gut genug, um ihn aufzuschreiben:
 
-* In der Volksansicht steht die Karte **„Waben"**: ein Balken je Jahrgang, daneben die Stückzahl.
-  Alle Balken in derselben Farbe; die zu alten sind abgeschwächt und tragen die Beschriftung
-  *ausschmelzen* – keine Bewertung durch Farbe allein.
-* Darunter der Satz, um den es geht: „4 von 12 Waben sind 3 Jahre und älter. Im Frühjahr
-  ausschmelzen und durch Mittelwände ersetzen."
-* **Erfassen** geht auf zwei Wegen, ohne etwas doppelt einzutragen:
-  * über *Rähmchen buchen* (Anzahl, Jahrgang, oder als Abgang „ausgeschmolzen"),
-  * automatisch aus den Aufgaben: *Erweitern*, *Boden reinigen / alte Waben entnehmen* und
-    *Honigraum aufsetzen* haben jetzt das Feld **„Neue Rähmchen eingehängt"**. Was du dort
-    einträgst, wird als Jahrgang gebucht; die „entnommenen Waben" der Wabenhygiene gelten als
-    Abgang.
-* **Abgänge werden von den ältesten Jahrgängen abgezogen** – wer Waben ausschmilzt, nimmt die
-  dunkelsten, nicht die hellsten. Für Altbestand darf man den Jahrgang schätzen; die Auswahl
-  reicht acht Jahre zurück.
+> Waben wandern. Honigräume kommen nach der letzten Ernte weg, einzelne Waben werden aus der
+> Brutzarge in den Honigraum gehängt, Ableger bekommen Waben aus anderen Völkern. Welche Wabe
+> wann geht oder kommt, lässt sich am offenen Volk nicht buchen.
 
-Warum nicht wabengenau (jedes Rähmchen ein Datensatz mit Position)? Weil es am offenen Volk
-nicht durchzuhalten ist: entweder wird es nicht geführt oder falsch geführt – und eine falsche
-Genauigkeit ist schlechter als eine ehrliche Schätzung. Die Grenze liegt bei drei Jahren; sie
-steht als `WABEN_GRENZE` in `js/waben.js` an einer Stelle.
+Ohne diese Buchungen ist eine Jahrgangsrechnung je Volk nicht bloß ungenau, sondern falsch – und
+eine falsche Zahl ist schlechter als keine, weil man sich danach richtet. Dazu kam ein praktischer
+Mangel: erfasst wurden nur Zu- und Abgänge, eine falsch eingetragene Stückzahl ließ sich nicht
+einfach korrigieren.
+
+`js/waben.js` bleibt als **Ausbaustufe** im Projekt (nicht eingebunden, nicht im Bündel), der
+Speicher `waben` bleibt in `db.js`, damit bereits erfasste Einträge und Sicherungen unversehrt
+sind. Im Dateikopf steht, was es zum Wiederbeleben bräuchte: entweder wabengenaue Verfolgung mit
+Kennzeichnung am Rähmchen – realistisch nur bei wenigen Völkern – oder ein Maß, das ohne
+Wanderungen auskommt: die **Erneuerungsrate** („wie viele neue Mittelwände habe ich dieses Jahr
+eingehängt, gemessen an der Wabenzahl im Betrieb", Ziel etwa ein Drittel im Jahr). Die braucht nur
+zwei Zahlen je Jahr und behauptet nicht, einzelne Waben zu kennen.
 
 ## Foto am Bienenstand
 
@@ -774,6 +773,33 @@ Technisch dasselbe wie beim Volksfoto: verkleinert auf die eingestellte Kantenl�
 Datensatz des Standortes gespeichert, damit auf dem Gerät und in der Sicherung – und der
 Dateidialog wird **synchron in der Nutzergeste** geöffnet, sonst blocken ihn Handy-Browser
 stillschweigend.
+
+## Bilder ansehen
+
+Ein Brutbild ist nur etwas wert, wenn man hineingehen kann – auf die Zelle, auf die Made, auf den
+Zellrand. Ein Bild in fester Größe in einem Fenster ist dafür wertlos. Antippen öffnet deshalb
+eine **bildschirmfüllende Bildschau** mit eigener Gestensteuerung (`js/bildschau.js`):
+
+* zwei Finger auseinander – stufenlos zoomen bis 6×, doppelt tippen springt auf 2,5×
+* im gezoomten Bild ziehen, begrenzt auf den Bildrand (kein Wegziehen ins Leere)
+* bei 1× nach unten ziehen schließt, Escape und ✕ ebenso
+* am Rechner: Mausrad und Ziehen mit der Maus
+
+Warum das die App selbst macht und nicht der Browser: BeeWise fängt waagerechte Wischgesten ab
+(sonst zieht die Zurück-Geste des Systems das ganze Bild zur Seite) und hat das Doppeltipp-Zoom
+abgeschaltet (sonst zoomt man beim schnellen Erfassen versehentlich hinein). In der Liste ist
+beides richtig, im Bild wäre es falsch – die Bildschau ist deshalb ausdrücklich davon ausgenommen
+(`data-gesten`, `touch-action: none`).
+
+**„Sichern / Teilen"** reicht das Bild an das Teilen-Menü des Geräts weiter; auf dem iPhone steht
+dort „Bild sichern" und es landet in Fotos, auf Android „Speichern". Eine App im Browser darf
+nicht selbst in die Galerie schreiben – das ist der einzige Weg dorthin, und er ist einen
+Fingertipp lang. Fehlt die Schnittstelle, lädt die App das Bild als Datei herunter.
+
+**Auflösung:** Zum Hineinzoomen sind 1024 Punkte zu wenig. Unter *Mehr → Daten* gibt es jetzt
+zusätzlich **1600** (~300 kB) und **2048** (~500 kB), und die JPEG-Güte ist von 0,72 auf 0,82
+angehoben – bei starkem Zoom werden sonst die Artefakte sichtbar, bevor die Auflösung endet. Die
+Einstellung gilt für neue Fotos; bereits gespeicherte Bilder bleiben, wie sie sind.
 
 ## Fachliche Rückfragen – warum (noch) kein Chatbot
 
@@ -971,36 +997,13 @@ Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
 | `test_kette.py` | Abhängigkeitskette der Regeln über die Saison |
 | `test_neu.py` | Milbenkurve, Wetterwarnungen, Sicherungs-Erinnerung |
 | `test_kasse.py` | Kassenbuch, Los-Nummer, MHD, Lagerbestand, PDF/CSV/Etiketten |
-| `test_waben.py` | Wabenjahrgänge, Ausschmelzen, Standfoto über echten Dateidialog |
+| `test_bilder.py` | Bildschau (Zoom, Ziehen, Grenzen, Mausrad, Schließen), Bildgrößen, Standfoto über echten Dateidialog |
 | `test_winter.py` | Ein- und Auswinterung, Verlustgründe, Auflösen, Mehrjahresreihe |
 | `test_gewicht.py` | Nullpunkt, Differenzen, Futterrechnung, Zehrung, Winterwarnung |
 | `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
 | `test_achse.py` | echte Touch-Gesten über das Chrome-Protokoll: waagerechte werden abgefangen, senkrechte scrollen, Eingabefelder bleiben frei, Wischen im Durchgang blättert weiter |
 | `pruef_quer.py` | sucht mit echten Wetterdaten **jede** waagerecht scrollbare Stelle in allen Ansichten und Fenstern |
 | `test_futter.py` | Ballon-Umrechnung, viele Gaben an verschiedenen Tagen, Summe, Ändern und Löschen, wiederkehrende Aufgabe, Stand im Abschluss-Fenster |
-| `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
-
-Dazu bei jedem Bau: `node --check` für jede Datei **und** für das erzeugte Bündel (fängt
-gleichnamige Deklarationen aus verschiedenen Modulen), eine Prüfung auf doppelte Schlüssel im
-Sprachpaket und eine Prüfung, dass jeder deutsche Text im Englischen einen Eintrag hat.
-
-## Prüfstand
-
-Alle Läufe arbeiten mit fest gestellter Uhr und gemocktem Open-Meteo und laufen gegen **drei
-Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
-
-| Lauf | prüft |
-|---|---|
-| `test_wetter.py` | Wetterbewertung, Reizlage, widerspruchsfreie Texte, Sprachwechsel |
-| `test_stand.py` | Durchgang, Packliste als Schritt 0, QR-Aufkleber, Tiefenlink |
-| `test_koenigin.py` | Königinnen, Umweiseln, Ableger als eigene Völker |
-| `test_kette.py` | Abhängigkeitskette der Regeln über die Saison |
-| `test_neu.py` | Milbenkurve, Wetterwarnungen, Sicherungs-Erinnerung |
-| `test_kasse.py` | Kassenbuch, Los-Nummer, MHD, Lagerbestand, PDF/CSV/Etiketten |
-| `test_waben.py` | Wabenjahrgänge, Ausschmelzen, Standfoto über echten Dateidialog |
-| `test_winter.py` | Ein- und Auswinterung, Verlustgründe, Auflösen, Mehrjahresreihe |
-| `test_gewicht.py` | Nullpunkt, Differenzen, Futterrechnung, Zehrung, Winterwarnung |
-| `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
 | `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
 
 Dazu bei jedem Bau: `node --check` für jede Datei **und** für das erzeugte Bündel (fängt

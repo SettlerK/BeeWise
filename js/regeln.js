@@ -173,11 +173,8 @@ export const REGELN = [
     fenster: [0, 28],
     benoetigt: ['erste_durchsicht'],
     hilfe: 'Wabenhygiene alte Waben ausmustern',
-    felder: [{ key: 'waben', label: 'Entnommene Waben', typ: 'zahl', einheit: 'Stück', schritt: 1,
-      hinweis: 'Werden beim Wabenalter von den ältesten Jahrgängen abgezogen.' },
-    { key: 'raehmchen', label: 'Neue Rähmchen eingehängt', typ: 'zahl', einheit: 'Stück',
-      schritt: 1 },
-    F.notiz],
+    felder: [{ key: 'waben', label: 'Entnommene Waben', typ: 'zahl', einheit: 'Stück',
+      schritt: 1 }, F.notiz],
   },
   {
     id: 'erweitern',
@@ -189,9 +186,6 @@ export const REGELN = [
     benoetigt: ['erste_durchsicht'],
     hilfe: 'Volk erweitern Zarge aufsetzen',
     felder: [{ key: 'zargen', label: 'Zargen danach', typ: 'zahl', einheit: 'Zargen', schritt: 1 },
-      { key: 'raehmchen', label: 'Neue Rähmchen eingehängt', typ: 'zahl', einheit: 'Stück',
-        schritt: 1, hinweis: 'Zählt für das Wabenalter – aus der Zahl weiß BeeWise später, '
-          + 'welche Waben ausgeschmolzen werden sollten.' },
       F.notiz],
   },
   {
@@ -251,10 +245,8 @@ export const REGELN = [
     fenster: [-10, 14],
     benoetigt: ['erweitern'],
     hilfe: 'Honigraum aufsetzen Absperrgitter',
-    felder: [{ key: 'honigraeume', label: 'Honigräume danach', typ: 'zahl', einheit: 'Stück', schritt: 1 },
-      { key: 'raehmchen', label: 'Neue Rähmchen eingehängt', typ: 'zahl', einheit: 'Stück',
-        schritt: 1 },
-      F.notiz],
+    felder: [{ key: 'honigraeume', label: 'Honigräume danach', typ: 'zahl', einheit: 'Stück',
+      schritt: 1 }, F.notiz],
   },
   {
     id: 'fruehtracht',

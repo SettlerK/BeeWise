@@ -1,4 +1,32 @@
-// Wabenalter je Volk.
+// STILLGELEGT – Wabenalter je Volk (Ausbaustufe, nicht eingebunden).
+// =============================================================================
+// Diese Datei wird von der App NICHT geladen (sie steht weder in der MODULE-
+// Liste von build-einzeldatei.py noch in der HUELLE von sw.js). Der Speicher
+// `waben` bleibt in db.js erhalten, damit vorhandene Einträge nicht verloren
+// gehen und in Sicherungen weiterwandern.
+//
+// Warum stillgelegt – aus dem Feldtest, und der Einwand ist richtig:
+// Das Modell zählt Rähmchen je Volk und Jahrgang. In der Praxis wandern Waben
+// aber ständig: Honigräume kommen nach der letzten Ernte weg, einzelne Waben
+// werden aus der Brutzarge in den Honigraum gehängt, Ableger bekommen Waben aus
+// anderen Völkern. Welche Wabe wann geht oder kommt, kann man am offenen Volk
+// nicht buchen – und ohne diese Buchungen ist eine Jahrgangsrechnung je Volk
+// nicht bloß ungenau, sondern falsch. Eine Zahl, die falsch ist, ist schlechter
+// als keine Zahl: man richtet sich danach.
+//
+// Was es bräuchte, um das sinnvoll wiederzubeleben – eines von beiden:
+//   a) Wabengenaue Verfolgung mit Kennzeichnung am Rähmchen (Farbe, Reißzwecke,
+//      Nummer) und Buchung jeder Umhängung. Realistisch nur bei wenigen Völkern.
+//   b) Ein anderes Maß, das ohne Wanderungen auskommt: die ERNEUERUNGSRATE.
+//      Nicht „welche Wabe ist alt", sondern „wie viele neue Mittelwände habe ich
+//      dieses Jahr eingehängt, gemessen an der Wabenzahl im Betrieb" – Ziel
+//      etwa ein Drittel im Jahr. Das braucht nur zwei Zahlen je Jahr und
+//      überlebt jedes Umhängen, weil es gar nicht behauptet, einzelne Waben zu
+//      kennen.
+//
+// Zum Wiederbeleben: Datei in MODULE (build-einzeldatei.py) und HUELLE (sw.js)
+// eintragen, in app.js einbinden und eine Karte bauen. Der Rechenkern unten
+// bleibt lauffähig.
 // =============================================================================
 // Alte Waben sind dunkel, eng und tragen Krankheitskeime; Wabenerneuerung ist
 // die billigste Hygienemaßnahme, die es in der Imkerei gibt. Sie scheitert nur

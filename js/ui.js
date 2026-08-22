@@ -112,7 +112,7 @@ export function uiInit() {
 // ausdrücklich waagerecht blättern sollen (`[data-querscroll]`). Der Durchgang
 // braucht keine Ausnahme: sein Wischen wertet `touchend` aus und funktioniert
 // auch dann, wenn die Geste unterwegs abgefangen wurde.
-const AUSNAHME = 'input,textarea,select,[data-querscroll]';
+const AUSNAHME = 'input,textarea,select,[data-querscroll],[data-gesten]';
 
 function achsenSperre() {
   let x0 = null;

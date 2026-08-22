@@ -27,10 +27,10 @@ import * as fotos from './fotos.js';
 import { standVergleich, volkEinordnen } from './vergleich.js';
 import { varroaVerlauf, varroaBild } from './varroa.js';
 import * as kasse from './kasse.js';
-import * as waben from './waben.js';
 import * as winter from './winter.js';
 import * as gewicht from './gewicht.js';
 import * as futter from './futter.js';
+import { bildZeigen } from './bildschau.js';
 import { behandlungsprotokoll, volkHistorie, kassenbuchPDF, dateiname } from './berichte.js';
 import * as sync from './sync.js';
 import {
@@ -45,7 +45,7 @@ const S = {
   ansicht: 'heute', volkId: null,
   standorte: [], voelker: [], durchsichten: [], erledigungen: [], trachtObs: [], eigene: [],
   wanderungen: [], koeniginnen: [],
-  abfuellungen: [], verkaeufe: [], ausgaben: [], waben: [], winterung: [], wiegungen: [],
+  abfuellungen: [], verkaeufe: [], ausgaben: [], winterung: [], wiegungen: [],
   kassenJahr: null,             // gewähltes Jahr im Kassenbuch
   winterSaison: null,           // gewählte Saison in der Winterbilanz
   tracht: {}, wetter: {}, stunden: {}, plan: [], fragen: [],
@@ -84,11 +84,12 @@ const ZURUECK = document.getElementById('kopf-zurueck');
 
 async function datenLaden() {
   [S.standorte, S.voelker, S.durchsichten, S.erledigungen, S.trachtObs, S.eigene, S.wanderungen,
-    S.koeniginnen, S.abfuellungen, S.verkaeufe, S.ausgaben, S.waben, S.winterung, S.wiegungen] = await Promise.all([
+    S.koeniginnen, S.abfuellungen, S.verkaeufe, S.ausgaben, S.winterung,
+    S.wiegungen] = await Promise.all([
     db.alle('standorte'), db.alle('voelker'), db.alle('durchsichten'),
     db.alle('erledigungen'), db.alle('tracht'), db.alle('aufgaben'), db.alle('wanderungen'),
     db.alle('koeniginnen'), db.alle('abfuellungen'), db.alle('verkaeufe'), db.alle('ausgaben'),
-    db.alle('waben'), db.alle('winterung'), db.alle('wiegungen'),
+    db.alle('winterung'), db.alle('wiegungen'),
   ]);
   S.sync = await sync.einstellungen();
   S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
@@ -1176,8 +1177,6 @@ function ansichtVolk() {
 
   ${varroaKarteHTML(v)}
 
-  ${wabenKarteHTML(v)}
-
   ${futterKarteHTML(v)}
 
   ${gewichtKarteHTML(v)}
@@ -1270,129 +1269,6 @@ function einordnungHTML(v) {
     ? ' ' + esc(t2('(Jungvolk – das erklärt es meist.)')) : ''}</div>`;
 }
 
-
-/**
- * Wabenalter im Volk.
- * Ein Maß, ein Balken je Jahrgang – alle in derselben Farbe, nur die zu alten
- * bekommen eine Beschriftung. Eine Färbung nach Alter würde behaupten, dunkles
- * Wachs sei ein Fehler; zu alt ist es erst ab drei Jahren, und das steht dann
- * ausdrücklich daneben.
- */
-function wabenKarteHTML(v) {
-  const lage = waben.wabenLage(S, v.id);
-  const knopf = `<div class="knopfreihe">
-    <button class="knopf leise klein" data-waben="${v.id}">${
-    esc(t2('Rähmchen buchen'))}</button></div>`;
-
-  if (!lage.erfasst) {
-    return `<h2 class="abschnitt">${esc(t2('Waben'))}</h2>
-    <div class="karte"><div class="karte-inhalt">
-      <div class="mini">${esc(t2('Noch keine Rähmchen erfasst. Sobald du beim Erweitern oder '
-      + 'bei der Wabenhygiene die Stückzahl mit einträgst, rechnet BeeWise das Wabenalter '
-      + 'mit – und schlägt zu alte Waben zum Ausschmelzen vor.'))}</div>
-      ${knopf}
-    </div></div>`;
-  }
-
-  const hoechst = Math.max(...lage.jahrgaenge.map((j) => j.anzahl), 1);
-  const zeilen = lage.jahrgaenge.map((j) => `<div class="vglzeile" data-waben="${v.id}">
-    <div class="vglname">${j.jahrgang}
-      <small>${esc(j.alter === 0 ? t2('dieses Jahr')
-    : t2('{n} Jahre alt', { n: j.alter }))}</small></div>
-    <div class="vglbalken"><i style="width:${Math.max(3, Math.round((j.anzahl / hoechst) * 100))}%
-      ${j.zuAlt ? ';opacity:.55' : ''}"></i>
-      <b>${j.anzahl}</b>${j.zuAlt ? `<small class="ausschmelzen">${
-    esc(t2('ausschmelzen'))}</small>` : ''}</div>
-  </div>`).join('');
-
-  const satz = waben.wabenSatz(lage, t2);
-  return `<h2 class="abschnitt">${esc(t2('Waben'))}</h2>
-  <div class="karte"><div class="karte-inhalt">
-    <div class="vgltitel">${esc(t2('Rähmchen je Jahrgang, {n} insgesamt', { n: lage.gesamt }))}</div>
-    <div class="vgl">${zeilen}</div>
-    ${satz ? `<div class="wabensatz${lage.alt ? ' warnung' : ''}">${esc(satz)}</div>` : ''}
-    ${lage.ausgeschmolzen ? `<div class="mini" style="margin-top:8px">${
-    esc(t2('{n} Waben wurden bisher ausgeschmolzen – abgezogen werden immer die ältesten '
-      + 'Jahrgänge.', { n: lage.ausgeschmolzen }))}</div>` : ''}
-    ${knopf}
-  </div></div>`;
-}
-
-/** Rähmchen buchen: neu eingehängt oder ausgeschmolzen. */
-function wabenSheet(volkId) {
-  const v = S.voelker.find((x) => x.id === volkId);
-  if (!v) return;
-  const lage = waben.wabenLage(S, volkId);
-  const jahr = heute().getFullYear();
-  const jahre = [];
-  for (let y = jahr; y >= jahr - 8; y--) jahre.push(String(y));
-
-  const felder = [
-    { key: 'art', label: 'Was ist passiert', typ: 'chips',
-      optionen: ['neu eingehängt', 'ausgeschmolzen'], standard: 'neu eingehängt' },
-    { key: 'anzahl', label: 'Anzahl Rähmchen', typ: 'zahl', einheit: 'Stück', schritt: 1 },
-    { key: 'jahrgang', label: 'Jahrgang', typ: 'auswahl', optionen: jahre, standard: String(jahr),
-      hinweis: 'Das Jahr, in dem die Mittelwand ins Volk kam. Für Altbestand ruhig schätzen.' },
-    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig' },
-  ];
-
-  sheetAuf({
-    titel: t2('Rähmchen buchen'),
-    unter: v.name + (lage.erfasst ? ` · ${t2('{n} Rähmchen erfasst', { n: lage.gesamt })}` : ''),
-    inhalt: `<div class="hinweis">${esc(t2('Erfasst wird je Jahrgang eine Stückzahl, nicht jede '
-      + 'Wabe einzeln – das ist am offenen Volk das Einzige, was man wirklich durchhält. '
-      + 'Ausgeschmolzene Waben zieht BeeWise von den ältesten Jahrgängen ab.'))}</div>
-      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
-      <div class="knopfreihe"><button class="knopf" data-ok>${
-  esc(t2('Speichern'))}</button></div>`,
-    danach(root) {
-      felderVerdrahten(root, felder);
-      root.querySelector('[data-ok]').onclick = async () => {
-        const w = werteLesen(root);
-        if (!w.anzahl) return toast(t2('Anzahl fehlt.'));
-        const raus = String(w.art || '').includes('ausgeschmolzen');
-        await db.schreibe('waben', {
-          id: uid(), volkId,
-          datum: iso(heute()),
-          jahrgang: raus ? null : Number(w.jahrgang) || jahr,
-          anzahl: Number(w.anzahl),
-          art: raus ? 'ausgeschmolzen' : 'neu',
-          notiz: w.notiz || '',
-        });
-        sheetZu(); await datenLaden(); render();
-        toast(raus ? t2('{n} Waben als ausgeschmolzen gebucht.', { n: Number(w.anzahl) })
-          : t2('{n} Rähmchen als Jahrgang {j} gebucht.',
-            { n: Number(w.anzahl), j: Number(w.jahrgang) || jahr }));
-      };
-    },
-  });
-}
-
-/**
- * Wabenbuchungen, die sich aus einer abgehakten Aufgabe ergeben.
- * Wer beim Erweitern sechs Mittelwände einhängt, hat das bereits erfasst –
- * die App bucht daraus den Jahrgang, ohne noch einmal zu fragen.
- */
-async function wabenAusAufgabe(regelId, volkId, datum, werte) {
-  const feld = waben.WABEN_AUS_AUFGABE[regelId];
-  const jahrgang = parseISO(datum).getFullYear();
-  let gebucht = 0;
-  if (feld && Number(werte[feld]) > 0) {
-    await db.schreibe('waben', {
-      id: uid(), volkId, datum, jahrgang, anzahl: Number(werte[feld]), art: 'neu',
-      quelle: regelId,
-    });
-    gebucht += Number(werte[feld]);
-  }
-  // „Entnommene Waben" bei der Wabenhygiene sind Abgänge
-  if (regelId === 'boden_waben' && Number(werte.waben) > 0) {
-    await db.schreibe('waben', {
-      id: uid(), volkId, datum, jahrgang: null, anzahl: Number(werte.waben),
-      art: 'ausgeschmolzen', quelle: regelId,
-    });
-  }
-  return gebucht;
-}
 
 /**
  * Varroa-Karte im Volk: Kurve, Schwelle, Behandlungen – und ein Satz, der die
@@ -1896,9 +1772,13 @@ function ansichtMehr() {
     <label class="feld" data-typ="wert" style="margin-top:8px"><span>Bildgröße neuer Fotos</span>
       <select data-fotokante>
         <option value="800">${esc(t2('sparsam (800 Punkte, ca. 60 kB)'))}</option>
-        <option value="1024">${esc(t2('normal (1024 Punkte, ca. 100 kB)'))}</option>
-        <option value="1600">${esc(t2('genau (1600 Punkte, ca. 250 kB)'))}</option>
+        <option value="1024">${esc(t2('normal (1024 Punkte, ca. 120 kB)'))}</option>
+        <option value="1600">${esc(t2('genau (1600 Punkte, ca. 300 kB)'))}</option>
+        <option value="2048">${esc(t2('sehr genau (2048 Punkte, ca. 500 kB)'))}</option>
       </select></label>
+    <div class="mini" style="margin-top:6px">${esc(t2('Zum Hineinzoomen auf Zellen und Maden '
+    + 'lohnen sich 1600 oder 2048 Punkte. Die Einstellung gilt für NEUE Fotos – bereits '
+    + 'gespeicherte Bilder bleiben, wie sie sind.'))}</div>
     <div class="knopfreihe">
       <button class="knopf leise klein" data-fotos-aufraeumen>${esc(t2('Alte Fotos löschen'))}</button>
     </div>
@@ -2094,7 +1974,6 @@ function verdrahten() {
   });
   on('[data-foto]', 'click', (e) => volksbildWaehlen(e.currentTarget.dataset.foto));
   on('[data-standfoto]', 'click', (e) => standbildWaehlen(e.currentTarget.dataset.standfoto));
-  on('[data-waben]', 'click', (e) => wabenSheet(e.currentTarget.dataset.waben));
   on('[data-wiegen]', 'click', (e) => wiegenSheet(e.currentTarget.dataset.wiegen));
   on('[data-futter-neu]', 'click', (e) => futterGabeSheet(e.currentTarget.dataset.futterNeu));
   on('[data-futter]', 'click', (e) => futterGabeSheet(S.volkId, e.currentTarget.dataset.futter));
@@ -2340,23 +2219,25 @@ async function fotoPufferSpeichern(volkId, durchsichtId, datum) {
 }
 
 /** Bild groß ansehen und bei Bedarf löschen. */
+/**
+ * Foto bildschirmfüllend ansehen – mit Zoom, Verschieben und dem Weg in die
+ * Galerie des Geräts (siehe js/bildschau.js). Ein Bild in fester Größe in einem
+ * Fenster war für Brutbilder wertlos.
+ */
 function fotoAnsehen(id) {
   const zeigen = async () => {
     const alle = await fotos.fotosVomVolk(S.volkId);
     const b = alle.find((x) => x.id === id);
     if (!b) return toast('Foto nicht gefunden.');
-    sheetAuf({
-      titel: 'Foto',
+    const volk = S.voelker.find((v) => v.id === b.volkId);
+    bildZeigen(b, {
+      titel: volk?.name || t2('Foto'),
       unter: fmtDatum(b.datum, true),
-      inhalt: `<img class="fotogross" src="${b.daten}" alt="">
-        <div class="knopfreihe">
-          <button class="knopf gefahr" data-del>Foto löschen</button>
-        </div>`,
-      danach(root) {
-        root.querySelector('[data-del]').onclick = async () => {
-          await fotos.fotoLoeschen(id);
-          sheetZu(); render(); toast('Foto gelöscht.');
-        };
+      beimLoeschen: async () => {
+        if (!await bestaetige(t2('Dieses Foto löschen?'))) return;
+        await fotos.fotoLoeschen(id);
+        render();
+        toast('Foto gelöscht.');
       },
     });
   };
@@ -2519,7 +2400,6 @@ async function aufgabeSpeichern(a, root, status) {
   }
 
   if (status === 'erledigt' && a.ziel.typ === 'volk' && !a.eigenId) {
-    await wabenAusAufgabe(a.regelId, a.ziel.id, datum, werte);
     await winterAusAufgabe(a.regelId, a.ziel.id, datum);
     await wiegungAusWerten(a.ziel.id, datum, werte);
   }
@@ -3577,7 +3457,7 @@ function futterKarteHTML(v) {
     </div>
     <div class="mini">${esc(t2('Winterfutter im Volk, gerechnet aus den Gaben'))}</div>
 
-    ${saetze.length ? `<div class="wabensatz${b.fehlt > 0 ? '' : ' gut'}">${
+    ${saetze.length ? `<div class="folgerung${b.fehlt > 0 ? '' : ' gut'}">${
     esc(saetze.join(' '))}</div>` : ''}
 
     <div class="futterliste">
@@ -3916,7 +3796,7 @@ function ansichtWinter() {
       ${kennzahl(b.rate != null ? `${String(b.rate).replace('.', ',')} %` : '–', 'Verlustrate',
     b.offen ? t2('{n} offen', { n: b.offen }) : '')}
     </div>
-    ${satz ? `<div class="wabensatz${b.verloren ? ' warnung' : ''}">${esc(satz)}</div>` : ''}
+    ${satz ? `<div class="folgerung${b.verloren ? ' warnung' : ''}">${esc(satz)}</div>` : ''}
     <div class="knopfreihe">
       ${offen.length ? `<button class="knopf" data-auswinterung>${
     esc(t2('Auswinterung erfassen'))}</button>` : ''}
@@ -4937,22 +4817,6 @@ async function beispieldaten() {
     notiz: 'noch ohne App gezählt', datum: `${j - 2}-10-01`,
   });
 
-  // Wabenalter: drei Jahrgänge je Volk, das erste Volk mit Altbestand –
-  // so zeigt die Karte gleich, wofür sie gedacht ist.
-  const wabenPlan = [[[j - 4, 4], [j - 2, 5], [j, 3]], [[j - 2, 6], [j - 1, 4], [j, 2]],
-    [[j - 3, 5], [j - 1, 5], [j, 2]]];
-  for (let i = 0; i < 3; i++) {
-    for (const [jahrgang, anzahl] of wabenPlan[i]) {
-      await db.schreibe('waben', {
-        id: uid(), volkId: v[i].id, datum: `${jahrgang}-04-15`, jahrgang, anzahl, art: 'neu',
-      });
-    }
-  }
-  await db.schreibe('waben', {
-    id: uid(), volkId: v[1].id, datum: `${j}-03-20`, jahrgang: null, anzahl: 2,
-    art: 'ausgeschmolzen',
-  });
-
   // Kassenbuch: eine Charge, zwei Verkäufe, drei Ausgaben – damit die Ansicht
   // beim Ausprobieren nicht leer bleibt.
   const tag = (n) => iso(addDays(heute(), -n));
@@ -5058,7 +4922,7 @@ function spracheAbfragen() {
   }
 })();
 
-window.__beewise = { S, db, futter, planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
+window.__beewise = { S, db, futter, fotoKante: () => fotos.kante(), planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
   gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText,
   standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen,
   get fotoPuffer() { return fotoPuffer; } };

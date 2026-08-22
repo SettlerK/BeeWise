@@ -20,9 +20,14 @@
 import * as db from './db.js';
 import { uid, iso, heute } from './util.js';
 
-export const KANTEN = [800, 1024, 1600];
+export const KANTEN = [800, 1024, 1600, 2048];
 const VORSCHAU = 220;
-const GUETE = 0.72;
+// Güte: 0,72 reichte, solange Bilder nur angesehen wurden. Zum Hineinzoomen auf
+// Zellen ist das zu wenig – dort werden die Artefakte sichtbar, bevor die
+// Auflösung endet. Deshalb 0,82 für das Bild und weiterhin sparsam für die
+// Vorschau, die nie vergrößert wird.
+const GUETE = 0.82;
+const GUETE_VORSCHAU = 0.7;
 
 // Die eingestellte Bildgröße wird beim Start EINMAL gelesen und hier gehalten.
 // Grund: `fotoAufnehmen()` muss ohne jedes `await` auskommen (siehe dort).
@@ -86,7 +91,7 @@ export function fotoAufnehmen() {
           c.width = Math.max(1, Math.round(bild.width * s));
           c.height = Math.max(1, Math.round(bild.height * s));
           c.getContext('2d').drawImage(bild, 0, 0, c.width, c.height);
-          return c.toDataURL('image/jpeg', GUETE);
+          return c.toDataURL('image/jpeg', kanteMax <= VORSCHAU ? GUETE_VORSCHAU : GUETE);
         };
         try {
           const daten = mal(max);

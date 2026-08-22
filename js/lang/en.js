@@ -1746,4 +1746,15 @@ export const en = {
   'Zuckerwasser 1:1': 'Sugar syrup 1:1',
   Liter: 'litres',
   '1 Ballon': '1 jar',
+
+  // ---------------------------------------------------------------- Bilder
+  'normal (1024 Punkte, ca. 120 kB)': 'normal (1024 px, about 120 kB)',
+  'genau (1600 Punkte, ca. 300 kB)': 'detailed (1600 px, about 300 kB)',
+  'sehr genau (2048 Punkte, ca. 500 kB)': 'very detailed (2048 px, about 500 kB)',
+  'Zum Hineinzoomen auf Zellen und Maden lohnen sich 1600 oder 2048 Punkte. Die Einstellung gilt für NEUE Fotos – bereits gespeicherte Bilder bleiben, wie sie sind.':
+    'For zooming in on cells and larvae, 1600 or 2048 px are worth it. The setting applies to '
+    + 'NEW photos – images already saved stay as they are.',
+  'Dieses Foto löschen?': 'Delete this photo?',
+  'Sichern / Teilen': 'Save / share',
+  'Ansicht zurücksetzen': 'Reset view',
 };

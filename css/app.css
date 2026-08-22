@@ -653,11 +653,11 @@ body.festgehalten{overflow:hidden}
 .varroalegende .mk.linie{border-color:var(--honig)}
 .varroalegende .mk.schwelle{border-color:var(--faellig);border-top-style:dashed}
 .varroalegende .mk.behandlung{border-color:var(--ueberfaellig);border-top-style:dashed;opacity:.7}
-.varroasatz,.wabensatz,.gewichtsatz{
+.varroasatz,.folgerung,.gewichtsatz{
   margin-top:9px;font-size:12.5px;line-height:1.5;padding:8px 10px;border-radius:9px;
   background:var(--bg);border-left:3px solid var(--rand-stark);color:var(--text-schwach);
 }
-.varroasatz.warnung,.wabensatz.warnung,.gewichtsatz.warnung{border-left-color:var(--ueberfaellig)}
+.varroasatz.warnung,.folgerung.warnung,.gewichtsatz.warnung{border-left-color:var(--ueberfaellig)}
 
 
 /* ----------------------------------------------------- Warnungen / Sicherung */
@@ -776,4 +776,40 @@ body.festgehalten{overflow:hidden}
 .futterzeile .ftext b{display:block;font-size:13.5px;font-weight:600}
 .futterzeile .ftext small{display:block;font-size:11.5px;color:var(--text-schwach)}
 .futterzeile .fwert{font-size:14px;font-variant-numeric:tabular-nums;font-weight:600}
-.wabensatz.gut{border-left-color:var(--ok,#5E9455)}
+.folgerung.gut{border-left-color:var(--ok,#5E9455)}
+
+/* ------------------------------------------------------------- Bildschau */
+/* Bildschirmfüllend, dunkel, mit eigener Gestensteuerung (siehe js/bildschau.js).
+   `touch-action:none` ist hier richtig: Zoom und Verschieben macht die App
+   selbst, der Browser soll nichts dazwischenfunken. */
+body.bildoffen{overflow:hidden}
+.bildschau{
+  position:fixed;inset:0;z-index:120;background:#0B0A09;color:#F5F1E9;
+  display:flex;flex-direction:column;touch-action:none;user-select:none;
+  padding-top:var(--sicher-oben);padding-bottom:var(--sicher-unten);
+}
+.bskopf{
+  display:flex;align-items:center;gap:12px;padding:10px 12px;flex:none;
+  background:linear-gradient(#0B0A09,rgba(11,10,9,0));
+}
+.bsknopf{
+  width:40px;height:40px;border-radius:99px;background:rgba(255,255,255,.12);
+  color:#F5F1E9;font-size:18px;line-height:1;flex:none;
+}
+.bstitel{flex:1;min-width:0;font-size:14px;font-weight:600;line-height:1.25}
+.bstitel small{display:block;font-weight:400;font-size:11.5px;opacity:.7}
+.bsmasse{font-size:11px;opacity:.55;font-variant-numeric:tabular-nums;flex:none}
+.bsflaeche{
+  flex:1;min-height:0;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.bsflaeche img{
+  max-width:100%;max-height:100%;object-fit:contain;transform-origin:center center;
+  will-change:transform;transition:transform .12s ease-out;
+}
+.bsflaeche img.gezoomt{transition:none;cursor:grab}
+.bsfuss{
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:10px 12px 14px;flex:none;
+}
+.bsfuss .knopf{background:rgba(255,255,255,.12);border-color:transparent;color:#F5F1E9}
+.bsfuss .knopf.loeschen{color:#F0A79B}
