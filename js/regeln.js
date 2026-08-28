@@ -23,6 +23,12 @@ export const KATEGORIEN = {
   varroa: { name: 'Varroa', farbe: '#C24B3D' },
   winter: { name: 'Einwinterung', farbe: '#4B77A6' },
   koenigin: { name: 'Königinnen', farbe: '#A6789B' },
+  // Schutz: Verteidigungsfähigkeit des Volkes und der Platz, auf dem es steht –
+  // Flugloch, Räuberei, Wespen und Hornissen, Wasser, Bewuchs.
+  schutz: { name: 'Schutz', farbe: '#3F8F86' },
+  // Gesundheit: Beobachtungspflichten und Ereignisse, vom Wabenlager bis zum
+  // Faulbrutverdacht.
+  gesundheit: { name: 'Gesundheit', farbe: '#B0623F' },
   betrieb: { name: 'Betrieb', farbe: '#7A7266' },
   eigene: { name: 'Eigene', farbe: '#8A6BA8' },
 };
@@ -378,6 +384,13 @@ export const REGELN = [
     anker: { typ: 'nachAufgabe', regel: 'sommertracht' },
     fenster: [1, 10],
     benoetigt: ['sommertracht'],
+    // Eine Ameisensäurebehandlung ist keine einmalige Handlung, sondern eine
+    // Serie: fällt zu wenig Milbe, wird nachgelegt. Die Aufgabe kommt deshalb
+    // wieder – als Angebot, nicht als Mahnung – bis Mitte September. Danach ist
+    // es zu kalt für eine verlässliche Verdunstung.
+    wiederholung: { min: 5, max: 21 },
+    wiederholungFreiwillig: true,
+    saisonEnde: [9, 15],
     hilfe: 'Ameisensäure Behandlung Schwammtuch Dosierung',
     felder: AS_FELDER,
   },
@@ -389,6 +402,9 @@ export const REGELN = [
     anker: { typ: 'nachAufgabe', regel: 'sommerbehandlung1' },
     fenster: [14, 21],
     benoetigt: ['sommerbehandlung1'],
+    wiederholung: { min: 5, max: 21 },
+    wiederholungFreiwillig: true,
+    saisonEnde: [9, 15],
     hilfe: 'Ameisensäure zweite Behandlung',
     felder: AS_FELDER,
   },
@@ -519,6 +535,257 @@ export const REGELN = [
   },
 
   // ------------------------------------------------------------------ Betrieb
+  // =========================================================== Schutz am Stand
+  // Diese Gruppe fehlte bisher ganz: Arbeiten, die nicht der Vermehrung, der
+  // Ernte oder der Gesundheit dienen, sondern der Verteidigungsfähigkeit des
+  // Volkes und dem Platz, auf dem es steht. Anlass war der Hinweis eines
+  // Imkerpaten – „verenge die Fluglöcher" –, für den es in der App keine
+  // Entsprechung gab.
+  {
+    id: 'flugloch_verengen',
+    titel: 'Fluglöcher verengen – Räuberei vorbeugen',
+    kurz: 'Fluglöcher verengen',
+    kategorie: 'schutz', ziel: 'volk', wichtig: true,
+    info: 'Mit dem Trachtende beginnt die Zeit der Räuberei: Ein kleines Flugloch lässt sich '
+      + 'von wenigen Wächterinnen halten, ein offenes über die ganze Zargenbreite nicht. '
+      + 'Richtwert: bei starken Völkern eine Handbreit (5–8 cm), bei Ablegern und schwachen '
+      + 'Völkern eine Bienenbreite (1–2 cm). Wichtige Ausnahme: solange Ameisensäure '
+      + 'verdunstet, braucht das Volk Luftwechsel – währenddessen das Flugloch offen lassen '
+      + 'und erst danach verengen. Und immer den ganzen Stand auf einmal: ein einzelnes weit '
+      + 'offenes Volk wird zum Ziel für alle anderen.',
+    checkliste: ['Alle Völker am Stand verengt', 'Schwache Völker auf Bienenbreite',
+      'Nichts Süßes offen stehen gelassen', 'Beute dicht – keine zweite Öffnung'],
+    anker: { typ: 'nachAufgabe', regel: 'sommertracht' },
+    fenster: [0, 7],
+    saisonEnde: [9, 30],
+    hilfe: 'Flugloch verengen Räuberei vermeiden',
+    felder: [
+      { key: 'weite', label: 'Flugloch jetzt', typ: 'auswahl',
+        optionen: ['ganz offen', 'etwa halb', 'Handbreit', 'Bienenbreite'] },
+      { key: 'mittel', label: 'Womit', typ: 'chips',
+        optionen: ['Fluglochkeil', 'Schaumstoff', 'Holzleiste', 'Fluglochschieber'] },
+      { key: 'raeuberei', label: 'Räuberei-Anzeichen', typ: 'auswahl',
+        optionen: ['keine', 'vereinzelt', 'deutlich'],
+        hinweis: 'Bei „deutlich" legt BeeWise sofort eine Aufgabe für den ganzen Stand an.' },
+      F.notiz,
+    ],
+  },
+  {
+    id: 'hornisse_beobachten',
+    titel: 'Wespen und Hornissen am Flugloch beobachten',
+    kurz: 'Hornissen beobachten',
+    kategorie: 'schutz', ziel: 'stand', freiwillig: true,
+    info: 'Die heimische Hornisse holt einzelne Bienen im Flug und ist für ein gesundes Volk '
+      + 'kein ernstes Problem; sie ist besonders geschützt, Nester dürfen nicht entfernt '
+      + 'werden. Die Asiatische Hornisse steht dagegen dauerhaft rüttelnd vor dem Flugloch – '
+      + 'die Völker stellen den Flugbetrieb ein und tragen nicht mehr ein. Sie ist deutlich '
+      + 'kleiner, fast schwarz mit einer orangen Binde am Hinterleib, gelben Beinenden und '
+      + 'orangem Gesicht. Sichtungen an die Naturschutzbehörde oder das Meldeportal des '
+      + 'Bundeslandes melden – Meldewege und Pflichten sind Ländersache; Nester nie selbst '
+      + 'entfernen. Am Stand hilft dasselbe wie gegen Räuberei: enges Flugloch, starke Völker, '
+      + 'nichts Süßes offen.',
+    anker: { typ: 'datum', von: [8, 1], bis: [10, 31] },
+    fenster: [0, 21],
+    wiederholung: { min: 10, max: 21 },
+    wiederholungFreiwillig: true,
+    hilfe: 'Asiatische Hornisse Vespa velutina Flugloch',
+    felder: [
+      { key: 'beobachtung', label: 'Beobachtung', typ: 'auswahl',
+        optionen: ['keine', 'einzelne Wespen', 'Hornissen einzeln',
+          'dauerhaftes Rütteln vor dem Flugloch'] },
+      { key: 'anzahl', label: 'Gleichzeitig vor einem Flugloch', typ: 'zahl',
+        einheit: 'Tiere', schritt: 1 },
+      { key: 'schritte', label: 'Getan', typ: 'chips',
+        optionen: ['gemeldet', 'Flugloch verengt', 'Volk versetzt'] },
+      F.notiz,
+    ],
+  },
+  {
+    id: 'traenke',
+    titel: 'Wassertränke einrichten',
+    kategorie: 'schutz', ziel: 'stand',
+    info: 'Wasser brauchen die Bienen zum Verdünnen des Futtersafts und zum Kühlen; ein starkes '
+      + 'Volk holt an heißen Tagen mehrere Liter in der Woche. Entscheidend ist der Zeitpunkt: '
+      + 'Bienen prägen sich ihre Wasserquelle ein und wechseln sie kaum noch – wer die Tränke '
+      + 'erst aufstellt, wenn der Nachbar sich über Bienen am Pool beschwert, kommt zu spät. '
+      + 'Einige Meter vom Stand entfernt, sonnig und windgeschützt, mit Landeflächen zum '
+      + 'Nichtertrinken (Steine, Moos, Kork). Leicht algiges Wasser wird lieber angenommen als '
+      + 'frisches Leitungswasser. Nie austrocknen lassen: nach zwei trockenen Tagen orientiert '
+      + 'sich das Volk um.',
+    anker: { typ: 'wetter', ereignis: 'ersterWarmtag', ersatz: [3, 10] },
+    fenster: [0, 14],
+    hilfe: 'Bienentränke Wasser Standort',
+    felder: [
+      { key: 'art', label: 'Art', typ: 'chips',
+        optionen: ['Vogeltränke mit Steinen', 'Eimer mit Schwimmern', 'Tropfsystem',
+          'natürliche Quelle in der Nähe'] },
+      { key: 'annahme', label: 'Annahme', typ: 'auswahl',
+        optionen: ['wird beflogen', 'noch nicht', 'nicht nötig, Wasser in der Nähe'] },
+      F.notiz,
+    ],
+  },
+  {
+    id: 'standpflege',
+    titel: 'Stand freischneiden und herrichten',
+    kurz: 'Stand herrichten',
+    kategorie: 'schutz', ziel: 'stand', freiwillig: true,
+    info: 'Bewuchs vor dem Flugloch bremst den Anflug, hält Feuchtigkeit an der Beute und ist '
+      + 'die bequemste Aufstiegshilfe für Mäuse. Beuten leicht nach vorn geneigt und quer '
+      + 'waagerecht stellen, damit Wasser abläuft und die Waben senkrecht hängen; wackelnde '
+      + 'Böcke werden beim ersten Zargenheben zum Problem. Der Zugang muss auch mit voller '
+      + 'Honigzarge begehbar sein. Beim Mähen nicht mit dem Freischneider vor dem Flugloch '
+      + 'arbeiten – Erschütterung und Grasauswurf bringen die Völker verlässlich auf.',
+    anker: { typ: 'datum', von: [4, 15], bis: [9, 30] },
+    fenster: [0, 30],
+    wiederholung: { min: 45, max: 75 },
+    wiederholungFreiwillig: true,
+    felder: [
+      { key: 'getan', label: 'Erledigt', typ: 'chips',
+        optionen: ['gemäht', 'Beuten ausgerichtet', 'Böcke geprüft', 'Deckel beschwert',
+          'Zugang frei', 'Zaun oder Sichtschutz'] },
+      F.notiz,
+    ],
+  },
+
+  // ======================================================= Gesundheit und Hygiene
+  {
+    id: 'waben_einlagern',
+    titel: 'Waben mottensicher einlagern',
+    kategorie: 'gesundheit', ziel: 'imkerei', wichtig: true,
+    info: 'Direkt nach der letzten Ernte stehen die meisten Waben außerhalb der Völker – und '
+      + 'die Wachsmotte hat bis zum Frost noch zwei Generationen Zeit. Gefährdet sind '
+      + 'bebrütete Waben; helle Honigraumwaben sind kaum betroffen. Nasse Honigräume abends '
+      + 'über dem Innendeckel ausschlecken lassen und morgens abnehmen – tagsüber offen am '
+      + 'Stand ist das eine Einladung zur Räuberei. Die einfachste Lagerung ist die beste: '
+      + 'Wabentürme kühl, hell, luftig und im Durchzug, oben und unten offen, nicht dicht '
+      + 'verschlossen im warmen Keller. Wo das nicht geht, ist B401 das Mittel der Wahl. '
+      + 'Mottenkugeln und Naphthalin sind verboten und ruinieren das Wachs dauerhaft.',
+    checkliste: ['Honigräume ausgeschleckt und abgenommen', 'Bebrütete Waben getrennt gestapelt',
+      'Türme oben und unten offen', 'Dunkle Waben zum Einschmelzen aussortiert'],
+    anker: { typ: 'nachAufgabe', regel: 'sommertracht' },
+    fenster: [0, 21],
+    hilfe: 'Waben lagern Wachsmotte B401',
+    felder: [
+      { key: 'eingelagert', label: 'Eingelagerte Waben', typ: 'zahl', einheit: 'Stück',
+        schritt: 1 },
+      { key: 'ausgeschmolzen', label: 'Zum Einschmelzen aussortiert', typ: 'zahl',
+        einheit: 'Stück', schritt: 1 },
+      { key: 'schutz', label: 'Schutz', typ: 'auswahl',
+        optionen: ['kühl und luftig', 'B401 (Bacillus thuringiensis)', 'Essigsäure 60 %',
+          'kein besonderer Schutz'] },
+      F.notiz,
+    ],
+  },
+  {
+    id: 'mauseschutz_ende',
+    titel: 'Mäusegitter abnehmen, Flugloch öffnen',
+    kurz: 'Mäusegitter abnehmen',
+    kategorie: 'fruehjahr', ziel: 'volk',
+    info: 'Ab Mitte März sucht keine Maus mehr eine besetzte Beute auf – das Gitter kostet ab '
+      + 'jetzt nur noch Leistung: Pollenhöschen werden abgestreift, die ersten Drohnen bleiben '
+      + 'stecken, Totenfall verstopft die Öffnungen. Beim ersten warmen Eingriff abnehmen, den '
+      + 'Boden dabei säubern. Das Flugloch aber nur so weit öffnen, wie das Volk es '
+      + 'verteidigen kann – ein schwaches Volk im April ist genauso räubergefährdet wie eines '
+      + 'im August. Gitter und Keile gleich reinigen und beschriftet einlagern, dann sind sie '
+      + 'im Oktober vollzählig.',
+    anker: { typ: 'nachAufgabe', regel: 'erste_durchsicht' },
+    fenster: [0, 21],
+    benoetigt: ['erste_durchsicht'],
+    felder: [
+      { key: 'weite', label: 'Flugloch danach', typ: 'auswahl',
+        optionen: ['ganz offen', 'etwa halb', 'Handbreit', 'Bienenbreite'] },
+      { key: 'getan', label: 'Erledigt', typ: 'chips',
+        optionen: ['Gitter ab', 'Keil ab', 'Boden gesäubert', 'eingelagert'] },
+      F.notiz,
+    ],
+  },
+
+  // ============================================== Varroa: das Fenster im Jungvolk
+  {
+    id: 'ableger_entmilben',
+    titel: 'Ableger im brutfreien Fenster entmilben',
+    kurz: 'Ableger entmilben',
+    kategorie: 'varroa', ziel: 'volk', wichtig: true,
+    info: 'Ein Brutableger nimmt mit der verdeckelten Brut die Milben mit und hat danach genau '
+      + 'ein Fenster ohne verdeckelte Brut – nach dem Schlüpfen der mitgegebenen Brut und '
+      + 'bevor die junge Königin selbst verdeckelte Brut hat. Dann sitzen alle Milben auf den '
+      + 'Bienen, und eine einzige Oxalsäurebehandlung wirkt so gut wie sonst nie im Jahr. Wer '
+      + 'das verpasst, hat im Herbst das am stärksten befallene Volk am Stand, weil Jungvölker '
+      + 'bei der Sommerbehandlung gern geschont werden. Vorher prüfen, ob wirklich keine '
+      + 'verdeckelte Brut mehr da ist – bei einer zugesetzten, bereits legenden Königin '
+      + 'entsteht das Fenster meist nicht; dann nicht träufeln, sondern das Jungvolk in die '
+      + 'reguläre Sommerbehandlung einbeziehen. Menge und Anwendung stehen in der '
+      + 'Gebrauchsinformation des Präparats.',
+    checkliste: ['Keine verdeckelte Brut mehr', 'Mildes Wetter', 'Nur eine Behandlung'],
+    anker: { typ: 'nachAufgabe', regel: 'ableger' },
+    fenster: [21, 32],
+    benoetigt: ['ableger'],
+    wetterbedarf: 'os',
+    hilfe: 'Ableger Oxalsäure brutfrei behandeln',
+    felder: [
+      { key: 'brutstatus', label: 'Brutstatus', typ: 'auswahl',
+        optionen: ['brutfrei', 'verdeckelte Brut vorhanden'] },
+      { key: 'praeparat', label: 'Präparat', typ: 'auswahl',
+        optionen: ['Oxalsäure-Träufellösung', 'anderes'] },
+      { key: 'milbenProTag', label: 'Totenfall nach drei Tagen', typ: 'zahl',
+        einheit: 'Milben pro Tag', schritt: 0.5 },
+      F.notiz,
+    ],
+  },
+  {
+    id: 'weiselkontrolle',
+    titel: 'Legebeginn der neuen Königin prüfen',
+    kurz: 'Legebeginn prüfen',
+    kategorie: 'koenigin', ziel: 'volk',
+    info: 'Gesucht werden Stifte oder junge Rundmaden, nicht die Königin – zwei, drei Waben aus '
+      + 'der Mitte genügen. Bei einer zugesetzten, begatteten Königin ist nach gut einer Woche '
+      + 'entschieden, ob sie angenommen wurde. Ist nichts zu finden, muss das nicht '
+      + 'Weisellosigkeit heißen: schlechtes Wetter verzögert Begattung und Legebeginn um ein '
+      + 'bis zwei Wochen. Sicherheit gibt die Weiselprobe – eine Wabe mit ganz jungen Maden aus '
+      + 'einem starken Volk: werden Weiselzellen angesetzt, ist das Volk weisellos.',
+    anker: { typ: 'nachAufgabe', regel: 'umweiseln' },
+    fenster: [8, 14],
+    benoetigt: ['umweiseln'],
+    wetterbedarf: 'oeffnen',
+    hilfe: 'Königin Legebeginn Weiselprobe',
+    felder: [
+      { key: 'befund', label: 'Befund', typ: 'auswahl',
+        optionen: ['Stifte gesehen', 'offene Brut', 'verdeckelte Brut', 'nichts gefunden'] },
+      { key: 'koenigin', label: 'Königin', typ: 'chips',
+        optionen: ['gesehen', 'gezeichnet', 'nicht gesehen'] },
+      { key: 'folge', label: 'Wie weiter', typ: 'auswahl',
+        optionen: ['weiter beobachten', 'Weiselprobe machen', 'vereinigt',
+          'neue Königin zusetzen'] },
+      F.notiz,
+    ],
+  },
+
+  // ================================================== Betrieb: rechtzeitig besorgen
+  {
+    id: 'material_sommer',
+    titel: 'Vor der Ernte: Futter, Säure und Gläser besorgen',
+    kurz: 'Material besorgen',
+    kategorie: 'betrieb', ziel: 'imkerei',
+    info: 'Nach der letzten Ernte folgen Behandlung und Auffütterung ohne Pause – wer dann erst '
+      + 'bestellt, verliert die Woche, in der die Ameisensäure noch bei brauchbaren '
+      + 'Temperaturen wirkt. Der Futterbedarf lässt sich aus der Völkerzahl vorab überschlagen '
+      + '(je nach Beute und Betriebsweise rund 15–20 kg je Volk), dazu Gläser, Deckel und '
+      + 'Etiketten. Bei der Säure gehören Vorrat, Verfallsdatum, Verdunster samt Dochten und '
+      + 'die Schutzausrüstung in dieselbe Prüfung – ein verhärteter Docht vom Vorjahr fällt '
+      + 'sonst am Behandlungstag auf. Für Menge und Anwendung gilt die Gebrauchsinformation '
+      + 'des Präparats, nicht die Gewohnheit vom letzten Jahr.',
+    anker: { typ: 'bluete', art: 'linde', ereignis: 'start' },
+    fenster: [-14, 21],
+    hilfe: 'Futter Ameisensäure Gläser bestellen',
+    felder: [
+      { key: 'zucker', label: 'Futter besorgt', typ: 'zahl', einheit: 'kg', schritt: 5 },
+      { key: 'geprueft', label: 'Geprüft und vorhanden', typ: 'chips',
+        optionen: ['Säure vorrätig', 'Verfallsdatum geprüft', 'Verdunster vollständig',
+          'Schutzausrüstung', 'Gläser und Deckel', 'Etiketten', 'Mittelwände',
+          'Futtergeschirr gereinigt'] },
+      F.notiz,
+    ],
+  },
   {
     id: 'werkstatt',
     titel: 'Werkstatt: Wachs schmelzen, Rähmchen, Beuten',
@@ -604,6 +871,49 @@ export function varroaSchwelle(monat) {
 }
 
 export const AUSLOESER = [
+  {
+    // Räuberei eskaliert in Stunden und endet mit einem toten Volk. Deshalb kein
+    // Zeitfenster, sondern sofort – und für den ganzen STAND, nicht nur für das
+    // betroffene Volk: ein einzelnes offenes Volk zieht alle anderen an.
+    id: 'raeuberei',
+    ziel: 'stand',
+    trifft: ({ daten }) => /deutlich/i.test(String(daten.raeuberei || ''))
+      || /Räuberei/i.test(String(daten.auffaellig || '')),
+    aufgabe: () => ({
+      titel: 'Räuberei stoppen – ganzen Stand verengen',
+      kategorie: 'schutz', wichtig: true, fenster: [0, 1],
+      info: 'Räuberei erkennt man am hektischen Suchen an Deckelrand und Ritzen, an Kämpfen vor '
+        + 'dem Flugloch, an Wachsdeckelchen vor der Beute und an zerbissenen Flügeln toter '
+        + 'Bienen. Erste Handlung: das betroffene Volk auf eine Bienenbreite verengen, dann '
+        + 'alle übrigen Völker am Stand ebenso. Ein nasses Tuch über die Beute oder ein '
+        + 'vorgestelltes Brett unterbricht den Anflug – die Räuberinnen verlieren den Einstieg, '
+        + 'die eigenen Bienen finden ihn wieder. Bis es vorbei ist: keine Waben, kein Honig, '
+        + 'keine offene Fütterung am Stand, Eingriffe kurz und am späten Abend. Ein beräubertes '
+        + 'Volk ist fast immer schwach oder weisellos – die Ursache danach klären, sonst '
+        + 'wiederholt sich alles in der nächsten Woche.',
+      hilfe: 'Räuberei stoppen Bienen',
+    }),
+  },
+  {
+    // Anzeigepflicht duldet kein Zeitfenster. Die App nennt bewusst kein
+    // Verfahren – das legt das Veterinäramt fest, und es ist Ländersache.
+    id: 'faulbrut_verdacht',
+    trifft: ({ daten }) => /löchriges Brutbild|fadenziehend/i.test(String(daten.auffaellig || '')),
+    aufgabe: () => ({
+      titel: 'Faulbrutverdacht: nichts bewegen, Veterinäramt anrufen',
+      kategorie: 'gesundheit', wichtig: true, fenster: [0, 1],
+      info: 'Die Amerikanische Faulbrut ist eine anzeigepflichtige Tierseuche – schon der '
+        + 'Verdacht ist dem zuständigen Veterinäramt zu melden. Verdachtsmomente: löchriges '
+        + 'Brutnest mit eingesunkenen, durchlöcherten, dunklen Zelldeckeln und Zellinhalt, der '
+        + 'sich mit einem Streichholz zu einem Faden von mehreren Zentimetern ziehen lässt. '
+        + 'Kalkbrutmumien und Sackbrut sehen anders aus. Ab dem Verdacht wird nichts mehr '
+        + 'bewegt: keine Waben zwischen Völkern, kein Wandern, kein Verkauf, keine Ableger, '
+        + 'keine Weitergabe von Honig oder Waben; Werkzeug und Handschuhe bleiben am Stand. '
+        + 'Alles Weitere – Futterkranzproben, Sperrbezirk, Sanierung – legt das Amt fest. Ein '
+        + 'Foto der Brutwabe hilft dem Bienensachverständigen.',
+      hilfe: 'Faulbrut Verdacht Streichholzprobe melden',
+    }),
+  },
   {
     id: 'varroa_alarm',
     trifft: ({ daten, monat }) => daten.milbenProTag != null

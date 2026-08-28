@@ -1276,9 +1276,18 @@ function einordnungHTML(v) {
  */
 function varroaKarteHTML(v) {
   const verlauf = varroaVerlauf(S, v.id);
-  if (!verlauf.messungen.length) {
-    // Ohne Messung keine Kurve, aber ein Hinweis, was dafür nötig wäre.
-    return '';
+  if (!verlauf.messungen.length && !verlauf.behandlungen.length) {
+    // Ohne Messung und ohne Behandlung gibt es nichts zu zeigen – aber der Weg
+    // zum Eintragen darf trotzdem nicht fehlen.
+    return `<h2 class="abschnitt">Varroa ${verlauf.jahr}</h2>
+    <div class="karte"><div class="karte-inhalt">
+      <div class="mini">${esc(t2('Noch kein Milbenfall gemessen und keine Behandlung erfasst. '
+      + 'Aus zwei Messungen um eine Behandlung herum sieht man, ob sie gewirkt hat.'))}</div>
+      <div class="knopfreihe">
+        <button class="knopf leise klein" data-behandlung-neu="${v.id}">${
+  esc(t2('Behandlung erfassen'))}</button>
+      </div>
+    </div></div>`;
   }
   const l = verlauf.lage;
   const saetze = [];
@@ -1302,18 +1311,117 @@ function varroaKarteHTML(v) {
   return `<h2 class="abschnitt">Varroa ${verlauf.jahr}</h2>
   <div class="karte"><div class="karte-inhalt">
     ${varroaBild(verlauf)}
-    <div class="varroalegende">
+    ${verlauf.messungen.length ? `<div class="varroalegende">
       <span><i class="mk linie"></i>${esc(t2('gemessener Milbenfall je Tag'))}</span>
       <span><i class="mk schwelle"></i>${esc(t2('Monatsschwelle'))}</span>
       ${verlauf.behandlungen.length ? `<span><i class="mk behandlung"></i>${
     esc(t2('Behandlung'))}</span>` : ''}
-    </div>
+    </div>` : ''}
     ${saetze.length ? `<div class="varroasatz${l?.ueber ? ' warnung' : ''}">${
     esc(saetze.join(' '))}</div>` : ''}
-    ${verlauf.behandlungen.length ? `<div class="mini" style="margin-top:8px">${
-    esc(verlauf.behandlungen.map((b) => `${fmtDatum(b.datum)} ${t2(b.kurz)}${
-      b.mittel ? ', ' + b.mittel : ''}${b.menge ? ', ' + b.menge : ''}`).join(' · '))}</div>` : ''}
+    ${verlauf.behandlungen.length ? `<div class="eintragliste">
+      ${verlauf.behandlungen.map((b) => `<div class="eintragzeile" data-behandlung="${b.id}">
+        <div class="etext"><b>${esc(fmtDatum(b.datum))}</b>
+          <small>${esc([t2(b.kurz), b.mittel, b.anwendung].filter(Boolean).join(' · '))}</small>
+        </div>
+        <div class="ewert">${esc(b.menge || '')}</div>
+        <span class="pfeil">›</span>
+      </div>`).join('')}
+    </div>` : ''}
+    <div class="knopfreihe">
+      <button class="knopf leise klein" data-behandlung-neu="${v.id}">${
+    esc(t2('Behandlung erfassen'))}</button>
+    </div>
   </div></div>`;
+}
+
+/**
+ * Varroabehandlung erfassen oder ändern.
+ *
+ * Eine Behandlung ist keine einmalige Handlung, sondern eine Serie: fällt zu
+ * wenig Milbe, wird nachgelegt. Erfasst wird deshalb dieselbe Art Datensatz wie
+ * beim Abhaken der Aufgabe – eine Erledigung der Behandlungsregel –, damit
+ * Kurve, Protokoll und Folgetermine dasselbe sehen, egal über welchen Weg sie
+ * eingetragen wurde.
+ *
+ * Bewusst OHNE Mengenvorschlag: für Menge und Anwendung gilt die
+ * Gebrauchsinformation des Präparats, nicht die App.
+ */
+function behandlungSheet(volkId, id = null) {
+  const v = S.voelker.find((x) => x.id === volkId);
+  if (!v) return;
+  const alt = id ? S.erledigungen.find((e) => e.id === id && !e.deletedAt) : null;
+  const ARTEN = {
+    'Sommerbehandlung 1': 'sommerbehandlung1',
+    'Sommerbehandlung 2': 'sommerbehandlung2',
+    Restentmilbung: 'restentmilbung',
+    'Drohnenbrut geschnitten': 'drohnenbrut',
+  };
+  const artVon = (regelId) => Object.keys(ARTEN).find((k) => ARTEN[k] === regelId)
+    || 'Sommerbehandlung 1';
+
+  const felder = [
+    { key: 'art', label: 'Welche Behandlung', typ: 'chips', einfach: true,
+      optionen: Object.keys(ARTEN), standard: artVon(alt?.regelId) },
+    { key: 'datum', label: 'Tag', typ: 'datum', standard: alt?.datum || iso(heute()) },
+    { key: 'praeparat', label: 'Präparat', typ: 'auswahl',
+      optionen: ['Ameisensäure 60 %', 'Ameisensäure 85 %', 'Milchsäure 15 %', 'Thymol-Präparat',
+        'Oxalsäure-Träufellösung', 'anderes'],
+      standard: alt?.daten?.praeparat || '' },
+    { key: 'anwendung', label: 'Anwendung', typ: 'auswahl',
+      optionen: ['Schwammtuch von oben', 'Nassenheider professionell', 'Liebig-Dispenser',
+        'Universalverdunster', 'Sprühbehandlung', 'Träufeln', 'Schnitt'],
+      standard: alt?.daten?.anwendung || '' },
+    { key: 'menge', label: 'Eingesetzte Menge', typ: 'zahl', einheit: 'ml je Volk', schritt: 5,
+      standard: alt?.daten?.menge ?? '',
+      hinweis: 'Menge und Anwendung stehen in der Gebrauchsinformation des Präparats.' },
+    { key: 'milbenProTag', label: 'Milbenfall danach', typ: 'zahl',
+      einheit: 'Milben pro Tag', schritt: 0.5, standard: alt?.daten?.milbenProTag ?? '',
+      hinweis: 'Wenn schon gezählt – dieser Wert erscheint als Punkt in der Kurve.' },
+    { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: alt?.daten?.notiz || '' },
+  ];
+
+  sheetAuf({
+    titel: alt ? t2('Behandlung ändern') : t2('Behandlung erfassen'),
+    unter: v.name,
+    inhalt: `<div class="hinweis">${esc(t2('Jede Gabe einzeln erfassen – auch eine wiederholte. '
+      + 'Die Kurve zeigt danach, ob der Milbenfall reagiert hat.'))}</div>
+      ${felder.map((f) => feldHTML(f, f.standard)).join('')}
+      <div class="knopfreihe">
+        <button class="knopf" data-ok>${esc(t2('Speichern'))}</button>
+        ${alt ? `<button class="knopf leise loeschen" data-del>${
+    esc(t2('Eintrag löschen'))}</button>` : ''}
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const w = werteLesen(root);
+        const regelId = ARTEN[w.art] || 'sommerbehandlung1';
+        const datum = w.datum || iso(heute());
+        await db.schreibe('erledigungen', {
+          ...(alt || {}),
+          id: alt?.id || uid(),
+          regelId, zielTyp: 'volk', zielId: volkId,
+          datum, status: 'erledigt',
+          daten: { ...(alt?.daten || {}),
+            praeparat: w.praeparat || null,
+            anwendung: w.anwendung || null,
+            menge: w.menge != null && w.menge !== '' ? Number(w.menge) : null,
+            milbenProTag: w.milbenProTag != null && w.milbenProTag !== ''
+              ? Number(w.milbenProTag) : null,
+            notiz: w.notiz || '' },
+          jahr: parseISO(datum).getFullYear(),
+          quelle: alt?.quelle || 'varroakarte',
+        });
+        sheetZu(); await datenLaden(); render();
+        toast(t2('{was} am {d} erfasst.', { was: t2(w.art || ''), d: fmtDatum(datum) }));
+      };
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        await db.loesche('erledigungen', alt.id);
+        sheetZu(); await datenLaden(); render(); toast(t2('Eintrag gelöscht.'));
+      });
+    },
+  });
 }
 
 /** Jahresbilanz je Saison: Ernte, Behandlungen, Durchsichten, Stärke. */
@@ -1976,6 +2084,10 @@ function verdrahten() {
   on('[data-standfoto]', 'click', (e) => standbildWaehlen(e.currentTarget.dataset.standfoto));
   on('[data-wiegen]', 'click', (e) => wiegenSheet(e.currentTarget.dataset.wiegen));
   on('[data-futter-neu]', 'click', (e) => futterGabeSheet(e.currentTarget.dataset.futterNeu));
+  on('[data-behandlung-neu]', 'click', (e) =>
+    behandlungSheet(e.currentTarget.dataset.behandlungNeu));
+  on('[data-behandlung]', 'click', (e) =>
+    behandlungSheet(S.volkId, e.currentTarget.dataset.behandlung));
   on('[data-futter]', 'click', (e) => futterGabeSheet(S.volkId, e.currentTarget.dataset.futter));
   on('[data-koe-neu]', 'click', (e) => koeniginSheet(e.currentTarget.dataset.koeNeu));
   on('[data-koe-bearbeiten]', 'click', (e) => koeniginSheet(null,
@@ -2406,9 +2518,11 @@ async function aufgabeSpeichern(a, root, status) {
 
   let neu = 0;
   if (status === 'erledigt' && a.ziel.typ === 'volk') {
+    const standDazu = S.standorte.find((x) => x.id === a.ziel.standortId) || null;
     neu = await ausloeserPruefen({
       daten: werte, zielTyp: 'volk', zielId: a.ziel.id, zielName: a.ziel.name, datum,
-      kontext: { nachBehandlung: a.regelId === 'behandlungserfolg' },
+      kontext: { nachBehandlung: a.regelId === 'behandlungserfolg',
+        stand: standDazu ? { id: standDazu.id, name: standDazu.name } : null },
     });
   }
 
@@ -2560,9 +2674,11 @@ function gruppeOeffnen(gruppe) {
             datum, status, daten: werte, jahr: parseISO(datum).getFullYear(),
           });
           if (status === 'erledigt' && a2.ziel.typ === 'volk') {
+            const st2 = S.standorte.find((x) => x.id === a2.ziel.standortId) || null;
             neu += await ausloeserPruefen({
               daten: werte, zielTyp: 'volk', zielId: a2.ziel.id, zielName: a2.ziel.name, datum,
-              kontext: { nachBehandlung: a2.regelId === 'behandlungserfolg' },
+              kontext: { nachBehandlung: a2.regelId === 'behandlungserfolg',
+                stand: st2 ? { id: st2.id, name: st2.name } : null },
             });
           }
         }
@@ -3460,16 +3576,16 @@ function futterKarteHTML(v) {
     ${saetze.length ? `<div class="folgerung${b.fehlt > 0 ? '' : ' gut'}">${
     esc(saetze.join(' '))}</div>` : ''}
 
-    <div class="futterliste">
-      ${b.gaben.map((g) => `<div class="futterzeile" data-futter="${g.id}">
-        <div class="ftext">
+    <div class="eintragliste">
+      ${b.gaben.map((g) => `<div class="eintragzeile" data-futter="${g.id}">
+        <div class="etext">
           <b>${esc(fmtDatum(g.datum))}</b>
           <small>${esc([g.ballons ? futter.ballonText(g.ballons, t2)
     : (g.menge != null ? `${String(g.menge).replace('.', ',')} ${t2(g.einheit || 'kg')}` : ''),
   g.mittel ? t2(g.mittel) : '',
   g.zweck === 'anfuettern' ? t2('Anfüttern') : ''].filter(Boolean).join(' · '))}</small>
         </div>
-        <div class="fwert">${esc(String(g.kg).replace('.', ','))} kg</div>
+        <div class="ewert">${esc(String(g.kg).replace('.', ','))} kg</div>
         <span class="pfeil">›</span>
       </div>`).join('')}
     </div>
@@ -4508,6 +4624,14 @@ const DURCHSICHT_FELDER = [
     hinweis: 'Über der Monatsschwelle legt die App selbstständig eine Behandlungsaufgabe an.' },
   { key: 'gewicht', label: 'Gewicht', typ: 'zahl', einheit: 'kg', schritt: 0.5,
     hinweis: 'Nur wenn du wiegst. Immer gleich ansetzen – aus zwei Wägungen wird die Zehrung.' },
+  // Ein Feld für alles, was auffällt. Jede Krankheit als eigene Aufgabe zu führen
+  // wäre Unsinn – aber gesehen haben muss man sie. Zwei der Einträge lösen
+  // selbstständig eine Aufgabe aus (Räuberei, Faulbrutverdacht).
+  { key: 'auffaellig', label: 'Aufgefallen', typ: 'chips',
+    optionen: ['Kalkbrutmumien vor dem Flugloch', 'Kotspritzer an Front oder Waben',
+      'buckelige Brut', 'löchriges Brutbild', 'verkrüppelte Flügel', 'ungewöhnlicher Geruch',
+      'Räuberei'],
+    hinweis: 'Bei „löchriges Brutbild" und „Räuberei" legt BeeWise sofort eine Aufgabe an.' },
   { key: 'notiz', label: 'Notiz' },
 ];
 
@@ -4546,8 +4670,10 @@ function durchsichtSheet(volkId) {
             daten: { zellen: w.zellen, stimmung: w.stimmung }, jahr: parseISO(datum).getFullYear(),
           });
         }
+        const stD = S.standorte.find((x) => x.id === v.standortId) || null;
         const neu = await ausloeserPruefen({
           daten: w, zielTyp: 'volk', zielId: volkId, zielName: v.name, datum,
+          kontext: { stand: stD ? { id: stD.id, name: stD.name } : null },
         });
         sheetZu(); await datenLaden(); render();
         toast(neu ? t('Durchsicht gespeichert. {n} neue Aufgaben angelegt.', { n: neu })

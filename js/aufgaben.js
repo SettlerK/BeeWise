@@ -25,16 +25,22 @@ export async function ausloeserPruefen({ daten, zielTyp, zielId, zielName, datum
     if (!trifft) continue;
 
     // Nicht doppelt anlegen: gleicher Auslöser, gleiches Ziel, noch offen
-    const doppelt = bestehende.some((a) => a.ausloeser === A.id && a.zielId === zielId
+    const zielFuerPruefung = A.ziel === 'stand' && kontext.stand ? kontext.stand.id : zielId;
+    const doppelt = bestehende.some((a) => a.ausloeser === A.id && a.zielId === zielFuerPruefung
       && Math.abs(diffTage(parseISO(a.von), d)) < 21);
     if (doppelt) continue;
 
     const v = A.aufgabe({ daten: daten || {}, monat, ...kontext });
+    // Manche Ereignisse betreffen den ganzen Stand, nicht das einzelne Volk –
+    // Räuberei zum Beispiel: ein offenes Nachbarvolk macht die Arbeit zunichte.
+    const amStand = A.ziel === 'stand' && kontext.stand;
     await db.schreibe('aufgaben', {
       id: uid(),
       titel: v.titel, info: v.info, kategorie: v.kategorie || 'eigene',
       wichtig: !!v.wichtig, hilfe: v.hilfe || null, wetterbedarf: v.wetterbedarf || null,
-      zielTyp, zielId, zielName,
+      zielTyp: amStand ? 'stand' : zielTyp,
+      zielId: amStand ? kontext.stand.id : zielId,
+      zielName: amStand ? kontext.stand.name : zielName,
       von: iso(addDays(d, v.fenster?.[0] ?? 0)),
       bis: iso(addDays(d, v.fenster?.[1] ?? 14)),
       quelle: 'auto', ausloeser: A.id, erledigtAm: null,

@@ -1757,4 +1757,236 @@ export const en = {
   'Dieses Foto löschen?': 'Delete this photo?',
   'Sichern / Teilen': 'Save / share',
   'Ansicht zurücksetzen': 'Reset view',
+
+  // ------------------------------------------------ Behandlungen und Schutz
+  'Behandlung erfassen': 'Record a treatment',
+  'Behandlung ändern': 'Change treatment',
+  'Noch kein Milbenfall gemessen und keine Behandlung erfasst. Aus zwei Messungen um eine Behandlung herum sieht man, ob sie gewirkt hat.':
+    'No mite drop measured and no treatment recorded yet. Two measurements around a treatment '
+    + 'show whether it worked.',
+  'Jede Gabe einzeln erfassen – auch eine wiederholte. Die Kurve zeigt danach, ob der Milbenfall reagiert hat.':
+    'Record each application separately – repeats included. The curve then shows whether the '
+    + 'mite drop reacted.',
+  '{was} am {d} erfasst.': '{was} recorded on {d}.',
+  'Welche Behandlung': 'Which treatment',
+  'Drohnenbrut geschnitten': 'Drone brood cut out',
+  'Milbenfall danach': 'Mite drop afterwards',
+  'Wenn schon gezählt – dieser Wert erscheint als Punkt in der Kurve.':
+    'If already counted – this value appears as a point on the curve.',
+  'Menge und Anwendung stehen in der Gebrauchsinformation des Präparats.':
+    'Dose and application are given in the product information leaflet.',
+  'Träufeln': 'Trickling',
+  Schnitt: 'Cut out',
+
+  // Kategorien
+  Schutz: 'Protection',
+  Gesundheit: 'Health',
+
+  // =============================================== Schutz, Gesundheit, Betrieb
+  'Fluglöcher verengen – Räuberei vorbeugen': 'Narrow the entrances – prevent robbing',
+  'Fluglöcher verengen': 'Narrow entrances',
+  'Mit dem Trachtende beginnt die Zeit der Räuberei: Ein kleines Flugloch lässt sich von wenigen Wächterinnen halten, ein offenes über die ganze Zargenbreite nicht. Richtwert: bei starken Völkern eine Handbreit (5–8 cm), bei Ablegern und schwachen Völkern eine Bienenbreite (1–2 cm). Wichtige Ausnahme: solange Ameisensäure verdunstet, braucht das Volk Luftwechsel – währenddessen das Flugloch offen lassen und erst danach verengen. Und immer den ganzen Stand auf einmal: ein einzelnes weit offenes Volk wird zum Ziel für alle anderen.':
+    'When the flow ends, the robbing season begins: a small entrance can be held by a few '
+    + 'guards, one the full width of the box cannot. Rule of thumb: a hand\'s width (5–8 cm) '
+    + 'for strong colonies, a bee\'s width (1–2 cm) for nuclei and weak ones. Important '
+    + 'exception: while formic acid is evaporating the colony needs air exchange – leave the '
+    + 'entrance open during the treatment and narrow it afterwards. And always the whole apiary '
+    + 'at once: a single wide-open colony becomes the target for all the others.',
+  'Alle Völker am Stand verengt': 'All colonies at the apiary narrowed',
+  'Schwache Völker auf Bienenbreite': 'Weak colonies down to a bee\'s width',
+  'Nichts Süßes offen stehen gelassen': 'Nothing sweet left standing open',
+  'Beute dicht – keine zweite Öffnung': 'Hive tight – no second opening',
+  'Flugloch jetzt': 'Entrance now',
+  'ganz offen': 'fully open',
+  'etwa halb': 'about half',
+  Handbreit: 'a hand\'s width',
+  Bienenbreite: 'a bee\'s width',
+  Womit: 'With what',
+  Schaumstoff: 'Foam',
+  Holzleiste: 'Wooden strip',
+  Fluglochschieber: 'Entrance slide',
+  'Räuberei-Anzeichen': 'Signs of robbing',
+  'Bei „deutlich" legt BeeWise sofort eine Aufgabe für den ganzen Stand an.':
+    'For “clear”, BeeWise immediately creates a task for the whole apiary.',
+  vereinzelt: 'occasional',
+  deutlich: 'clear',
+  'Räuberei stoppen – ganzen Stand verengen': 'Stop robbing – narrow the whole apiary',
+  'Räuberei erkennt man am hektischen Suchen an Deckelrand und Ritzen, an Kämpfen vor dem Flugloch, an Wachsdeckelchen vor der Beute und an zerbissenen Flügeln toter Bienen. Erste Handlung: das betroffene Volk auf eine Bienenbreite verengen, dann alle übrigen Völker am Stand ebenso. Ein nasses Tuch über die Beute oder ein vorgestelltes Brett unterbricht den Anflug – die Räuberinnen verlieren den Einstieg, die eigenen Bienen finden ihn wieder. Bis es vorbei ist: keine Waben, kein Honig, keine offene Fütterung am Stand, Eingriffe kurz und am späten Abend. Ein beräubertes Volk ist fast immer schwach oder weisellos – die Ursache danach klären, sonst wiederholt sich alles in der nächsten Woche.':
+    'Robbing shows as frantic searching along the lid and cracks, fighting in front of the '
+    + 'entrance, wax cappings on the ground and chewed wings on dead bees. First action: narrow '
+    + 'the affected colony to a bee\'s width, then every other colony at the apiary too. A wet '
+    + 'cloth over the hive or a board in front of it breaks the approach – robbers lose the '
+    + 'entrance, the colony\'s own bees find it again. Until it is over: no combs, no honey, no '
+    + 'open feeding at the apiary, and keep interventions short and late in the evening. A '
+    + 'robbed colony is almost always weak or queenless – find the cause afterwards, or it '
+    + 'repeats next week.',
+
+  'Wespen und Hornissen am Flugloch beobachten': 'Watch for wasps and hornets at the entrance',
+  'Hornissen beobachten': 'Watch for hornets',
+  'Die heimische Hornisse holt einzelne Bienen im Flug und ist für ein gesundes Volk kein ernstes Problem; sie ist besonders geschützt, Nester dürfen nicht entfernt werden. Die Asiatische Hornisse steht dagegen dauerhaft rüttelnd vor dem Flugloch – die Völker stellen den Flugbetrieb ein und tragen nicht mehr ein. Sie ist deutlich kleiner, fast schwarz mit einer orangen Binde am Hinterleib, gelben Beinenden und orangem Gesicht. Sichtungen an die Naturschutzbehörde oder das Meldeportal des Bundeslandes melden – Meldewege und Pflichten sind Ländersache; Nester nie selbst entfernen. Am Stand hilft dasselbe wie gegen Räuberei: enges Flugloch, starke Völker, nichts Süßes offen.':
+    'The native hornet takes the odd bee in flight and is no serious problem for a healthy '
+    + 'colony; it is protected and its nests must not be removed. The Asian hornet, by contrast, '
+    + 'hovers in front of the entrance continuously – colonies stop flying and stop bringing '
+    + 'anything in. It is noticeably smaller, almost black with an orange band on the abdomen, '
+    + 'yellow leg ends and an orange face. Report sightings to the nature conservation authority '
+    + 'or your region\'s reporting portal – reporting routes and duties differ by region; never '
+    + 'remove a nest yourself. At the apiary the same things help as against robbing: a narrow '
+    + 'entrance, strong colonies, nothing sweet left open.',
+  Beobachtung: 'Observation',
+  'einzelne Wespen': 'a few wasps',
+  'Hornissen einzeln': 'single hornets',
+  'dauerhaftes Rütteln vor dem Flugloch': 'continuous hovering at the entrance',
+  'Gleichzeitig vor einem Flugloch': 'At one entrance at the same time',
+  Tiere: 'animals',
+  Getan: 'Done',
+  gemeldet: 'reported',
+  'Flugloch verengt': 'entrance narrowed',
+  'Volk versetzt': 'colony moved',
+
+  'Wassertränke einrichten': 'Set up a water source',
+  'Wasser brauchen die Bienen zum Verdünnen des Futtersafts und zum Kühlen; ein starkes Volk holt an heißen Tagen mehrere Liter in der Woche. Entscheidend ist der Zeitpunkt: Bienen prägen sich ihre Wasserquelle ein und wechseln sie kaum noch – wer die Tränke erst aufstellt, wenn der Nachbar sich über Bienen am Pool beschwert, kommt zu spät. Einige Meter vom Stand entfernt, sonnig und windgeschützt, mit Landeflächen zum Nichtertrinken (Steine, Moos, Kork). Leicht algiges Wasser wird lieber angenommen als frisches Leitungswasser. Nie austrocknen lassen: nach zwei trockenen Tagen orientiert sich das Volk um.':
+    'Bees need water to dilute brood food and to cool the hive; on hot days a strong colony '
+    + 'fetches several litres a week. Timing is what matters: bees imprint on a water source and '
+    + 'barely change it – setting one up once the neighbour complains about bees at the pool is '
+    + 'too late. A few metres from the hives, sunny and sheltered, with landing surfaces so they '
+    + 'do not drown (stones, moss, cork). Slightly algal water is taken far more readily than '
+    + 'fresh tap water. Never let it dry out: after two dry days the colony moves on.',
+  'Vogeltränke mit Steinen': 'Bird bath with stones',
+  'Eimer mit Schwimmern': 'Bucket with floats',
+  Tropfsystem: 'Drip system',
+  'natürliche Quelle in der Nähe': 'natural source nearby',
+  Annahme: 'Take-up',
+  'wird beflogen': 'being used',
+  'noch nicht': 'not yet',
+  'nicht nötig, Wasser in der Nähe': 'not needed, water nearby',
+
+  'Stand freischneiden und herrichten': 'Clear and tidy the apiary site',
+  'Stand herrichten': 'Tidy the site',
+  'Bewuchs vor dem Flugloch bremst den Anflug, hält Feuchtigkeit an der Beute und ist die bequemste Aufstiegshilfe für Mäuse. Beuten leicht nach vorn geneigt und quer waagerecht stellen, damit Wasser abläuft und die Waben senkrecht hängen; wackelnde Böcke werden beim ersten Zargenheben zum Problem. Der Zugang muss auch mit voller Honigzarge begehbar sein. Beim Mähen nicht mit dem Freischneider vor dem Flugloch arbeiten – Erschütterung und Grasauswurf bringen die Völker verlässlich auf.':
+    'Growth in front of the entrance slows the approach, keeps damp against the hive and is the '
+    + 'most convenient ladder for mice. Set hives tilted slightly forward and level sideways so '
+    + 'water runs off and combs hang straight; wobbly stands become a problem the first time you '
+    + 'lift a box. The access has to be walkable with a full super, too. When mowing, do not use '
+    + 'a strimmer in front of the entrance – the vibration and grass reliably rile the colonies.',
+  'gemäht': 'mown',
+  'Beuten ausgerichtet': 'hives levelled',
+  'Böcke geprüft': 'stands checked',
+  'Deckel beschwert': 'lids weighed down',
+  'Zugang frei': 'access clear',
+  'Zaun oder Sichtschutz': 'fence or screen',
+
+  'Waben mottensicher einlagern': 'Store combs safe from wax moth',
+  'Direkt nach der letzten Ernte stehen die meisten Waben außerhalb der Völker – und die Wachsmotte hat bis zum Frost noch zwei Generationen Zeit. Gefährdet sind bebrütete Waben; helle Honigraumwaben sind kaum betroffen. Nasse Honigräume abends über dem Innendeckel ausschlecken lassen und morgens abnehmen – tagsüber offen am Stand ist das eine Einladung zur Räuberei. Die einfachste Lagerung ist die beste: Wabentürme kühl, hell, luftig und im Durchzug, oben und unten offen, nicht dicht verschlossen im warmen Keller. Wo das nicht geht, ist B401 das Mittel der Wahl. Mottenkugeln und Naphthalin sind verboten und ruinieren das Wachs dauerhaft.':
+    'Right after the last harvest most combs are outside the colonies – and the wax moth still '
+    + 'has two generations before the frost. Brood combs are at risk; pale super combs hardly '
+    + 'are. Let wet supers be licked dry above the crown board in the evening and take them off '
+    + 'in the morning – standing open at the apiary during the day is an invitation to robbing. '
+    + 'The simplest storage is the best: comb towers cool, light, airy and in a draught, open at '
+    + 'top and bottom, not sealed in a warm cellar. Where that is not possible, B401 is the '
+    + 'means of choice. Mothballs and naphthalene are banned and ruin the wax for good.',
+  'Honigräume ausgeschleckt und abgenommen': 'Supers licked dry and removed',
+  'Bebrütete Waben getrennt gestapelt': 'Brood combs stacked separately',
+  'Türme oben und unten offen': 'Towers open at top and bottom',
+  'Dunkle Waben zum Einschmelzen aussortiert': 'Dark combs set aside for melting',
+  'Eingelagerte Waben': 'Combs stored',
+  'Zum Einschmelzen aussortiert': 'Set aside for melting',
+  'kühl und luftig': 'cool and airy',
+  'B401 (Bacillus thuringiensis)': 'B401 (Bacillus thuringiensis)',
+  'Essigsäure 60 %': 'Acetic acid 60 %',
+  'kein besonderer Schutz': 'no special protection',
+
+  'Mäusegitter abnehmen, Flugloch öffnen': 'Take off mouse guards, open the entrance',
+  'Mäusegitter abnehmen': 'Take off mouse guards',
+  'Ab Mitte März sucht keine Maus mehr eine besetzte Beute auf – das Gitter kostet ab jetzt nur noch Leistung: Pollenhöschen werden abgestreift, die ersten Drohnen bleiben stecken, Totenfall verstopft die Öffnungen. Beim ersten warmen Eingriff abnehmen, den Boden dabei säubern. Das Flugloch aber nur so weit öffnen, wie das Volk es verteidigen kann – ein schwaches Volk im April ist genauso räubergefährdet wie eines im August. Gitter und Keile gleich reinigen und beschriftet einlagern, dann sind sie im Oktober vollzählig.':
+    'From mid-March no mouse goes into an occupied hive any more – from then on the guard only '
+    + 'costs performance: pollen loads are scraped off, the first drones get stuck, dead bees '
+    + 'block the openings. Take it off at the first warm inspection and clean the floor while '
+    + 'you are there. But only open the entrance as far as the colony can defend it – a weak '
+    + 'colony in April is as much at risk of robbing as one in August. Clean guards and blocks '
+    + 'straight away and store them labelled; then they are all there in October.',
+  'Flugloch danach': 'Entrance afterwards',
+  'Gitter ab': 'guard off',
+  'Keil ab': 'block off',
+  'Boden gesäubert': 'floor cleaned',
+  eingelagert: 'stored away',
+
+  'Ableger im brutfreien Fenster entmilben': 'Treat the nucleus in its brood-free window',
+  'Ableger entmilben': 'Treat the nucleus',
+  'Ein Brutableger nimmt mit der verdeckelten Brut die Milben mit und hat danach genau ein Fenster ohne verdeckelte Brut – nach dem Schlüpfen der mitgegebenen Brut und bevor die junge Königin selbst verdeckelte Brut hat. Dann sitzen alle Milben auf den Bienen, und eine einzige Oxalsäurebehandlung wirkt so gut wie sonst nie im Jahr. Wer das verpasst, hat im Herbst das am stärksten befallene Volk am Stand, weil Jungvölker bei der Sommerbehandlung gern geschont werden. Vorher prüfen, ob wirklich keine verdeckelte Brut mehr da ist – bei einer zugesetzten, bereits legenden Königin entsteht das Fenster meist nicht; dann nicht träufeln, sondern das Jungvolk in die reguläre Sommerbehandlung einbeziehen. Menge und Anwendung stehen in der Gebrauchsinformation des Präparats.':
+    'A brood nucleus takes the mites with it in the sealed brood and then has exactly one window '
+    + 'without sealed brood – after the brood it was given has emerged and before the young '
+    + 'queen has sealed brood of her own. All mites are then on the bees, and a single oxalic '
+    + 'acid treatment works as well as at no other time of year. Miss it and you have the most '
+    + 'heavily infested colony of the apiary in autumn, because young colonies tend to be spared '
+    + 'during the summer treatment. Check first that there really is no sealed brood – with a '
+    + 'mated queen introduced ready to lay, the window usually does not appear; then do not '
+    + 'trickle, but include the young colony in the regular summer treatment. Dose and '
+    + 'application are given in the product information leaflet.',
+  'Keine verdeckelte Brut mehr': 'No sealed brood left',
+  'Mildes Wetter': 'Mild weather',
+  'Nur eine Behandlung': 'Only one treatment',
+  Brutstatus: 'Brood status',
+  'verdeckelte Brut vorhanden': 'sealed brood present',
+  'Totenfall nach drei Tagen': 'Mite drop after three days',
+
+  'Legebeginn der neuen Königin prüfen': 'Check that the new queen has started laying',
+  'Legebeginn prüfen': 'Check laying start',
+  'Gesucht werden Stifte oder junge Rundmaden, nicht die Königin – zwei, drei Waben aus der Mitte genügen. Bei einer zugesetzten, begatteten Königin ist nach gut einer Woche entschieden, ob sie angenommen wurde. Ist nichts zu finden, muss das nicht Weisellosigkeit heißen: schlechtes Wetter verzögert Begattung und Legebeginn um ein bis zwei Wochen. Sicherheit gibt die Weiselprobe – eine Wabe mit ganz jungen Maden aus einem starken Volk: werden Weiselzellen angesetzt, ist das Volk weisellos.':
+    'Look for eggs or young round larvae, not for the queen – two or three combs from the middle '
+    + 'are enough. With an introduced mated queen it is settled after a good week whether she '
+    + 'was accepted. Finding nothing does not have to mean queenlessness: poor weather delays '
+    + 'mating and the start of laying by one or two weeks. The test frame gives certainty – a '
+    + 'comb with very young larvae from a strong colony: if queen cells are drawn on it, the '
+    + 'colony is queenless.',
+  Befund: 'Finding',
+  'Stifte gesehen': 'eggs seen',
+  'nichts gefunden': 'nothing found',
+  gezeichnet: 'marked',
+  'Wie weiter': 'What next',
+  'weiter beobachten': 'keep watching',
+  'Weiselprobe machen': 'use a test frame',
+  'neue Königin zusetzen': 'introduce a new queen',
+
+  'Vor der Ernte: Futter, Säure und Gläser besorgen':
+    'Before the harvest: get feed, acid and jars',
+  'Material besorgen': 'Get materials',
+  'Nach der letzten Ernte folgen Behandlung und Auffütterung ohne Pause – wer dann erst bestellt, verliert die Woche, in der die Ameisensäure noch bei brauchbaren Temperaturen wirkt. Der Futterbedarf lässt sich aus der Völkerzahl vorab überschlagen (je nach Beute und Betriebsweise rund 15–20 kg je Volk), dazu Gläser, Deckel und Etiketten. Bei der Säure gehören Vorrat, Verfallsdatum, Verdunster samt Dochten und die Schutzausrüstung in dieselbe Prüfung – ein verhärteter Docht vom Vorjahr fällt sonst am Behandlungstag auf. Für Menge und Anwendung gilt die Gebrauchsinformation des Präparats, nicht die Gewohnheit vom letzten Jahr.':
+    'After the last harvest, treatment and feeding follow without a pause – order only then and '
+    + 'you lose the week in which formic acid still works at usable temperatures. The feed '
+    + 'requirement can be estimated in advance from the number of colonies (roughly 15–20 kg per '
+    + 'colony depending on hive and management), plus jars, lids and labels. For the acid, '
+    + 'stock, expiry date, evaporators with their wicks and the protective equipment belong in '
+    + 'the same check – otherwise a wick hardened since last year turns up on treatment day. For '
+    + 'dose and application the product information leaflet applies, not last year\'s habit.',
+  'Futter besorgt': 'Feed obtained',
+  'Geprüft und vorhanden': 'Checked and in stock',
+  'Säure vorrätig': 'acid in stock',
+  'Verfallsdatum geprüft': 'expiry date checked',
+  'Verdunster vollständig': 'evaporator complete',
+  Schutzausrüstung: 'protective equipment',
+  Etiketten: 'labels',
+  'Mittelwände': 'foundation',
+  'Futtergeschirr gereinigt': 'feeders cleaned',
+
+  'Faulbrutverdacht: nichts bewegen, Veterinäramt anrufen':
+    'Suspected foulbrood: move nothing, call the veterinary office',
+  'Die Amerikanische Faulbrut ist eine anzeigepflichtige Tierseuche – schon der Verdacht ist dem zuständigen Veterinäramt zu melden. Verdachtsmomente: löchriges Brutnest mit eingesunkenen, durchlöcherten, dunklen Zelldeckeln und Zellinhalt, der sich mit einem Streichholz zu einem Faden von mehreren Zentimetern ziehen lässt. Kalkbrutmumien und Sackbrut sehen anders aus. Ab dem Verdacht wird nichts mehr bewegt: keine Waben zwischen Völkern, kein Wandern, kein Verkauf, keine Ableger, keine Weitergabe von Honig oder Waben; Werkzeug und Handschuhe bleiben am Stand. Alles Weitere – Futterkranzproben, Sperrbezirk, Sanierung – legt das Amt fest. Ein Foto der Brutwabe hilft dem Bienensachverständigen.':
+    'American foulbrood is a notifiable disease – even the suspicion must be reported to the '
+    + 'responsible veterinary office. Signs: a patchy brood nest with sunken, perforated, dark '
+    + 'cappings and cell contents that can be drawn out with a matchstick into a thread several '
+    + 'centimetres long. Chalkbrood mummies and sacbrood look different. From the suspicion on, '
+    + 'nothing is moved: no combs between colonies, no migration, no sales, no nuclei, no '
+    + 'passing on of honey or combs; tools and gloves stay at the apiary. Everything else – '
+    + 'food-rim samples, restricted zone, remediation – is decided by the authority. A photo of '
+    + 'the brood comb helps the bee inspector.',
+
+  Aufgefallen: 'Noticed',
+  'Kalkbrutmumien vor dem Flugloch': 'chalkbrood mummies at the entrance',
+  'Kotspritzer an Front oder Waben': 'faecal spotting on the front or combs',
+  'buckelige Brut': 'domed brood',
+  'löchriges Brutbild': 'patchy brood pattern',
+  'verkrüppelte Flügel': 'deformed wings',
+  'ungewöhnlicher Geruch': 'unusual smell',
+  'Bei „löchriges Brutbild" und „Räuberei" legt BeeWise sofort eine Aufgabe an.':
+    'For “patchy brood pattern” and “robbing”, BeeWise creates a task straight away.',
 };

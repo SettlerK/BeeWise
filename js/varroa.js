@@ -44,10 +44,12 @@ export function varroaVerlauf(S, volkId, jahr = heute().getFullYear()) {
     .filter((e) => e.zielId === volkId && !e.deletedAt && e.status !== 'uebersprungen'
       && imJahr(e.datum) && (VARROA_MITTEL.includes(e.regelId) || VARROA_BIOTECHNIK.includes(e.regelId)))
     .map((e) => ({
+      id: e.id,                       // damit die Karte den Eintrag ändern kann
       datum: e.datum,
       regelId: e.regelId,
       biotechnisch: VARROA_BIOTECHNIK.includes(e.regelId),
       mittel: e.daten?.praeparat || '',
+      anwendung: e.daten?.anwendung || '',
       menge: e.daten?.menge != null ? `${e.daten.menge} ml` : '',
       kurz: kurzname(e.regelId),
     }))

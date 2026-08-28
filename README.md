@@ -738,6 +738,58 @@ späte Linde. Zwei Dinge folgen daraus:
 Im Kassenbuch stehen bei mehr als einer Ernte die **einzelnen Termine** mit Datum, Sorte,
 Völkerzahl und Menge; ein Feld leeren heißt löschen, aber nur den Eintrag dieses Tages.
 
+## Schutz und Gesundheit – zwei neue Kategorien
+
+Anlass war ein Satz des Imkerpaten: „Verenge die Fluglöcher." Dafür gab es in der App keine
+Entsprechung – und dahinter steckte eine ganze Klasse von Arbeiten, die weder Vermehrung noch
+Ernte noch Behandlung sind: die **Verteidigungsfähigkeit** des Volkes und der Platz, auf dem es
+steht. Zwei Kategorien kamen dazu, damit diese Aufgaben im Kalender eine eigene Farbe haben:
+**Schutz** (Flugloch, Räuberei, Wespen und Hornissen, Wasser, Bewuchs) und **Gesundheit**
+(Wabenlager, Faulbrutverdacht).
+
+| Neu | Wann | Kern |
+|---|---|---|
+| **Fluglöcher verengen** | 0–7 Tage nach der letzten Ernte, bis 30.9. | Handbreit bei starken, Bienenbreite bei schwachen Völkern. Ausnahme: während die Ameisensäure verdunstet, bleibt es offen. Immer der ganze Stand auf einmal. |
+| **Räuberei stoppen** | sofort, automatisch ausgelöst | Erkennungsmerkmale, Sofortmaßnahmen, und der Hinweis, dass ein beräubertes Volk fast immer schwach oder weisellos ist |
+| **Wespen und Hornissen beobachten** | 1.8.–31.10., alle 10–21 Tage, freiwillig | Unterschied heimische Hornisse / Asiatische Hornisse, Meldewege sind Ländersache, Nester nie selbst entfernen |
+| **Wassertränke einrichten** | erster Warmtag, 0–14 Tage | Bienen prägen sich die Quelle ein – wer im Juni anfängt, kommt zu spät |
+| **Stand freischneiden** | 15.4.–30.9., alle 45–75 Tage, freiwillig | Bewuchs bremst den Anflug und ist die Aufstiegshilfe für Mäuse |
+| **Waben mottensicher einlagern** | 0–21 Tage nach der letzten Ernte | Kühl, hell, luftig im Durchzug schlägt jedes dichte Verpacken; B401 wo nötig |
+| **Mäusegitter abnehmen** | 0–21 Tage nach der ersten Durchsicht | Das fehlende Gegenstück zum Mäuseschutz: Höschen werden abgestreift, Drohnen bleiben stecken |
+| **Ableger im brutfreien Fenster entmilben** | 21–32 Tage nach der Ablegerbildung | Das eine Fenster im Jahr, in dem eine einzige Oxalsäuregabe fast alles erwischt |
+| **Legebeginn der neuen Königin prüfen** | 8–14 Tage nach dem Umweiseln | Stifte suchen, nicht die Königin; Weiselprobe als sicherer Test |
+| **Vor der Ernte Material besorgen** | ab Lindenblüte | Säure, Verdunster, Dochte, Futter, Gläser – der Bedarf entsteht schlagartig am Tag der letzten Ernte |
+| **Faulbrutverdacht** | sofort, automatisch ausgelöst | Anzeigepflicht: Amt anrufen, nichts mehr bewegen. Die App nennt bewusst kein Verfahren – das legt das Veterinäramt fest |
+
+Dazu ein Feld **„Aufgefallen"** in der Durchsicht (Kalkbrutmumien, Kotspritzer, buckelige Brut,
+löchriges Brutbild, verkrüppelte Flügel, ungewöhnlicher Geruch, Räuberei). Es macht Krankheiten
+erfassbar, ohne jeder eine eigene Aufgabe zu geben – und zwei der Einträge lösen selbstständig
+eine Aufgabe aus. **Räuberei und Faulbrutverdacht hängen dabei am Stand, nicht am Volk**: ein
+einzelnes offenes Nachbarvolk macht die Arbeit sonst zunichte, und ein Seuchenverdacht betrifft
+den ganzen Platz. Dafür können Auslöser jetzt `ziel: 'stand'` setzen.
+
+Fachliche Vorlage war ein eigens beauftragter Durchgang „was fehlt einem Jungimker im ersten
+Jahr" – samt einer Liste dessen, was ausdrücklich **nicht** aufgenommen wurde: Königinnenzucht
+als Regelkette (eigenes Handwerk mit tagesgenauem Plan), wöchentliches Wiegen (der Nutzen liegt
+in der Kurve, nicht im Termin), Frühjahrsfütterung nach Kalender (entscheidet der Vorrat, nicht
+das Datum), Wespenfallen (fangen überwiegend Nichtzielarten), Beutendesinfektion ohne Anlass,
+Volksstärke in Prozent (Scheingenauigkeit neben den Wabengassen).
+
+## Behandlungen wiederholen und nachtragen
+
+Eine Ameisensäurebehandlung ist keine einmalige Handlung, sondern eine Serie: fällt zu wenig
+Milbe, wird nachgelegt. **Sommerbehandlung 1 und 2 wiederholen sich** deshalb 5–21 Tage nach der
+letzten Anwendung – als Angebot mit der Marke „nur wenn nötig", begrenzt auf den 15. September,
+weil es danach für eine verlässliche Verdunstung zu kalt wird. Die Folgetermine hängen an der
+jüngsten Anwendung.
+
+Und in der **Varroa-Karte** steht jede Behandlung als antippbare Zeile: Datum, Präparat,
+Anwendung, Menge. Antippen ändert oder löscht, „Behandlung erfassen" trägt eine weitere nach –
+auch rückwirkend und auch dann, wenn die Aufgabe nicht mehr im Plan steht. Geschrieben wird
+dieselbe Art Datensatz wie beim Abhaken, damit Kurve, Behandlungsprotokoll und Folgetermine
+dasselbe sehen. Ohne Mengenvorschlag: für Menge und Anwendung gilt die Gebrauchsinformation des
+Präparats.
+
 ## Wabenalter – gebaut, geprüft, stillgelegt
 
 Die Funktion zählte Rähmchen je Volk und Jahrgang und schlug Waben ab drei Jahren zum
@@ -1003,6 +1055,7 @@ Fassungen**: den Ordner, die Einzeldatei und das entpackte `beewise-web.zip`.
 | `test_gesamt.py` | leerer Start, alle Ansichten und Fenster, Sicherung hin und zurück, Neuladen, Sprachreste, 320/390/768 px, Zurück-Taste |
 | `test_achse.py` | echte Touch-Gesten über das Chrome-Protokoll: waagerechte werden abgefangen, senkrechte scrollen, Eingabefelder bleiben frei, Wischen im Durchgang blättert weiter |
 | `pruef_quer.py` | sucht mit echten Wetterdaten **jede** waagerecht scrollbare Stelle in allen Ansichten und Fenstern |
+| `test_schutz.py` | neue Schutz- und Gesundheitsaufgaben, Räuberei- und Faulbrut-Auslöser, wiederholbare Behandlung, Behandlung erfassen/ändern/löschen |
 | `test_futter.py` | Ballon-Umrechnung, viele Gaben an verschiedenen Tagen, Summe, Ändern und Löschen, wiederkehrende Aufgabe, Stand im Abschluss-Fenster |
 | `test_migration.py` | **alte Datenbank (Version 4) aktualisieren** ohne Datenverlust und **Offline-Betrieb** über den Service Worker |
 

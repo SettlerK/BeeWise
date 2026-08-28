@@ -279,8 +279,11 @@ export async function schrittSpeichern({
   }
 
   if (hatWerte) {
+    const stand = (S.standorte || []).find((x) => x.id === volk.standortId) || null;
     bilanz.neu = await ausloeserPruefen({
       daten: werte, zielTyp: 'volk', zielId: volk.id, zielName: volk.name, datum,
+      // Räuberei und Faulbrutverdacht gehören an den Stand, nicht ans Volk
+      kontext: { stand: stand ? { id: stand.id, name: stand.name } : null },
     });
   }
   return bilanz;
