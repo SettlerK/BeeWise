@@ -2,7 +2,7 @@
 // Wetterabrufe laufen "network first" mit Rückfall auf den Cache – am Bienenstand
 // ist Funkloch der Normalfall, die App muss trotzdem starten.
 
-const VERSION = 'beewise-v22';
+const VERSION = 'beewise-v23';
 const HUELLE = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/db.js', './js/engine.js', './js/regeln.js',
@@ -61,4 +61,19 @@ self.addEventListener('fetch', (e) => {
       ? caches.match('./index.html') : Response.error()));
     return tref || frisch;
   }));
+});
+
+// Antippen einer Meldung: die schon offene App nach vorn holen, sonst öffnen.
+// Bewusst nur öffnen und auf „Heute" gehen – die Aufgabe von selbst aufzureißen
+// legte „Erledigt" einen Fehltipp entfernt, bevor jemand die Checkliste gesehen
+// hat. Genau die Daten, für die es die App gibt, gingen dabei verloren.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const liste = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of liste) {
+      if ('focus' in c) { c.postMessage({ art: 'gehe', ziel: 'heute' }); return c.focus(); }
+    }
+    return self.clients.openWindow('./index.html');
+  })());
 });

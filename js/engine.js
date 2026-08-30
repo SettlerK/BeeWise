@@ -7,7 +7,7 @@
 
 import { addDays, diffTage, heute, iso, parseISO } from './util.js';
 import { t } from './i18n.js';
-import { REGELN, regelNach } from './regeln.js';
+import { REGELN, regelNach, regelAn } from './regeln.js';
 
 export const ZUSTAND_RANG = {
   ueberfaellig: 0, faellig: 1, bald: 2, wartet: 3, spaeter: 4, erledigt: 5, verpasst: 6,
@@ -186,6 +186,9 @@ export function planBerechnen(ctx) {
   const aufgaben = [];
 
   for (const regel of REGELN) {
+    // Vom Betriebsprofil abgeschaltete Regeln erzeugen keine Termine. Sie
+    // bleiben im Aufgabenkatalog stehen und sind dort einzeln erklärt.
+    if (!regelAn(regel, ctx.profil)) continue;
     for (const ziel of zieleFuer(regel)) {
       // Manche Regeln gelten nur für bestimmte Ziele – etwa das Umweiseln, das
       // nur dort auftauchen soll, wo die Königin wirklich alt ist.

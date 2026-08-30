@@ -196,6 +196,7 @@ export const REGELN = [
   },
   {
     id: 'baurahmen',
+    profil: 'drohnenbrut',
     titel: 'Baurahmen geben',
     kategorie: 'varroa', ziel: 'volk',
     info: 'Der Baurahmen ist Wachsbau, Schwarmbremse und Varroafalle in einem.',
@@ -227,6 +228,7 @@ export const REGELN = [
   },
   {
     id: 'ableger',
+    profil: 'ableger',
     titel: 'Ableger oder Kunstschwarm bilden',
     kategorie: 'schwarm', ziel: 'volk', freiwillig: true,
     info: 'Aus der Schwarmstimmung heraus. Den brutfreien Ableger sofort mit Oxalsäure behandeln – die einzige Gelegenheit im Sommer.',
@@ -325,6 +327,7 @@ export const REGELN = [
   // ------------------------------------------------------------------- Varroa
   {
     id: 'drohnenbrut',
+    profil: 'drohnenbrut',
     titel: 'Drohnenbrut schneiden',
     kategorie: 'varroa', ziel: 'volk',
     info: 'Alle drei Wochen, sobald der Baurahmen verdeckelt ist. Ende Juni einstellen. Niemals verdeckelte Drohnenbrut im Volk vergessen – das wäre eine Milbenvermehrung mit Ansage.',
@@ -1002,4 +1005,28 @@ export function futterBedarf({ beute, gassen, vorhanden, jungvolk }) {
       ? 'Unter fünf besetzten Wabengassen lohnt das Einwintern nicht – besser vereinigen.'
       : null,
   };
+}
+
+/**
+ * Gilt diese Regel für den eingestellten Betrieb?
+ *
+ * Das Betriebsprofil schaltet Regeln aus, die zu einer Arbeitsweise nicht
+ * passen – wer keine Drohnenbrut schneidet, braucht weder Baurahmen noch
+ * Schnitttermine. Ausgeschaltet heißt: nicht im Plan, aber weiterhin im
+ * Aufgabenkatalog sichtbar und dort mit einem Wort begründet. Nichts
+ * verschwindet still, sonst hält man die App für kaputt.
+ *
+ * Unbeantwortet (undefined/null) heißt IMMER „an". Wer den Fragebogen
+ * übersprungen hat, bekommt den vollen Plan – lieber eine Aufgabe zu viel als
+ * eine fehlende Behandlung.
+ */
+export const PROFIL_FRAGEN = {
+  drohnenbrut: 'Drohnenbrut als Varroa-Maßnahme schneiden',
+  ableger: 'Ableger oder Kunstschwärme bilden',
+  honigabgabe: 'Honig abgeben – verkaufen oder verschenken',
+};
+
+export function regelAn(regel, profil) {
+  if (!regel || !regel.profil) return true;
+  return (profil || {})[regel.profil] !== false;
 }

@@ -181,6 +181,26 @@ h2.abschnitt:first-child{margin-top:4px}
 .zeitstrahl .e .t{font-size:14px}
 .zeitstrahl .e .n{font-size:12.5px;color:var(--text-schwach);margin-top:2px}
 
+/* Zusammengeschobener Verlauf: der jüngste Eintrag als Karte, dahinter zwei
+   angedeutete Kanten. Die Kanten sind nur ein Hinweis – die Zahl im Knopf
+   darunter sagt, was wirklich darunter liegt. */
+.verlaufkopf{
+  font-size:13px;color:var(--text-schwach);padding:0 0 10px;margin-bottom:10px;
+  border-bottom:1px solid var(--rand);
+}
+.stapel{position:relative;padding-bottom:11px;cursor:pointer}
+.stapel .zeitstrahl.oben{
+  background:var(--karte);border:1px solid var(--rand);border-radius:11px;
+  padding:2px 12px 2px 26px;position:relative;z-index:2;
+}
+.stapel .kante{
+  position:absolute;left:5px;right:5px;height:7px;background:var(--karte);
+  border:1px solid var(--rand);border-top:none;border-radius:0 0 11px 11px;
+}
+.stapel .kante.a{bottom:5px;z-index:1}
+.stapel .kante.b{left:11px;right:11px;bottom:0;z-index:0}
+.knopf.breit{width:100%;margin-top:12px;min-height:48px}
+
 /* ---------------------------------------------------------------- Formular */
 label.feld{display:block;margin-bottom:13px}
 label.feld > span{display:block;font-size:12.5px;color:var(--text-schwach);margin-bottom:5px;font-weight:600}
@@ -834,3 +854,8 @@ body.bildoffen{overflow:hidden}
 }
 .bsfuss .knopf{background:rgba(255,255,255,.12);border-color:transparent;color:#F5F1E9}
 .bsfuss .knopf.loeschen{color:#F0A79B}
+
+/* Einrichtung: Nachtrag-Zeile aus Schalter und Datum */
+.nachtrag{border-bottom:1px solid var(--rand);padding-bottom:8px;margin-bottom:10px}
+.nachtrag input[type=date]{margin-top:6px}
+.nachtrag input[type=date]:disabled{opacity:.45}

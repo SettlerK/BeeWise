@@ -9,7 +9,7 @@ import {
   wetterZeichen as wetterZeichenVon, wetterText as wetterTextVon,
 } from './tracht.js';
 import {
-  REGELN, KATEGORIEN, regelNach, folgeRegeln, futterBedarf, varroaSchwelle,
+  REGELN, KATEGORIEN, regelNach, regelAn, folgeRegeln, futterBedarf, varroaSchwelle,
 } from './regeln.js';
 import { planBerechnen, trachtFragen, zusammenfassung } from './engine.js';
 import { ausloeserPruefen, eigeneAnlegen, abhaken as eigenAbhaken } from './aufgaben.js';
@@ -54,6 +54,8 @@ const S = {
   monat: new Date(),            // Kalenderansicht
   tag: null,                    // gewählter Tag im Kalender
   offen: {},                    // aufgeklappte Bereiche
+  profil: {},                   // Betriebsprofil (siehe betriebsprofilHTML)
+  hinweis: null,                // stehende Meldung auf „Heute“
   ladeTracht: false, ladeWetter: false,
 };
 
@@ -94,6 +96,7 @@ async function datenLaden() {
   S.sync = await sync.einstellungen();
   S.meldungen = { ...MELDUNGEN_STANDARD, ...(await db.metaLies('meldungen', {})) };
   S.imkereiName = await db.metaLies('imkerei', '');
+  S.profil = await db.metaLies('profil', {});
   S.letzteSicherung = await db.metaLies('letzteSicherung', null);
   S.sicherungAufgeschoben = await db.metaLies('sicherungAufgeschoben', null);
   await fotos.kanteLaden();       // muss vorliegen, bevor jemand auf „Foto" tippt
@@ -106,7 +109,7 @@ function neuRechnen() {
   S.plan = planBerechnen({
     datum: heute(), standorte: S.standorte, voelker: S.voelker,
     erledigungen: S.erledigungen, eigene: S.eigene, koeniginnen: S.koeniginnen,
-    tracht: S.tracht, wetter: S.wetter,
+    tracht: S.tracht, wetter: S.wetter, profil: S.profil,
   });
   S.fragen = trachtFragen(S.tracht, S.standorte, S.trachtObs);
 }
@@ -238,15 +241,26 @@ function ansichtHeute() {
     return `<div class="karte"><div class="karte-inhalt leer">
       <span class="gross">🐝</span>
       <b>Willkommen bei BeeWise.</b><br>
-      Lege zuerst einen Bienenstand an – über Adresse, GPS oder Langdruck im Luftbild.
-      Aus seiner Lage berechnet die App die örtliche Tracht und daraus deine Termine.
-      <div class="knopfreihe" style="margin-top:18px"><button class="knopf" data-neu-standort>Bienenstand anlegen</button></div>
-      <div style="margin-top:12px"><button class="knopf leise klein" data-demo>Beispieldaten laden</button></div>
+      Vier kurze Fragen, dann sind Stand und Völker angelegt und der erste Plan steht.
+      Überspringen kannst du jede davon.
+      <div class="knopfreihe" style="margin-top:18px"><button class="knopf" data-einrichten>Los geht’s</button></div>
+      <div style="margin-top:12px"><button class="knopf leise klein" data-neu-standort>Nur einen Bienenstand anlegen</button></div>
+      <div style="margin-top:8px"><button class="knopf leise klein" data-demo>Erst mit Beispieldaten ansehen</button></div>
     </div></div>`;
   }
 
   const z = zusammenfassung(S.plan);
   const t = [];
+
+  // Bleibt stehen, bis sie weggetippt wird. Was der Nutzer sich merken soll,
+  // gehört nicht in eine Meldung, die von selbst verschwindet.
+  if (S.hinweis) {
+    t.push(`<div class="karte"><div class="karte-inhalt">
+      <div>${esc(S.hinweis)}</div>
+      <div class="knopfreihe" style="margin-top:10px">
+        <button class="knopf leise klein" data-hinweis-weg>${esc(t2('Verstanden'))}</button>
+      </div></div></div>`);
+  }
 
   t.push(`<div class="uebersicht">
     <div><b class="${z.ueberfaellig ? 'z-ueberfaellig' : ''}">${z.ueberfaellig}</b><span>überfällig</span></div>
@@ -341,7 +355,9 @@ function aufgabenkatalogHTML() {
       return `<div class="karte-inhalt" style="border-top:1px solid var(--rand)">
         <div style="font-weight:650;font-size:13px;color:${kat.farbe};margin-bottom:6px">${esc(t2(kat.name))}</div>
         ${rs.map((r) => `<div class="mini" style="padding:3px 0;color:var(--text-schwach)">
-          ${esc(t2(r.titel))} <span style="color:var(--text-zart)">— ${esc(ankerText(r))}</span></div>`).join('')}
+          ${esc(t2(r.titel))} <span style="color:var(--text-zart)">— ${
+  regelAn(r, S.profil) ? esc(ankerText(r))
+    : esc(t2('aus, weil im Betriebsprofil abgewählt'))}</span></div>`).join('')}
       </div>`;
     }).join('') : ''}
   </div>`;
@@ -1185,16 +1201,61 @@ function ansichtVolk() {
 
   ${historieHTML(v)}
 
-  <h2 class="abschnitt">Verlauf</h2>
+  ${verlaufHTML(v, ereignisse)}`;
+}
+
+/**
+ * Verlauf, standardmäßig zusammengeschoben.
+ *
+ * Der Verlauf ist ein Nachschlagewerk, kein Posteingang: In neun von zehn
+ * Fällen sucht man dieselbe eine Auskunft – wann war die letzte Durchsicht und
+ * was stand drin. Vierzig Zeilen dafür durchzublättern ist Arbeit ohne Ertrag.
+ * Deshalb liegt oben der jüngste Eintrag, dahinter der Stapel, und die Zahl im
+ * Knopf sagt, was darunter liegt. Die Zahl ist die ehrliche Fassung dessen,
+ * was die angedeuteten Kanten nur andeuten – in der Sonne ist eine Kante nicht
+ * zu sehen, eine Zahl schon.
+ *
+ * Der Zustand wird bewusst NICHT dauerhaft gemerkt: Sonst verhielte sich Volk 2
+ * anders als Volk 3, ohne dass jemand wüsste warum.
+ */
+function verlaufHTML(v, ereignisse) {
+  if (!ereignisse.length) {
+    return `<h2 class="abschnitt">Verlauf</h2>
+      <div class="karte"><div class="karte-inhalt">
+        <div class="leer" style="padding:16px">Noch nichts erfasst.</div></div></div>`;
+  }
+  const auf = !!S.offen['verlauf:' + v.id];
+  const letzteD = ereignisse.find((e) => e.art === 'durchsicht');
+  // Zugeklappt liegt der jüngste Eintrag oben – und, falls das keine Durchsicht
+  // war, zusätzlich die letzte Durchsicht. Denn genau die sucht man: Was stand
+  // beim letzten Öffnen im Volk, und wie sahen die Waben aus? An ihr hängen
+  // auch die Fotos; ohne sie wäre der zugeklappte Verlauf hübsch und nutzlos.
+  const liste = auf ? ereignisse.slice(0, 60)
+    : [ereignisse[0], ...(letzteD && letzteD !== ereignisse[0] ? [letzteD] : [])];
+  const rest = ereignisse.length - liste.length;
+  // Zugeklappt trägt der oberste Eintrag KEIN eigenes Antippen: Der ganze Stapel
+  // ist dann eine Fläche mit einer Bedeutung – aufklappen. Erst offen wird jede
+  // Zeile für sich antippbar.
+  const zeile = (e, tippbar = true) => `<div class="e"${
+    tippbar ? ` data-eintrag="${e.art}:${e.id}"` : ''}>
+      <div class="d">${fmtDatum(e.datum, true)}</div>
+      <div class="t">${esc(e.titel)}</div>
+      ${e.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ''}
+      ${e.art === 'durchsicht' ? `<div class="fotoleiste" data-fotos="${e.id}"></div>` : ''}
+    </div>`;
+  return `<h2 class="abschnitt">Verlauf</h2>
   <div class="karte"><div class="karte-inhalt">
-    ${ereignisse.length ? `<div class="zeitstrahl">${ereignisse.slice(0, 60).map((e) => `
-      <div class="e" data-eintrag="${e.art}:${e.id}">
-        <div class="d">${fmtDatum(e.datum, true)}</div>
-        <div class="t">${esc(e.titel)}</div>
-        ${e.notiz ? `<div class="n">${esc(e.notiz)}</div>` : ''}
-        ${e.art === 'durchsicht' ? `<div class="fotoleiste" data-fotos="${e.id}"></div>` : ''}
-      </div>`).join('')}</div>`
-      : '<div class="leer" style="padding:16px">Noch nichts erfasst.</div>'}
+    ${letzteD ? `<div class="verlaufkopf">${esc(t2('Letzte Durchsicht: {d} · vor {n} Tagen',
+    { d: fmtDatum(letzteD.datum), n: -diffTage(parseISO(letzteD.datum), heute()) }))}</div>` : ''}
+    ${auf ? `<div class="zeitstrahl">${liste.map(zeile).join('')}</div>`
+    : `<div class="stapel" data-klapp="verlauf:${v.id}">
+        <div class="zeitstrahl oben">${liste.map((e) => zeile(e, false)).join('')}</div>
+        ${rest >= 1 ? '<div class="kante a"></div>' : ''}
+        ${rest >= 2 ? '<div class="kante b"></div>' : ''}
+      </div>`}
+    ${rest > 0 || auf ? `<button type="button" class="knopf leise breit"
+      data-klapp="verlauf:${v.id}">${esc(auf ? t2('Verlauf einklappen')
+    : t2('Alle {n} Einträge anzeigen', { n: ereignisse.length }))}</button>` : ''}
   </div></div>`;
 }
 
@@ -1897,6 +1958,8 @@ function ansichtMehr() {
       jeder Woche wachsen.</div>
   </div></div>
 
+  ${betriebsprofilHTML()}
+
   <h2 class="abschnitt">Sprache</h2>
   <div class="karte"><div class="karte-inhalt">
     <div class="chips" id="sprachwahl">
@@ -2176,6 +2239,9 @@ function verdrahten() {
   on('[data-export]', 'click', exportieren);
   on('[data-import]', 'click', importieren);
   on('[data-demo]', 'click', beispieldaten);
+  on('[data-einrichten]', 'click', () => aufbauStarten());
+  on('[data-profil-aendern]', 'click', () => aufbauStarten(true));
+  on('[data-hinweis-weg]', 'click', () => { S.hinweis = null; render(); });
   on('[data-reset]', 'click', allesLoeschen);
   on('[data-benachrichtigung]', 'click', benachrichtigungenAnfragen);
   on('[data-sprache]', 'click', async (e) => {
@@ -3366,12 +3432,18 @@ function abfuellungSheet(id = null, vorgabe = {}) {
       optionen: kassenGroessen(), standard: String(start.glasgroesse || '500') },
     { key: 'anzahl', label: 'Anzahl Gläser', typ: 'zahl', einheit: 'Stück', schritt: 1,
       standard: start.anzahl ?? '' },
-    { key: 'losnummer', label: 'Los-Nummer', typ: 'text',
-      standard: start.losnummer || kasse.losVorschlag(S, datum),
-      hinweis: 'Damit kommst du von einem Glas zurück auf den Abfülltag.' },
-    { key: 'mhdText', label: 'Mindestens haltbar bis', typ: 'text', einheit: 'MM/JJJJ',
-      standard: kasse.mhdText(start.mhd || kasse.mhdVorschlag(datum)),
-      hinweis: 'Üblich sind zwei Jahre ab Abfüllung.' },
+    // Los-Nummer und Mindesthaltbarkeit sind Pflicht, sobald der Honig das Haus
+    // verlässt. Wer im Betriebsprofil „nur Eigenbedarf" gesagt hat, bekommt die
+    // beiden Felder nicht – und mit ihnen nicht den Eindruck, etwas versäumt zu
+    // haben. Bei einer schon gebuchten Charge bleiben sie sichtbar.
+    ...(S.profil?.honigabgabe === false && !start.losnummer ? [] : [
+      { key: 'losnummer', label: 'Los-Nummer', typ: 'text',
+        standard: start.losnummer || kasse.losVorschlag(S, datum),
+        hinweis: 'Damit kommst du von einem Glas zurück auf den Abfülltag.' },
+      { key: 'mhdText', label: 'Mindestens haltbar bis', typ: 'text', einheit: 'MM/JJJJ',
+        standard: kasse.mhdText(start.mhd || kasse.mhdVorschlag(datum)),
+        hinweis: 'Üblich sind zwei Jahre ab Abfüllung.' },
+    ]),
     { key: 'notiz', label: 'Notiz', typ: 'mehrzeilig', standard: start.notiz || '' },
   ];
 
@@ -4995,7 +5067,40 @@ async function benachrichtigungenAnfragen() {
   if (r === 'granted') erinnern();
 }
 
-function erinnern({ erzwingen = false } = {}) {
+/**
+ * Meldungen aufs Telefon – gestapelt statt gesammelt.
+ *
+ * „7 Aufgaben fällig" trägt keine Information: Daraus kann niemand entscheiden,
+ * ob er zum Stand fährt. Deshalb geht jetzt für die Völker mit überfälligen
+ * Arbeiten je eine eigene Meldung raus; das Betriebssystem legt sie zu einem
+ * Stapel zusammen, den man aufziehen kann.
+ *
+ * Gruppiert wird nach VOLK, nicht nach Aufgabe: Draußen arbeitet man Volk für
+ * Volk, und bei zwanzig Völkern wären es sonst vierzig Meldungen. Aus demselben
+ * Grund eine harte Obergrenze von drei Einzelmeldungen – der Rest steht in der
+ * Sammelmeldung, die zuletzt gesendet wird und deshalb obenauf liegt.
+ *
+ * Nur die Sammelmeldung darf Ton und Vibration auslösen (`silent` bei allen
+ * anderen). Verlassen kann man sich darauf nicht – manche Systeme ignorieren
+ * es –, und genau deshalb ist die Grenze drei und nicht sieben.
+ */
+const MELDE_GRENZE = 3;
+
+async function meldungZeigen(titel, text, tag, still) {
+  const opt = {
+    body: text, icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
+    tag, renotify: false, silent: !!still,
+  };
+  // Auf iOS darf eine Web-App nur über den Service Worker melden; der
+  // Notification-Konstruktor wirft dort. Deshalb erst der Umweg, dann direkt.
+  try {
+    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    if (reg && reg.showNotification) { await reg.showNotification(titel, opt); return; }
+  } catch { /* fällt unten auf den direkten Weg zurück */ }
+  try { new Notification(titel, opt); } catch { /* Gerät kann es nicht */ }
+}
+
+async function erinnern({ erzwingen = false } = {}) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') {
     if (erzwingen) toast('Meldungen sind nicht erlaubt.');
@@ -5003,14 +5108,32 @@ function erinnern({ erzwingen = false } = {}) {
   }
   const m = S.meldungen || MELDUNGEN_STANDARD;
   const zeilen = [];
+  let einzeln = [];
+  let offen = 0; let spaet = 0;
 
   if (m.faellig) {
-    const z = zusammenfassung(S.plan);
-    const n = z.ueberfaellig + z.faellig;
-    if (n) {
-      const erste = S.plan.find((a) => ['ueberfaellig', 'faellig'].includes(a.zustand));
-      zeilen.push(t('{n} Aufgaben fällig', { n }) + ': ' + t(erste.titel)
-        + (erste.ziel.typ === 'volk' ? ' – ' + erste.ziel.name : ''));
+    const dran = S.plan.filter((a) => ['ueberfaellig', 'faellig'].includes(a.zustand));
+    offen = dran.length;
+    spaet = dran.filter((a) => a.zustand === 'ueberfaellig').length;
+    // Je Ziel eine Meldung – überfällige Ziele zuerst, danach die mit den
+    // meisten offenen Arbeiten. Wer nur „fällig" ist, kommt nie einzeln.
+    const proZiel = new Map();
+    for (const a of dran) {
+      const k = a.ziel.typ + ':' + a.ziel.id;
+      const g = proZiel.get(k) || { name: a.ziel.name, spaet: 0, arbeiten: [] };
+      if (a.zustand === 'ueberfaellig') g.spaet += 1;
+      g.arbeiten.push(a);
+      proZiel.set(k, g);
+    }
+    einzeln = [...proZiel.values()].filter((g) => g.spaet > 0)
+      .sort((x, y) => y.spaet - x.spaet).slice(0, MELDE_GRENZE);
+    if (offen) {
+      zeilen.push(spaet
+        ? t('{a} überfällig, {b} heute fällig', { a: spaet, b: offen - spaet })
+        : t('{n} Aufgaben heute fällig', { n: offen }));
+      zeilen.push(dran.slice(0, 3).map((a) => (a.ziel.typ === 'volk'
+        ? a.ziel.name + ': ' : '') + t(a.kurz || a.titel)).join(' · ')
+        + (offen > 3 ? ' · ' + t('und {n} weitere', { n: offen - 3 }) : ''));
     }
   }
   if (m.warnungen) {
@@ -5043,10 +5166,19 @@ function erinnern({ erzwingen = false } = {}) {
       localStorage.setItem('letzteErinnerung', iso(heute()));
     } catch { /* ohne localStorage halt jedes Mal */ }
   }
-  new Notification('BeeWise', {
-    body: zeilen.join('\n'),
-    icon: 'icons/icon-192.png', tag: 'beewise-heute',
-  });
+
+  const tag = iso(heute());
+  for (const g of einzeln) {
+    const text = g.arbeiten.slice(0, 3).map((a) => t(a.kurz || a.titel)
+      + (a.zustand === 'ueberfaellig' && a.bis
+        ? ' (' + t('seit {n} Tagen', { n: -diffTage(a.bis, heute()) }) + ')' : ''))
+      .join(' · ');
+    await meldungZeigen(
+      t('{name} · {n} Aufgaben überfällig', { name: g.name, n: g.spaet }),
+      text, `beewise-${g.name}-${tag}`, true);
+  }
+  // zuletzt, damit sie im Stapel obenauf liegt – und als einzige mit Ton
+  await meldungZeigen('BeeWise', zeilen.join('\n'), 'beewise-heute', false);
 }
 
 async function beispieldaten() {
@@ -5229,10 +5361,322 @@ function spracheAbfragen() {
   trachtLaden({ still: true }).then(() => setTimeout(erinnern, 1200));
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Antippen einer Meldung bei schon offener App: der Service Worker holt sie
+    // nach vorn und sagt hier, wohin.
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (e.data?.art === 'gehe' && e.data.ziel) gehe(e.data.ziel);
+    });
   }
 })();
 
+
+// ------------------------------------------------------- Erste Einrichtung
+
+/**
+ * Der Fragebogen beim ersten Start – und dieselben Fragen später unter „Mehr".
+ *
+ * Zwei Regeln, an denen jede Frage gemessen wurde:
+ *
+ *   1. Keine Frage ohne Folge. Was nicht mindestens eine Regel, eine Menge oder
+ *      ein Feld verändert, fliegt raus. Für eine Statistik fragt hier niemand –
+ *      es gibt keinen Server, der sie auswerten könnte.
+ *   2. Keine Selbsteinstufung. „Anfänger/Fortgeschritten/Profi" wird im Moment
+ *      der geringsten Kenntnis beantwortet, ist immer irgendwo falsch, und wer
+ *      eine Funktion nicht findet, hält die App für kaputt. Gefragt wird nur
+ *      nach Tatsachen.
+ *
+ * Deshalb ist das hier auch kein Fragebogen vor der App, sondern die
+ * Ersteinrichtung: Am Ende stehen Stand und Völker angelegt und der erste
+ * Bildschirm ist gefüllt statt leer. Jeder Schritt ist überspringbar; das halbe
+ * Profil ist der geplante Normalfall, kein Fehler. Unbeantwortet heißt immer
+ * „alles anzeigen" – lieber eine Aufgabe zu viel als eine fehlende Behandlung.
+ */
+const AUFBAU_SCHRITTE = 5;
+
+// Was in diesem Jahr schon gelaufen sein kann. Wer im August einsteigt, hat
+// geerntet und vielleicht behandelt – ohne diese Angabe setzt die App die
+// Sommerbehandlung zu spät an, und das kostet die Winterbienen.
+const NACHTRAG = [
+  { regelId: 'erste_durchsicht', label: 'Frühjahrsdurchsicht gemacht', abMonat: 3, tag: [3, 25] },
+  { regelId: 'fruehtracht', label: 'Frühtracht geerntet', abMonat: 5, tag: [6, 5] },
+  { regelId: 'sommertracht', label: 'Sommertracht geerntet', abMonat: 7, tag: [7, 20] },
+  { regelId: 'sommerbehandlung1', label: 'Sommerbehandlung gemacht', abMonat: 7, tag: [8, 5] },
+  { regelId: 'auffuettern', label: 'Mit dem Auffüttern begonnen', abMonat: 8, tag: [8, 20] },
+];
+
+let aufbauZustand = null;
+
+function aufbauStarten(nurProfil = false) {
+  aufbauZustand = {
+    schritt: nurProfil ? 3 : 1,
+    nurProfil,
+    name: '', lat: null, lon: null,
+    voelker: 3, jung: 0,
+    beute: S.profil.beute || 'Zander',
+    waben: S.profil.waben || 10,
+    drohnenbrut: S.profil.drohnenbrut ?? null,
+    ableger: S.profil.ableger ?? null,
+    honigabgabe: S.profil.honigabgabe ?? null,
+    nachtrag: {},
+  };
+  aufbauZeigen();
+}
+
+function aufbauJaNein(schluessel, frage, erklaerung) {
+  const w = aufbauZustand[schluessel];
+  return `<div class="feld"><span>${esc(t2(frage))}</span>
+    <div class="chips" data-jn="${schluessel}">
+      <button type="button" data-w="ja" class="${w === true ? 'an' : ''}">${esc(t2('Ja'))}</button>
+      <button type="button" data-w="nein" class="${w === false ? 'an' : ''}">${esc(t2('Nein'))}</button>
+      <button type="button" data-w="offen" class="${w == null ? 'an' : ''}">${
+  esc(t2('Weiß ich nicht'))}</button>
+    </div>
+    <div class="mini" style="margin-top:5px">${esc(t2(erklaerung))}</div></div>`;
+}
+
+function aufbauZeigen() {
+  const z = aufbauZustand;
+  if (!z) return;
+  const n = z.schritt;
+  const monat = heute().getMonth() + 1;
+  const dran = NACHTRAG.filter((x) => x.abMonat <= monat);
+  const letzterSchritt = dran.length ? AUFBAU_SCHRITTE : AUFBAU_SCHRITTE - 1;
+
+  let inhalt = '';
+  let titel = '';
+  if (n === 1) {
+    titel = 'Wo stehen deine Völker?';
+    inhalt = `
+      ${feldHTML({ key: 'name', label: 'Name des Bienenstands',
+    platzhalter: 'z. B. Hausgarten' }, z.name)}
+      <div class="knopfreihe">
+        <button type="button" class="knopf leise" data-gps>${
+  esc(t2('Standort vom Gerät übernehmen'))}</button>
+      </div>
+      <div class="mini" id="gpsstand" style="margin-top:8px">${z.lat == null
+    ? esc(t2('Ohne Standort rechnet BeeWise mit festen Kalenderterminen statt mit der '
+      + 'Wärmesumme am Ort – das ist deutlich ungenauer. Die Adresse kannst du später '
+      + 'unter „Stand" nachtragen.'))
+    : esc(t2('Übernommen: {lat} / {lon}', { lat: z.lat.toFixed(4), lon: z.lon.toFixed(4) }))}</div>`;
+  } else if (n === 2) {
+    titel = 'Wie viele Völker stehen dort?';
+    inhalt = `
+      ${feldHTML({ key: 'voelker', label: 'Überwinterte Wirtschaftsvölker',
+    typ: 'zahl', schritt: 1 }, z.voelker)}
+      ${feldHTML({ key: 'jung', label: 'Jungvölker und Ableger aus diesem Jahr',
+    typ: 'zahl', schritt: 1 }, z.jung)}
+      <div class="mini">BeeWise legt sie gleich als „Volk 1", „Volk 2" … an; umbenennen kannst
+        du sie jederzeit. Der Unterschied ist wichtig: Jungvölker bekommen weder Honigraum
+        noch Ernte, dafür weniger Winterfutter und die Kontrolle auf Legebeginn.</div>`;
+  } else if (n === 3) {
+    titel = 'Welche Beute, welches Maß?';
+    inhalt = `
+      ${feldHTML({ key: 'beute', label: 'Beute / Rähmchenmaß', typ: 'auswahl',
+    optionen: ['Zander', 'Deutsch Normal', 'Dadant', 'Langstroth', 'Segeberger', 'anderes'] },
+  z.beute)}
+      ${feldHTML({ key: 'waben', label: 'Waben je Zarge', typ: 'auswahl',
+    optionen: ['8', '9', '10', '11', '12'] }, String(z.waben))}
+      <div class="mini">Daran hängen der Futterbedarf zum Einwintern und die Mengen in der
+        Packliste. Bewusst NICHT daran hängt eine Arzneimittelmenge: Für Ameisensäure und
+        Oxalsäure gilt die Gebrauchsinformation des Präparats und die Zahl der besetzten
+        Wabengassen, nicht das Beutenmaß.</div>`;
+  } else if (n === 4) {
+    titel = 'Wie arbeitest du?';
+    inhalt = `
+      ${aufbauJaNein('drohnenbrut', 'Schneidest du Drohnenbrut als Varroa-Maßnahme?',
+    'Bei „Nein" entfallen Baurahmen und Schnitttermine – das sind je Volk sechs bis acht '
+    + 'Termine von April bis Ende Juni.')}
+      ${aufbauJaNein('ableger', 'Willst du dieses Jahr Ableger bilden?',
+    'Bei „Ja" entsteht die Kette Ableger bilden → Weiselkontrolle → Behandlung im brutfreien '
+    + 'Fenster → Auffüttern, und das Material steht rechtzeitig auf der Liste.')}
+      ${aufbauJaNein('honigabgabe', 'Gibst du Honig ab – verkaufen oder verschenken?',
+    'Bei „Ja" verlangt das Abfüllen Los-Nummer und Mindesthaltbarkeitsdatum. Das ist Pflicht, '
+    + 'sobald der Honig das Haus verlässt.')}
+      <div class="mini">Abgeschaltete Aufgaben verschwinden nicht: Sie stehen weiter im
+        Aufgabenkatalog und lassen sich hier jederzeit wieder einschalten.</div>`;
+  } else {
+    titel = 'Was ist dieses Jahr schon gelaufen?';
+    inhalt = `
+      <div class="hinweis">Du steigst mitten in der Saison ein. Ohne diese Angaben rechnet
+        BeeWise die Folgetermine falsch – die Sommerbehandlung hängt zum Beispiel an der
+        letzten Ernte. Ungefähr reicht, das Datum lässt sich später ändern.</div>
+      ${dran.map((x) => {
+    const d = new Date(heute().getFullYear(), x.tag[0] - 1, x.tag[1]);
+    const wert = z.nachtrag[x.regelId] || (d < heute() ? iso(d) : iso(heute()));
+    return `<div class="nachtrag">
+        <label class="schalter">
+          <span><b>${esc(t2(x.label))}</b></span>
+          <input type="checkbox" data-nachtrag="${x.regelId}" ${
+  z.nachtrag[x.regelId] ? 'checked' : ''}>
+        </label>
+        <input type="date" data-nachtragdatum="${x.regelId}" value="${wert}"
+          ${z.nachtrag[x.regelId] ? '' : 'disabled'}>
+      </div>`;
+  }).join('')}`;
+  }
+
+  sheetAuf({
+    titel: t2(titel),
+    unter: t2('Frage {n} von {m}', { n, m: letzterSchritt }),
+    inhalt: `${inhalt}
+      <div class="knopfreihe" style="margin-top:16px">
+        <button class="knopf leise" data-spaeter>${esc(t2('Später'))}</button>
+        <button class="knopf" data-weiter>${
+  esc(n >= letzterSchritt ? t2('Fertig') : t2('Weiter'))}</button>
+      </div>`,
+    beimSchliessen: () => { /* „Später" und ✕ tun dasselbe: nichts erzwingen */ },
+    danach(root) {
+      felderVerdrahten(root);
+      root.querySelectorAll('[data-jn]').forEach((g) => {
+        g.querySelectorAll('button').forEach((b) => {
+          b.onclick = () => {
+            aufbauZustand[g.dataset.jn] = b.dataset.w === 'ja' ? true
+              : b.dataset.w === 'nein' ? false : null;
+            g.querySelectorAll('button').forEach((x) => x.classList.toggle('an', x === b));
+          };
+        });
+      });
+      root.querySelectorAll('[data-nachtrag]').forEach((c) => {
+        c.onchange = () => {
+          const d = root.querySelector(`[data-nachtragdatum="${c.dataset.nachtrag}"]`);
+          d.disabled = !c.checked;
+          aufbauZustand.nachtrag[c.dataset.nachtrag] = c.checked ? d.value : null;
+          if (!c.checked) delete aufbauZustand.nachtrag[c.dataset.nachtrag];
+        };
+      });
+      root.querySelectorAll('[data-nachtragdatum]').forEach((d) => {
+        d.onchange = () => {
+          if (!d.disabled) aufbauZustand.nachtrag[d.dataset.nachtragdatum] = d.value;
+        };
+      });
+      root.querySelector('[data-gps]')?.addEventListener('click', (e) => {
+        const stand = root.querySelector('#gpsstand');
+        if (!navigator.geolocation) { stand.textContent = t('Keine Ortung verfügbar.'); return; }
+        e.currentTarget.disabled = true;
+        stand.textContent = t('Position wird bestimmt …');
+        navigator.geolocation.getCurrentPosition((pos) => {
+          aufbauZustand.lat = pos.coords.latitude;
+          aufbauZustand.lon = pos.coords.longitude;
+          stand.textContent = t('Übernommen: {lat} / {lon}',
+            { lat: aufbauZustand.lat.toFixed(4), lon: aufbauZustand.lon.toFixed(4) });
+          e.target.disabled = false;
+        }, () => {
+          stand.textContent = t('Position konnte nicht bestimmt werden.');
+          e.target.disabled = false;
+        }, { enableHighAccuracy: true, timeout: 10000 });
+      });
+      root.querySelector('[data-spaeter]').onclick = () => { aufbauZustand = null; sheetZu(); };
+      root.querySelector('[data-weiter]').onclick = async () => {
+        const w = werteLesen(root);
+        if (n === 1) { aufbauZustand.name = w.name || ''; }
+        if (n === 2) {
+          aufbauZustand.voelker = Math.max(0, Number(w.voelker) || 0);
+          aufbauZustand.jung = Math.max(0, Number(w.jung) || 0);
+        }
+        if (n === 3) { aufbauZustand.beute = w.beute; aufbauZustand.waben = Number(w.waben); }
+        if (n >= letzterSchritt) { await aufbauFertig(); return; }
+        aufbauZustand.schritt = n + 1;
+        sheetZu();
+        setTimeout(aufbauZeigen, 60);
+      };
+    },
+  });
+}
+
+async function aufbauFertig() {
+  const z = aufbauZustand;
+  aufbauZustand = null;
+  await db.metaSchreibe('profil', {
+    ...S.profil, beute: z.beute, waben: z.waben,
+    drohnenbrut: z.drohnenbrut, ableger: z.ableger, honigabgabe: z.honigabgabe,
+    eingerichtet: iso(heute()),
+  });
+
+  let angelegt = 0;
+  if (!z.nurProfil) {
+    const stand = await db.schreibe('standorte', {
+      id: uid(), name: z.name || t('Mein Bienenstand'), lat: z.lat, lon: z.lon,
+      adresse: '', notiz: '',
+    });
+    const jahr = heute().getFullYear();
+    const neue = [];
+    for (let i = 0; i < z.voelker; i += 1) {
+      neue.push(await db.schreibe('voelker', {
+        id: uid(), name: `Volk ${i + 1}`, standortId: stand.id,
+        beute: z.beute, zargen: 2, rahmen: z.waben * 2, status: 'aktiv',
+      }));
+    }
+    for (let i = 0; i < z.jung; i += 1) {
+      neue.push(await db.schreibe('voelker', {
+        id: uid(), name: `Jungvolk ${i + 1}`, standortId: stand.id,
+        beute: z.beute, zargen: 1, rahmen: z.waben, status: 'aktiv',
+        gebildetAm: iso(new Date(jahr, 5, 1)),
+      }));
+    }
+    angelegt = neue.length;
+
+    // Nachgetragenes wird zu ganz gewöhnlichen Erledigungen – dieselbe Art
+    // Datensatz wie beim Abhaken. Nur so sehen Kurve, Protokoll und
+    // Folgetermine dasselbe.
+    for (const [regelId, datum] of Object.entries(z.nachtrag)) {
+      if (!datum) continue;
+      for (const v of neue) {
+        await db.schreibe('erledigungen', {
+          id: uid(), regelId, zielTyp: 'volk', zielId: v.id, datum,
+          status: 'erledigt', daten: {}, jahr: parseISO(datum).getFullYear(),
+          quelle: 'einrichtung',
+        });
+      }
+    }
+  }
+
+  sheetZu();
+  await datenLaden();
+  await trachtLaden({ still: true });
+  gehe('heute');
+  S.hinweis = angelegt
+    ? t('Angelegt: {stand} mit {n} Völkern. Namen änderst du unter „Völker".',
+      { stand: z.name || t('Mein Bienenstand'), n: angelegt })
+    : t('Betriebsprofil gespeichert.');
+  render();
+}
+
+/**
+ * Betriebsprofil unter „Mehr": eine Liste, kein Ablauf.
+ *
+ * Wer das Varroakonzept oder eine Arbeitsweise mitten in der Saison ändert,
+ * behält alles Erledigte. Neu gerechnet wird nur die Zukunft: Offene Aufgaben
+ * einer abgeschalteten Regel verschwinden, rückwirkend passiert nichts.
+ */
+function betriebsprofilHTML() {
+  const p = S.profil || {};
+  const jn = (w) => (w === true ? t2('Ja') : w === false ? t2('Nein') : t2('Noch offen'));
+  const zeilen = [
+    ['Beute / Rähmchenmaß', p.beute || t2('Noch offen')],
+    ['Waben je Zarge', p.waben || t2('Noch offen')],
+    ['Drohnenbrut schneiden', jn(p.drohnenbrut)],
+    ['Ableger bilden', jn(p.ableger)],
+    ['Honig abgeben', jn(p.honigabgabe)],
+  ];
+  const beantwortet = [p.beute, p.waben, p.drohnenbrut, p.ableger, p.honigabgabe]
+    .filter((x) => x !== undefined && x !== null).length;
+  return `<h2 class="abschnitt">Betriebsprofil</h2>
+  <div class="karte"><div class="karte-inhalt">
+    <div class="mini" style="margin-bottom:10px">${esc(t2('{a} von {b} beantwortet',
+    { a: beantwortet, b: zeilen.length }))} · ${esc(t2('Was hier steht, schaltet Aufgaben '
+      + 'ein und aus. Unbeantwortet heißt: alles anzeigen.'))}</div>
+    <div class="eintragliste">
+      ${zeilen.map(([k, v]) => `<div class="eintragzeile">
+        <span class="etext">${esc(t2(k))}</span>
+        <span class="ewert">${esc(String(v))}</span></div>`).join('')}
+    </div>
+    <div class="knopfreihe" style="margin-top:12px">
+      <button class="knopf leise" data-profil-aendern>${esc(t2('Ändern'))}</button>
+    </div>
+  </div></div>`;
+}
+
 window.__beewise = { S, db, futter, fotoKante: () => fotos.kante(), planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
   gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText,
-  standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen, warnungenSammeln,
+  standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen, warnungenSammeln, erinnern,
   get fotoPuffer() { return fotoPuffer; } };

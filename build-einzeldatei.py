@@ -85,6 +85,11 @@ html = html.replace('<link rel="apple-touch-icon" href="icons/icon-192.png">', '
 # bricht ab, wenn sich der Aufruf in app.js aendert.
 SW_ALT = ("  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {\n"
           "    navigator.serviceWorker.register('sw.js').catch(() => {});\n"
+          "    // Antippen einer Meldung bei schon offener App: der Service Worker holt sie\n"
+          "    // nach vorn und sagt hier, wohin.\n"
+          "    navigator.serviceWorker.addEventListener('message', (e) => {\n"
+          "      if (e.data?.art === 'gehe' && e.data.ziel) gehe(e.data.ziel);\n"
+          "    });\n"
           "  }")
 sw_treffer = sum(1 for teil in js if SW_ALT in teil)
 if sw_treffer != 1:
@@ -94,6 +99,8 @@ js = [teil.replace(SW_ALT, '  // (Einzeldatei: kein Service Worker)') for teil i
 
 html = html.replace('<script type="module" src="js/app.js"></script>',
                     '<script type="module">\n' + ''.join(js) + '\n</script>')
+html = html.replace("icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',",
+                    f"icon: 'data:image/png;base64,{icon}',")
 html = html.replace("icon: 'icons/icon-192.png',", f"icon: 'data:image/png;base64,{icon}',")
 # Auch das Bild in der Sprachabfrage: die Einzeldatei hat keinen Ordner neben sich.
 html = html.replace('src="icons/icon-192.png"', f'src="data:image/png;base64,{icon}"')
