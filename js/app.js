@@ -303,6 +303,8 @@ function ansichtHeute() {
     <button class="knopf leise" data-ics>In Kalender exportieren</button>
   </div>`);
 
+  t.push(heuteErledigtHTML());
+
   const verpasst = S.plan.filter((a) => a.zustand === 'verpasst').length;
   if (verpasst) {
     t.push(`<div class="mini" style="padding:8px 6px">${t2('{n} Aufgaben sind für dieses Jahr durch – die App mahnt sie nicht weiter an.', { n: verpasst })}</div>`);
@@ -629,7 +631,7 @@ function wetterSheet(standortId) {
           <span class="zeichen">${wetterZeichenVon(x.code)}</span>
           <span class="grad">${Math.round(x.max)}°</span>
           <span class="rest">${esc(fmtDatum(x.datum, true))} · ${esc(t2(wetterTextVon(x.code)))}${
-            x.regen ? ' · ' + x.regen + ' mm' : ''}</span></div>`).join('')}</div>` : ''}
+            x.regen ? ' · ' + x.regen + ' l/m²' : ''}</span></div>`).join('')}</div>` : ''}
       ${betroffen.length ? `<h4 style="margin:14px 0 6px;font-size:14px">${
         esc(t2('Betroffene Aufgaben ({n})', { n: betroffen.length }))}</h4>
         <div class="karte" style="box-shadow:none;border:1px solid var(--rand)">
@@ -2013,6 +2015,7 @@ function verdrahten() {
     const [g, zustand] = e.currentTarget.dataset.gruppe.split('|');
     gruppeOeffnen(S.plan.filter((a) => (a.gruppierung || a.regelId) === g && a.zustand === zustand));
   });
+  on('[data-erledigung]', 'click', (e) => erledigungAendernSheet(e.currentTarget.dataset.erledigung));
   on('[data-klapp]', 'click', (e) => {
     const k = e.currentTarget.dataset.klapp;
     const standard = k.startsWith('tracht:') && S.standorte.length === 1;
@@ -2451,7 +2454,12 @@ function folgenHTML(a) {
   return `<div class="mini folgen">↳ ${esc(t2('Danach'))}: ${esc(teile.join(' · '))}</div>`;
 }
 
-function aufgabeOeffnen(a) {
+/**
+ * Aufgabe öffnen. `vorgabe` füllt die Felder vor – dafür gibt es genau einen
+ * Grund: Nach „Rückgängig" soll der Nutzer nicht alles noch einmal eintippen,
+ * sondern die eine Zahl ändern, wegen der er zurückgenommen hat.
+ */
+function aufgabeOeffnen(a, vorgabe = null) {
   const zeit = a.von && a.bis ? t2('{von} bis {bis}', { von: fmtDatum(a.von), bis: fmtDatum(a.bis) }) : t2('Termin noch offen');
   sheetAuf({
     titel: a.titel,
@@ -2473,8 +2481,9 @@ function aufgabeOeffnen(a) {
       ${a.rechner === 'futter' && a.ziel.typ === 'volk' ? futterRechnerHTML(a.ziel.id) : ''}
       <div class="trenner"></div>
       <label class="feld" data-key="datum" data-typ="wert"><span>Erledigt am</span>
-        <input type="date" value="${iso(heute())}"></label>
-      ${a.felder.map((f) => feldHTML(f)).join('')}
+        <input type="date" value="${vorgabe?.datum || iso(heute())}"></label>
+      ${schnellDatumHTML()}
+      ${a.felder.map((f) => feldHTML(f, vorgabe ? vorgabe[f.key] : undefined)).join('')}
       <div class="knopfreihe">
         ${a.eigenId ? '<button class="knopf gefahr" data-del>Löschen</button>'
           : '<button class="knopf leise" data-skip>Überspringen</button>'}
@@ -2482,6 +2491,7 @@ function aufgabeOeffnen(a) {
       </div>`,
     danach(root) {
       felderVerdrahten(root, a.felder);
+      schnellDatumVerdrahten(root);
       futterRechnerVerdrahten(root);
       root.querySelector('[data-koe-umweiseln]')?.addEventListener('click', (e) => {
         sheetZu();
@@ -2497,11 +2507,67 @@ function aufgabeOeffnen(a) {
   });
 }
 
+/**
+ * Drei Flächen für die drei Tage, die in der Praxis vorkommen.
+ *
+ * Erfasst wird selten am Stand und oft abends auf dem Sofa. Das falsche Datum
+ * ist dabei der teuerste Fehler der App, weil `nachAufgabe` daran hängt und
+ * sich die ganze Kette verschiebt – teurer als jeder Zahlendreher. Ein
+ * Datumsfeld, das man aufklappen und blättern muss, wird deshalb nicht
+ * korrigiert, sondern stehen gelassen.
+ */
+function schnellDatumHTML() {
+  return `<div class="schnelldatum">
+    ${[[0, 'Heute'], [1, 'Gestern'], [2, 'Vorgestern']].map(([n, wort]) =>
+    `<button type="button" data-tagzurueck="${n}">${esc(t2(wort))}</button>`).join('')}
+  </div>`;
+}
+
+function schnellDatumVerdrahten(root) {
+  const feld = root.querySelector('[data-key="datum"] input');
+  if (!feld) return;
+  const zeigen = () => root.querySelectorAll('[data-tagzurueck]').forEach((b) => {
+    const d = new Date(heute()); d.setDate(d.getDate() - Number(b.dataset.tagzurueck));
+    b.classList.toggle('an', feld.value === iso(d));
+  });
+  root.querySelectorAll('[data-tagzurueck]').forEach((b) => {
+    b.onclick = () => {
+      const d = new Date(heute()); d.setDate(d.getDate() - Number(b.dataset.tagzurueck));
+      feld.value = iso(d); zeigen();
+    };
+  });
+  feld.addEventListener('change', zeigen);
+  zeigen();
+}
+
+/**
+ * Einen abgeschlossenen Schritt zurücknehmen.
+ *
+ * Zurückgenommen wird alles, was beim Abhaken geschrieben wurde – nicht nur
+ * die Erledigung, sondern auch Wiegung, Winterbilanz und die Aufgaben, die ein
+ * Auslöser von sich aus angelegt hat. Danach steht die Aufgabe wieder im Plan.
+ * Mit `wieder` öffnet sich das Fenster erneut mit den eingetippten Werten:
+ * Der häufigste Grund für ein Zurücknehmen ist ein falscher Wert oder das
+ * falsche Volk, nicht „doch nicht gemacht".
+ */
+async function schrittZurueck(schritte, wieder = null) {
+  await db.zurueckrollen(schritte);
+  await datenLaden();
+  render();
+  if (wieder) {
+    const frisch = S.plan.find((x) => x.regelId === wieder.a.regelId
+      && x.ziel.id === wieder.a.ziel.id);
+    if (frisch) { setTimeout(() => aufgabeOeffnen(frisch, wieder.werte), 60); return; }
+  }
+  toast('Zurückgenommen. Die Aufgabe steht wieder im Plan.');
+}
+
 async function aufgabeSpeichern(a, root, status) {
   const werte = werteLesen(root);
   const datum = werte.datum || iso(heute());
   delete werte.datum;
 
+  db.mitschreiben();
   if (a.eigenId) {
     await eigenAbhaken(a.eigenId, datum, werte.notiz || '');
   } else {
@@ -2526,13 +2592,19 @@ async function aufgabeSpeichern(a, root, status) {
     });
   }
 
+  const schritte = db.mitschriftHolen();
+
   sheetZu();
   await datenLaden();
   render();
+  // Der Knopf trägt die Rücknahme, der Text nur noch die Tatsache. Was der
+  // Nutzer sich merken soll – was nachgerückt ist –, steht in der Liste und
+  // nicht in einer Meldung, die nach zehn Sekunden von selbst verschwindet.
+  const zurueck = { aktion: () => schrittZurueck(schritte, { a, werte: { ...werte, datum } }) };
   if (neu) {
-    toast(t('Erledigt. {n} neue Aufgaben automatisch angelegt.', { n: neu }));
+    toast(t('Erledigt. {n} neue Aufgaben automatisch angelegt.', { n: neu }), zurueck);
   } else if (status !== 'erledigt') {
-    toast('Übersprungen.');
+    toast('Übersprungen.', zurueck);
   } else {
     // Wenn möglich benennen, was durch dieses Abhaken nachgerückt ist.
     const folgeIds = a.regelId ? folgeRegeln(a.regelId).map((f) => f.id) : [];
@@ -2541,7 +2613,7 @@ async function aufgabeSpeichern(a, root, status) {
     toast(naechste && naechste.von
       ? t('Erledigt. Als Nächstes: {was} ab {d}.',
         { was: t(naechste.kurz || naechste.titel), d: fmtDatum(naechste.von) })
-      : 'Erledigt – Folgetermine neu berechnet.');
+      : 'Erledigt – Folgetermine neu berechnet.', zurueck);
   }
 
   // Aus „Ableger gebildet" werden echte Völker – mit Abstammung und Jungvolkstatus.
@@ -2648,6 +2720,7 @@ function gruppeOeffnen(gruppe) {
       <div class="trenner"></div>
       <label class="feld" data-key="datum" data-typ="wert"><span>Erledigt am</span>
         <input type="date" value="${iso(heute())}"></label>
+      ${schnellDatumHTML()}
       ${a.felder.map((f) => feldHTML(f)).join('')}
       <div class="mini" style="margin-bottom:10px">Die Werte gelten für alle ausgewählten.
         Einzeln erfassen? Dann über das jeweilige Volk gehen.</div>
@@ -2657,6 +2730,7 @@ function gruppeOeffnen(gruppe) {
       </div>`,
     danach(root) {
       felderVerdrahten(root, a.felder);
+      schnellDatumVerdrahten(root);
       root.querySelectorAll('#zielchips button').forEach((b) => {
         b.onclick = () => b.classList.toggle('an');
       });
@@ -2667,6 +2741,7 @@ function gruppeOeffnen(gruppe) {
         const datum = werte.datum || iso(heute());
         delete werte.datum;
         let neu = 0;
+        db.mitschreiben();
         for (const a2 of gruppe.filter((x) => ids.includes(x.ziel.id))) {
           if (a2.eigenId) { await eigenAbhaken(a2.eigenId, datum, werte.notiz || ''); continue; }
           await db.schreibe('erledigungen', {
@@ -2682,9 +2757,11 @@ function gruppeOeffnen(gruppe) {
             });
           }
         }
+        const schritte = db.mitschriftHolen();
         sheetZu(); await datenLaden(); render();
         toast(neu ? t('{k} × erledigt, {n} neue Aufgaben.', { k: ids.length, n: neu })
-          : t('{k} × erledigt.', { k: ids.length }));
+          : t('{k} × erledigt.', { k: ids.length }),
+        { aktion: () => schrittZurueck(schritte) });
       };
       root.querySelector('[data-ok]').onclick = () => speichern('erledigt');
       root.querySelector('[data-skip]').onclick = () => speichern('uebersprungen');
@@ -4709,8 +4786,115 @@ async function bluetenAntwort(standortId, art, status, datum = iso(heute())) {
   toast(status === 'start' ? 'Notiert – abhängige Termine wurden nachgezogen.' : 'Notiert.');
 }
 
+/**
+ * „Heute eingetragen" – der Weg zurück, den es bisher nur über die Chronik gab.
+ *
+ * Zwei Gründe. Am Stand sieht man, was im Durchgang schon abgearbeitet ist,
+ * ohne in jedes Volk einzeln zu gehen. Und wer sich vertippt hat, findet die
+ * Zeile dort wieder, wo er sie gerade abgehakt hat – nicht drei Bildschirme
+ * tiefer in der Volkschronik.
+ *
+ * Maßgeblich ist, wann eingetragen wurde, nicht das Erledigungsdatum: Wer die
+ * Arbeit von gestern nachträgt und sich dabei vertippt, sucht sie heute.
+ * Zusätzlich muss die Arbeit selbst frisch sein – sonst stünde nach einer
+ * Rücksicherung oder einem Abgleich der ganze Jahrgang hier, weil dabei jeder
+ * Satz eine neue Schreibzeit bekommt. Bewusst nur die letzten Tage: sonst
+ * entsteht hier eine zweite Chronik.
+ */
+function heuteErledigtHTML() {
+  const tag = iso(heute());
+  const grenze = new Date(heute()); grenze.setDate(grenze.getDate() - 3);
+  const zeilen = S.erledigungen
+    .filter((e) => !e.deletedAt && String(e.updatedAt || '').slice(0, 10) === tag
+      && e.datum >= iso(grenze))
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+  if (!zeilen.length) return '';
+  const auf = !!S.offen['heuteerledigt'];
+  const zielName = (e) => (e.zielTyp === 'volk' ? volkNameVon(e.zielId)
+    : e.zielTyp === 'stand' ? standortName(e.zielId) : t2('Ganze Imkerei'));
+  return `<div class="karte" style="margin-top:14px">
+    <div class="klapper" data-klapp="heuteerledigt">
+      <span>${esc(t2('Heute eingetragen ({n})', { n: zeilen.length }))}</span>
+      <span class="pfeil">${auf ? '⌄' : '›'}</span></div>
+    ${auf ? `<div class="eintragliste" style="border-top:1px solid var(--rand)">
+      ${zeilen.map((e) => {
+    const regel = regelNach(e.regelId);
+    const name = regel ? t2(regel.kurz || regel.titel) : e.regelId;
+    return `<div class="eintragzeile" data-erledigung="${e.id}">
+        <span class="etext">${esc(name)}<small>${esc(zielName(e) || '')} · ${
+  esc(fmtDatum(e.datum))}${e.status === 'uebersprungen' ? ' · ' + esc(t2('übersprungen')) : ''
+}</small></span>
+        <span class="ewert">›</span></div>`;
+  }).join('')}
+    </div>` : ''}
+  </div>`;
+}
+
+/**
+ * Eine Erledigung nachträglich ändern oder zurücknehmen.
+ *
+ * Der Unterschied zwischen „vertippt" und „doch nicht gemacht" wird nicht
+ * erfragt, sondern durch zwei verschieden benannte Wege abgebildet: Ändern
+ * lässt den Eintrag stehen, Zurücknehmen wirft ihn weg. Nur das Zurücknehmen
+ * fragt nach – und nennt dabei, welche Werte verloren gehen. Eine Rückfrage
+ * bei jedem Häkchen würde nach drei Tagen blind weggetippt.
+ */
+function erledigungAendernSheet(id) {
+  const alt = S.erledigungen.find((e) => e.id === id && !e.deletedAt);
+  if (!alt) return;
+  const regel = regelNach(alt.regelId);
+  const felder = regel?.felder || [];
+  const zielName = alt.zielTyp === 'volk' ? volkNameVon(alt.zielId)
+    : alt.zielTyp === 'stand' ? standortName(alt.zielId) : t2('Ganze Imkerei');
+  sheetAuf({
+    titel: t2(regel?.titel) || alt.regelId,
+    unter: `${zielName || ''} · ${fmtDatum(alt.datum)}`,
+    inhalt: `
+      <label class="feld" data-key="datum" data-typ="wert"><span>Erledigt am</span>
+        <input type="date" value="${esc(alt.datum)}"></label>
+      ${schnellDatumHTML()}
+      <div class="mini" style="margin:-6px 0 12px">Ein anderes Datum verschiebt auch die
+        Folgetermine, die an dieser Arbeit hängen.</div>
+      ${felder.map((f) => feldHTML(f, alt.daten?.[f.key])).join('')}
+      <div class="knopfreihe">
+        <button class="knopf leise loeschen" data-weg>${esc(t2('Doch nicht gemacht'))}</button>
+        <button class="knopf" data-ok>${esc(t2('Änderungen speichern'))}</button>
+      </div>`,
+    danach(root) {
+      felderVerdrahten(root, felder);
+      schnellDatumVerdrahten(root);
+      root.querySelector('[data-ok]').onclick = async () => {
+        const werte = werteLesen(root);
+        const datum = werte.datum || alt.datum;
+        delete werte.datum;
+        await db.schreibe('erledigungen', {
+          ...alt, datum, daten: werte, jahr: parseISO(datum).getFullYear(),
+        });
+        sheetZu(); await datenLaden(); render();
+        toast('Geändert. Folgetermine neu berechnet.');
+      };
+      root.querySelector('[data-weg]').onclick = async () => {
+        const was = datenKurz(alt.daten, alt.regelId);
+        const frage = was
+          ? t2('Aufgabe wieder offen? Eingetragen war: {was}. Diese Werte gehen verloren.',
+            { was })
+          : t2('Aufgabe wieder offen?');
+        if (!await bestaetige(frage, t2('Zurück in die Liste'))) return;
+        await db.loesche('erledigungen', alt.id);
+        sheetZu(); await datenLaden(); render();
+        toast('Zurückgenommen. Die Aufgabe steht wieder im Plan.');
+      };
+    },
+  });
+}
+
 function eintragMenu(ref) {
   const [art, id] = ref.split(':');
+  // Eine Erledigung wird nicht gelöscht, sondern geändert oder zurückgenommen –
+  // beides sagt, was danach passiert. „Eintrag löschen" sagte es nicht.
+  if (art === 'erledigung' && S.erledigungen.some((e) => e.id === id && !e.deletedAt)) {
+    erledigungAendernSheet(id); return;
+  }
   sheetAuf({
     titel: 'Eintrag',
     inhalt: '<div class="knopfreihe"><button class="knopf gefahr" data-del>Eintrag löschen</button></div>',
@@ -5050,5 +5234,5 @@ function spracheAbfragen() {
 
 window.__beewise = { S, db, futter, fotoKante: () => fotos.kante(), planBerechnen, datenLaden, render, trachtLaden, wetterLaden,
   gehe, zurueck, lage, aktionstag, sheetIstAuf, stundeBewerten, fensterText,
-  standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen,
+  standStarten, standWeiter, standBeenden, etikettenSheet, aufgabeOeffnen, warnungenSammeln,
   get fotoPuffer() { return fotoPuffer; } };

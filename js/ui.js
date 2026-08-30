@@ -223,11 +223,37 @@ export function sheetZu() {
   if (aufSchliessen) { const f = aufSchliessen; aufSchliessen = null; f(); }
 }
 
-export function toast(text) {
-  toastEl.textContent = t(text);
+/**
+ * Kurze Rückmeldung. Mit `aktion` bekommt sie einen Knopf und steht länger.
+ *
+ * Die längere Standzeit ist kein Detail: Draußen, mit Handschuh und Sonne auf
+ * dem Bildschirm, sind knapp drei Sekunden für etwas, das man antippen soll,
+ * schlicht nicht erreichbar. Und angetippt wird nur der Knopf, nicht die
+ * Fläche – sonst nimmt ein Streifschuss beim Weiterarbeiten die Eingabe
+ * zurück.
+ */
+export function toast(text, opt = {}) {
+  toastEl.textContent = '';
+  const wort = document.createElement('span');
+  wort.textContent = t(text);
+  toastEl.appendChild(wort);
+  toastEl.classList.toggle('mitknopf', !!opt.aktion);
+  if (opt.aktion) {
+    const knopf = document.createElement('button');
+    knopf.type = 'button';
+    knopf.className = 'toastknopf';
+    knopf.textContent = t(opt.knopf || 'Rückgängig');
+    knopf.onclick = () => { toastWeg(); opt.aktion(); };
+    toastEl.appendChild(knopf);
+  }
   toastEl.classList.add('auf');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('auf'), 2800);
+  toastTimer = setTimeout(toastWeg, opt.dauer || (opt.aktion ? 10000 : 2800));
+}
+
+function toastWeg() {
+  toastEl.classList.remove('auf');
+  toastEl.classList.remove('mitknopf');
 }
 
 export function bestaetige(frage, jaText = 'Ja, löschen') {

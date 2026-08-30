@@ -649,16 +649,43 @@ export function wetterwarnungen(sw, { jetzt = new Date() } = {}) {
     });
   }
 
-  // ---- Dauerregen
-  const regen = (sw.tage || []).filter((x) => (x.regen ?? 0) >= 25 && x.datum >= iso(jetzt));
-  if (regen.length) {
+  // ---- Regen: entscheidend ist die Intensität, nicht die Tagessumme.
+  // 25 l/m² gleichmäßig über 24 Stunden Landregen sind für den Stand harmlos –
+  // das ist ein nasser Tag, sonst nichts. Dieselbe Menge in einer Stunde spült
+  // den Zufahrtsweg aus, schwemmt die Bodenschieber voll und drückt Wasser
+  // unter flach stehende Beuten. Und was Beuten wirklich umwirft, ist der
+  // durchweichte Boden nach zwei Tagen plus Böen, nicht der Guss selbst.
+  // Deshalb zwei getrennte Auslöser mit verschiedenen Handlungen.
+  const gussStunden = kommend.filter((x) => (x.regen ?? 0) >= 20)
+    .sort((a, b) => new Date(a.zeit) - new Date(b.zeit));
+  if (gussStunden.length) {
+    const staerkste = gussStunden.slice().sort((a, b) => (b.regen ?? 0) - (a.regen ?? 0))[0];
     warnungen.push({
       art: 'regen',
-      wann: parseISO(regen[0].datum),
-      titel: t('Starkregen angekündigt: {n} mm am {d}',
-        { n: Math.round(regen[0].regen), d: `${regen[0].datum.slice(8, 10)}.${regen[0].datum.slice(5, 7)}.` }),
+      wann: wann(gussStunden[0]),
+      titel: t('Starkregen angekündigt: {n} l/m² in einer Stunde',
+        { n: Math.round(staerkste.regen) }),
       handlung: t('Standplatz auf Staunässe ansehen, Beuten leicht nach vorn neigen, '
-        + 'Fluglöcher frei halten.'),
+        + 'Fluglöcher frei halten, Bodenschieber ziehen.'),
+      aufgabe: 'Standplatz nach Starkregen prüfen',
+    });
+  }
+
+  // ---- durchweichter Boden: Summe über zwei Tage, mit Böen zusammen gelesen
+  const naechsteTage = (sw.tage || []).filter((x) => x.datum >= iso(jetzt)).slice(0, 2);
+  const zweiTagesSumme = naechsteTage.reduce((s, x) => s + (x.regen ?? 0), 0);
+  if (zweiTagesSumme >= 40 && naechsteTage.length) {
+    const boenDazu = Math.max(0, ...kommend.map((x) => x.boen ?? 0));
+    warnungen.push({
+      art: 'regen',
+      wann: parseISO(naechsteTage[0].datum),
+      titel: t('Anhaltender Regen: {n} l/m² in zwei Tagen', { n: Math.round(zweiTagesSumme) }),
+      handlung: boenDazu >= 50
+        ? t('Der Boden weicht durch und es sind Böen bis {n} km/h gemeldet: Beuten auf '
+          + 'Standfestigkeit prüfen, Unterbau nachsehen, hohe Stapel gurten oder beschweren.',
+        { n: Math.round(boenDazu) })
+        : t('Der Boden weicht durch: Unterbau und Standfestigkeit prüfen, besonders bei '
+          + 'hohen Stapeln und Beuten auf Platten im Rasen.'),
       aufgabe: 'Standplatz nach Starkregen prüfen',
     });
   }

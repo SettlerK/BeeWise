@@ -256,6 +256,25 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--honig);outline-o
   z-index:70;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;
 }
 .toast.auf{opacity:1}
+/* Nur mit Knopf nimmt die Meldung Tipps an – sonst fängt sie Berührungen ab,
+   die dem Bildschirm darunter gelten. */
+.toast.mitknopf{
+  pointer-events:auto;display:flex;align-items:center;gap:12px;text-align:left;
+  padding:8px 8px 8px 16px;
+}
+/* Drei Flächen statt Kalender blättern. Sie stehen direkt unter dem Datumsfeld
+   und sind so hoch, dass sie mit Handschuh treffbar sind. */
+.schnelldatum{display:flex;gap:6px;margin:-6px 0 14px}
+.schnelldatum button{
+  flex:1;min-height:40px;border:1.3px solid var(--rand-stark);border-radius:9px;
+  background:var(--karte);font-size:13px;
+}
+.schnelldatum button.an{background:var(--text);border-color:var(--text);color:var(--bg)}
+
+.toastknopf{
+  background:var(--bg);color:var(--text);border:none;border-radius:8px;
+  padding:0 14px;min-height:40px;font-size:14px;font-weight:650;white-space:nowrap;
+}
 .trenner{height:1px;background:var(--rand);margin:16px 0}
 .rechts{text-align:right}
 .mini{font-size:12px;color:var(--text-zart)}

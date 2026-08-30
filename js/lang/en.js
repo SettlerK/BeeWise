@@ -1989,4 +1989,33 @@ export const en = {
   'ungewöhnlicher Geruch': 'unusual smell',
   'Bei „löchriges Brutbild" und „Räuberei" legt BeeWise sofort eine Aufgabe an.':
     'For “patchy brood pattern” and “robbing”, BeeWise creates a task straight away.',
+
+  // ---------------------------------------------- Zurücknehmen und Nachtragen
+  'Rückgängig': 'Undo',
+  'Heute': 'Today',
+  'Gestern': 'Yesterday',
+  'Vorgestern': 'Day before yesterday',
+  'Heute eingetragen ({n})': 'Entered today ({n})',
+  'übersprungen': 'skipped',
+  'Doch nicht gemacht': 'Not done after all',
+  'Änderungen speichern': 'Save changes',
+  'Aufgabe wieder offen? Eingetragen war: {was}. Diese Werte gehen verloren.':
+    'Put the task back on the list? Recorded: {was}. Those values will be lost.',
+  'Aufgabe wieder offen?': 'Put the task back on the list?',
+  'Zurück in die Liste': 'Back on the list',
+  'Zurückgenommen. Die Aufgabe steht wieder im Plan.':
+    'Taken back. The task is on the plan again.',
+  'Geändert. Folgetermine neu berechnet.': 'Changed. Follow-up dates recalculated.',
+  'Ein anderes Datum verschiebt auch die Folgetermine, die an dieser Arbeit hängen.':
+    'A different date also moves the follow-up dates that depend on this job.',
+  // ---------------------------------------------------------------- Regen
+  'Starkregen angekündigt: {n} l/m² in einer Stunde':
+    'Heavy rain forecast: {n} l/m² in one hour',
+  'Standplatz auf Staunässe ansehen, Beuten leicht nach vorn neigen, Fluglöcher frei halten, Bodenschieber ziehen.':
+    'Check the site for waterlogging, tilt hives slightly forward, keep entrances clear, pull the floor inserts.',
+  'Anhaltender Regen: {n} l/m² in zwei Tagen': 'Persistent rain: {n} l/m² over two days',
+  'Der Boden weicht durch und es sind Böen bis {n} km/h gemeldet: Beuten auf Standfestigkeit prüfen, Unterbau nachsehen, hohe Stapel gurten oder beschweren.':
+    'The ground is soaking through and gusts up to {n} km/h are forecast: check that hives stand firm, inspect the stands, strap or weight tall stacks.',
+  'Der Boden weicht durch: Unterbau und Standfestigkeit prüfen, besonders bei hohen Stapeln und Beuten auf Platten im Rasen.':
+    'The ground is soaking through: check stands and stability, especially tall stacks and hives on slabs in grass.',
 };

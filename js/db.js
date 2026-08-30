@@ -187,7 +187,41 @@ export async function hole(store, id) {
   });
 }
 
+// ------------------------------------------------------------- Mitschrift
+// Damit „Rückgängig" nicht lügt. Ein Abhaken schreibt selten nur einen Satz:
+// dazu kommen Wiegung, Winterbilanz und die Aufgaben, die ein Auslöser von
+// sich aus anlegt. Wer nur die Erledigung zurücknimmt, lässt den Rest stehen –
+// und der Nutzer sieht eine Aufgabe, die er nie erzeugt hat.
+//
+// Deshalb kann die Oberfläche für die Dauer eines Vorgangs mitschreiben
+// lassen, was geschrieben wurde, samt vorherigem Stand. Zurückgenommen wird
+// in umgekehrter Reihenfolge: Geänderte Sätze bekommen ihren alten Stand
+// zurück, neue werden auf gelöscht gesetzt (nicht hart entfernt – sonst
+// bekäme ein anderes Gerät die Löschung beim Abgleich nie mit).
+let mitschrift = null;
+
+export function mitschreiben() { mitschrift = []; }
+
+export function mitschriftHolen() {
+  const m = mitschrift; mitschrift = null; return m || [];
+}
+
+export async function zurueckrollen(schritte) {
+  for (const s of [...schritte].reverse()) {
+    if (s.vorher) {
+      const os = await tx(s.store, 'readwrite');
+      await new Promise((res, rej) => {
+        const r = os.put({ ...s.vorher, updatedAt: nowISO(), dirty: true });
+        r.onsuccess = () => res(); r.onerror = () => rej(r.error);
+      });
+    } else {
+      await loesche(s.store, s.id);
+    }
+  }
+}
+
 export async function schreibe(store, obj) {
+  const vorher = mitschrift && obj.id ? await hole(store, obj.id) : null;
   const rec = {
     ...obj,
     id: obj.id || uid(),
@@ -201,6 +235,7 @@ export async function schreibe(store, obj) {
     const r = os.put(rec);
     r.onsuccess = () => res(); r.onerror = () => rej(r.error);
   });
+  if (mitschrift) mitschrift.push({ store, id: rec.id, vorher });
   return rec;
 }
 
