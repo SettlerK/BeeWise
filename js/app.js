@@ -74,6 +74,7 @@ window.addEventListener('unhandledrejection', (e) => fehlerZeigen('Nicht abgefan
 /** Was BeeWise melden darf. Wird unter „Mehr" eingestellt. */
 const MELDUNGEN_STANDARD = {
   faellig: true, warnungen: true, tracht: true, vorwarnung: true, vorlaufTage: 3,
+  einzeln: true,
 };
 
 const t2 = (s, v) => (s == null ? s : t(s, v));
@@ -1247,7 +1248,7 @@ function verlaufHTML(v, ereignisse) {
   <div class="karte"><div class="karte-inhalt">
     ${letzteD ? `<div class="verlaufkopf">${esc(t2('Letzte Durchsicht: {d} · vor {n} Tagen',
     { d: fmtDatum(letzteD.datum), n: -diffTage(parseISO(letzteD.datum), heute()) }))}</div>` : ''}
-    ${auf ? `<div class="zeitstrahl">${liste.map(zeile).join('')}</div>`
+    ${auf ? `<div class="zeitstrahl">${liste.map((e) => zeile(e)).join('')}</div>`
     : `<div class="stapel" data-klapp="verlauf:${v.id}">
         <div class="zeitstrahl oben">${liste.map((e) => zeile(e, false)).join('')}</div>
         ${rest >= 1 ? '<div class="kante a"></div>' : ''}
@@ -1979,7 +1980,8 @@ function ansichtMehr() {
     ${[['faellig', 'Fällige und überfällige Aufgaben', 'Eine Zusammenfassung dessen, was ansteht oder liegengeblieben ist.'],
        ['warnungen', 'Automatische Warnungen', 'Varroabefall über der Schwelle, weiselloses Volk, Schwarmstimmung, Futter knapp.'],
        ['tracht', 'Trachtfragen', 'Rückfragen wie „Blüht der Raps schon?“, die das Modell genauer machen.'],
-       ['vorwarnung', 'Wichtige Termine vorab', 'Vorwarnung vor kritischen Terminen wie letzter Ernte oder Auffütterungsschluss.']]
+       ['vorwarnung', 'Wichtige Termine vorab', 'Vorwarnung vor kritischen Terminen wie letzter Ernte oder Auffütterungsschluss.'],
+       ['einzeln', 'Je Volk eine eigene Meldung', 'Statt einer Sammelmeldung kommt für jedes Volk mit offenen Arbeiten eine eigene – das Telefon legt sie zu einem Stapel zusammen. Höchstens fünf, danach zählt die Sammelmeldung den Rest.']]
       .map(([k, titel, text]) => `<label class="schalter">
         <span><b>${esc(titel)}</b><small>${esc(text)}</small></span>
         <input type="checkbox" data-meldung="${k}" ${S.meldungen?.[k] ? 'checked' : ''}>
@@ -4784,35 +4786,80 @@ const DURCHSICHT_FELDER = [
   { key: 'notiz', label: 'Notiz' },
 ];
 
-function durchsichtSheet(volkId) {
+/**
+ * Durchsicht erfassen – und mit `id` dieselbe Durchsicht später wieder öffnen.
+ *
+ * Eine Durchsicht ist der datenreichste Satz der App: zehn Felder, Fotos, und
+ * an ihr hängen Milbenkurve, Gewicht und die Schwarmkontrolle. Sie nur löschen
+ * zu können hieß bisher: ein Zahlendreher kostet den ganzen Eintrag samt Fotos.
+ * Deshalb öffnet sie sich jetzt vollständig mit allen Werten und lässt sich
+ * ändern – gelöscht wird nur noch, wenn die Durchsicht wirklich nicht
+ * stattgefunden hat.
+ *
+ * Beim Ändern werden die abgeleiteten Sätze mitgezogen: die Wiegung, die aus
+ * der Kippprobe entsteht, und die Schwarmkontrolle, die eine Durchsicht in der
+ * Schwarmzeit zugleich ist. Sonst stünde im Protokoll etwas anderes als in der
+ * Durchsicht, und niemand wüsste, welche der beiden Zahlen gilt.
+ */
+function durchsichtSheet(volkId, id = null) {
   const v = S.voelker.find((x) => x.id === volkId);
+  const alt = id ? S.durchsichten.find((x) => x.id === id && !x.deletedAt) : null;
+  if (id && !alt) return;
   const letzte = letzteDurchsicht(volkId);
   const monat = new Date().getMonth() + 1;
   sheetAuf({
-    titel: 'Durchsicht',
-    unter: `${v.name}${letzte ? ' · ' + t2('zuletzt {d} (vor {n} Tagen)', { d: fmtDatum(letzte.datum), n: diffTage(heute(), parseISO(letzte.datum)) }) : ''}`,
+    titel: alt ? 'Durchsicht ändern' : 'Durchsicht',
+    unter: alt ? `${v.name} · ${fmtDatum(alt.datum)}`
+      : `${v.name}${letzte ? ' · ' + t2('zuletzt {d} (vor {n} Tagen)', { d: fmtDatum(letzte.datum), n: diffTage(heute(), parseISO(letzte.datum)) }) : ''}`,
     inhalt: `
       <div class="mini" style="margin-bottom:10px">${t2('Alarmschwelle Milbenfall in diesem Monat: {n} pro Tag.', { n: varroaSchwelle(monat) })}</div>
       <label class="feld" data-key="datum" data-typ="wert"><span>Datum</span>
-        <input type="date" value="${iso(heute())}"></label>
-      ${DURCHSICHT_FELDER.map((f) => feldHTML(f)).join('')}
+        <input type="date" value="${alt ? esc(alt.datum) : iso(heute())}"></label>
+      ${alt ? schnellDatumHTML() : ''}
+      ${DURCHSICHT_FELDER.map((f) => feldHTML(f, alt ? alt[f.key] : undefined)).join('')}
+      ${alt ? `<div class="fotofeld">
+        <span class="grobtitel">${esc(t2('Schon gespeicherte Fotos'))}</span>
+        <div class="fotoleiste" data-fotos="${alt.id}"></div>
+        <small>${esc(t2('Antippen zeigt das Bild groß – dort lässt es sich auch löschen.'))}</small>
+      </div>` : ''}
       ${fotoFeldHTML()}
-      <div class="knopfreihe"><button class="knopf" data-ok>Speichern</button></div>`,
+      <div class="knopfreihe">
+        ${alt ? `<button class="knopf leise loeschen" data-del>${
+    esc(t2('Durchsicht löschen'))}</button>` : ''}
+        <button class="knopf" data-ok>${esc(alt ? t2('Änderungen speichern') : t2('Speichern'))}</button>
+      </div>`,
     beimSchliessen: fotoPufferLeeren,
     danach(root) {
       felderVerdrahten(root, DURCHSICHT_FELDER);
+      if (alt) schnellDatumVerdrahten(root);
       fotoFeldVerdrahten(root);
+      if (alt) nachladen();
+      root.querySelector('[data-del]')?.addEventListener('click', async () => {
+        if (!await bestaetige(t2('Diese Durchsicht löschen? Die Fotos dazu bleiben erhalten.'),
+          t2('Löschen'))) return;
+        await db.loesche('durchsichten', alt.id);
+        sheetZu(); await datenLaden(); render(); toast('Durchsicht gelöscht.');
+      });
       root.querySelector('[data-ok]').onclick = async () => {
         const w = werteLesen(root);
         const datum = w.datum || iso(heute());
-        const d = await db.schreibe('durchsichten', { id: uid(), volkId, ...w, datum });
+        const d = await db.schreibe('durchsichten',
+          alt ? { ...alt, ...w, datum } : { id: uid(), volkId, ...w, datum });
         await fotoPufferSpeichern(volkId, d.id, datum);
         await wiegungAusWerten(volkId, datum, w);
 
         // Eine Durchsicht in der Schwarmzeit ist zugleich die Schwarmkontrolle.
         const sk = S.plan.find((a) => a.regelId === 'schwarmkontrolle' && a.ziel.id === volkId
           && ['faellig', 'ueberfaellig', 'bald'].includes(a.zustand));
-        if (sk && (w.zellen != null || w.stimmung)) {
+        const schon = S.erledigungen.find((e) => !e.deletedAt && e.regelId === 'schwarmkontrolle'
+          && e.zielId === volkId && e.datum === (alt ? alt.datum : datum));
+        if (schon && alt) {
+          // beim Ändern nachziehen statt danebenschreiben
+          await db.schreibe('erledigungen', {
+            ...schon, datum, daten: { zellen: w.zellen, stimmung: w.stimmung },
+            jahr: parseISO(datum).getFullYear(),
+          });
+        } else if (sk && !schon && (w.zellen != null || w.stimmung)) {
           await db.schreibe('erledigungen', {
             id: uid(), regelId: 'schwarmkontrolle', zielTyp: 'volk', zielId: volkId,
             datum, status: 'erledigt',
@@ -4825,8 +4872,9 @@ function durchsichtSheet(volkId) {
           kontext: { stand: stD ? { id: stD.id, name: stD.name } : null },
         });
         sheetZu(); await datenLaden(); render();
-        toast(neu ? t('Durchsicht gespeichert. {n} neue Aufgaben angelegt.', { n: neu })
-          : 'Durchsicht gespeichert.');
+        toast(alt ? 'Durchsicht geändert.'
+          : neu ? t('Durchsicht gespeichert. {n} neue Aufgaben angelegt.', { n: neu })
+            : 'Durchsicht gespeichert.');
       };
     },
   });
@@ -4960,16 +5008,36 @@ function erledigungAendernSheet(id) {
   });
 }
 
+/**
+ * Ein Eintrag im Verlauf wird angetippt – was passiert?
+ *
+ * Bis v23 nur eines: löschen. Das war falsch. Wer etwas erfasst hat und
+ * feststellt, dass eine Zahl nicht stimmt, will sie ändern, nicht die ganze
+ * Arbeit wegwerfen. Deshalb führt jede Art hier in ihr eigenes Fenster – mit
+ * allen Werten darin. Gelöscht wird nur noch dort, wo es wirklich um „hat nicht
+ * stattgefunden" geht, und dann mit Rückfrage.
+ */
 function eintragMenu(ref) {
   const [art, id] = ref.split(':');
-  // Eine Erledigung wird nicht gelöscht, sondern geändert oder zurückgenommen –
-  // beides sagt, was danach passiert. „Eintrag löschen" sagte es nicht.
   if (art === 'erledigung' && S.erledigungen.some((e) => e.id === id && !e.deletedAt)) {
     erledigungAendernSheet(id); return;
   }
+  const d = art === 'durchsicht'
+    ? S.durchsichten.find((x) => x.id === id && !x.deletedAt) : null;
+  if (d) { durchsichtSheet(d.volkId, d.id); return; }
+  const k = art === 'koenigin'
+    ? (S.koeniginnen || []).find((x) => x.id === id && !x.deletedAt) : null;
+  if (k) { koeniginSheet(k.volkId, k); return; }
+
+  // Bleibt: der Umzug. Ihn zu ändern hieße, Tracht und Wetter rückwirkend neu
+  // zuzuordnen – dafür ist Löschen und neu Eintragen der ehrlichere Weg.
   sheetAuf({
-    titel: 'Eintrag',
-    inhalt: '<div class="knopfreihe"><button class="knopf gefahr" data-del>Eintrag löschen</button></div>',
+    titel: art === 'wanderung' ? t2('Umzug / Wanderung') : t2('Eintrag'),
+    unter: art === 'wanderung'
+      ? t2('Ab dem Umzugsdatum rechnet BeeWise mit dem neuen Standort. Wird der Eintrag '
+        + 'gelöscht, zählt das Volk wieder durchgehend zum vorherigen.') : '',
+    inhalt: `<div class="knopfreihe"><button class="knopf gefahr" data-del>${
+  esc(t2('Eintrag löschen'))}</button></div>`,
     danach(root) {
       root.querySelector('[data-del]').onclick = async () => {
         const store = { durchsicht: 'durchsichten', erledigung: 'erledigungen',
@@ -5084,7 +5152,7 @@ async function benachrichtigungenAnfragen() {
  * anderen). Verlassen kann man sich darauf nicht – manche Systeme ignorieren
  * es –, und genau deshalb ist die Grenze drei und nicht sieben.
  */
-const MELDE_GRENZE = 3;
+const MELDE_GRENZE = 5;
 
 async function meldungZeigen(titel, text, tag, still) {
   const opt = {
@@ -5094,7 +5162,15 @@ async function meldungZeigen(titel, text, tag, still) {
   // Auf iOS darf eine Web-App nur über den Service Worker melden; der
   // Notification-Konstruktor wirft dort. Deshalb erst der Umweg, dann direkt.
   try {
-    const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+    const sw = navigator.serviceWorker;
+    // `getRegistration` liefert beim allerersten Aufruf noch nichts zurück –
+    // dann auf `ready` warten, aber nicht ewig: ohne Zeitgrenze bliebe die
+    // Meldung in einer Fassung ohne Service Worker (Einzeldatei) für immer
+    // hängen.
+    let reg = sw && await sw.getRegistration();
+    if (!reg && sw) {
+      reg = await Promise.race([sw.ready, new Promise((f) => setTimeout(f, 1500))]);
+    }
     if (reg && reg.showNotification) { await reg.showNotification(titel, opt); return; }
   } catch { /* fällt unten auf den direkten Weg zurück */ }
   try { new Notification(titel, opt); } catch { /* Gerät kann es nicht */ }
@@ -5125,8 +5201,13 @@ async function erinnern({ erzwingen = false } = {}) {
       g.arbeiten.push(a);
       proZiel.set(k, g);
     }
-    einzeln = [...proZiel.values()].filter((g) => g.spaet > 0)
-      .sort((x, y) => y.spaet - x.spaet).slice(0, MELDE_GRENZE);
+    // Erst die Ziele mit überfälligen Arbeiten, dann die übrigen mit fälligen.
+    // Anfangs ist noch nichts überfällig – ohne den zweiten Griff bekäme man
+    // dann trotz sieben offener Arbeiten nur die eine Sammelmeldung, und genau
+    // die sagt zu wenig.
+    const alleZiele = [...proZiel.values()]
+      .sort((x, y) => (y.spaet - x.spaet) || (y.arbeiten.length - x.arbeiten.length));
+    einzeln = m.einzeln === false ? [] : alleZiele.slice(0, MELDE_GRENZE);
     if (offen) {
       zeilen.push(spaet
         ? t('{a} überfällig, {b} heute fällig', { a: spaet, b: offen - spaet })
@@ -5169,16 +5250,23 @@ async function erinnern({ erzwingen = false } = {}) {
 
   const tag = iso(heute());
   for (const g of einzeln) {
-    const text = g.arbeiten.slice(0, 3).map((a) => t(a.kurz || a.titel)
+    const text = g.arbeiten.slice(0, 4).map((a) => t(a.kurz || a.titel)
       + (a.zustand === 'ueberfaellig' && a.bis
         ? ' (' + t('seit {n} Tagen', { n: -diffTage(a.bis, heute()) }) + ')' : ''))
-      .join(' · ');
-    await meldungZeigen(
-      t('{name} · {n} Aufgaben überfällig', { name: g.name, n: g.spaet }),
-      text, `beewise-${g.name}-${tag}`, true);
+      .join(' · ')
+      + (g.arbeiten.length > 4 ? ' · ' + t('und {n} weitere', { n: g.arbeiten.length - 4 }) : '');
+    const kopf = g.spaet
+      ? (g.spaet === 1 ? t('{name} · 1 Aufgabe überfällig', { name: g.name })
+        : t('{name} · {n} Aufgaben überfällig', { name: g.name, n: g.spaet }))
+      : (g.arbeiten.length === 1 ? t('{name} · 1 Aufgabe fällig', { name: g.name })
+        : t('{name} · {n} Aufgaben fällig', { name: g.name, n: g.arbeiten.length }));
+    await meldungZeigen(kopf, text, `beewise-${g.name}-${tag}`, true);
   }
   // zuletzt, damit sie im Stapel obenauf liegt – und als einzige mit Ton
-  await meldungZeigen('BeeWise', zeilen.join('\n'), 'beewise-heute', false);
+  await meldungZeigen(
+    offen === 1 ? t('Eine Aufgabe steht an')
+      : offen ? t('{n} Aufgaben stehen an', { n: offen }) : 'BeeWise',
+    zeilen.join('\n'), 'beewise-heute', false);
 }
 
 async function beispieldaten() {

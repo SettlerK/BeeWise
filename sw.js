@@ -2,7 +2,7 @@
 // Wetterabrufe laufen "network first" mit Rückfall auf den Cache – am Bienenstand
 // ist Funkloch der Normalfall, die App muss trotzdem starten.
 
-const VERSION = 'beewise-v23';
+const VERSION = 'beewise-v24';
 const HUELLE = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/db.js', './js/engine.js', './js/regeln.js',

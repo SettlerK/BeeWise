@@ -2074,4 +2074,26 @@ export const en = {
   'Sommertracht geerntet': 'Summer flow harvested',
   'Sommerbehandlung gemacht': 'Summer treatment done',
   'Mit dem Auffüttern begonnen': 'Started feeding up',
+
+  // ------------------------------------------------ v24: Einträge bearbeiten
+  'Schon gespeicherte Fotos': 'Photos already saved',
+  'Antippen zeigt das Bild groß – dort lässt es sich auch löschen.':
+    'Tap to see the photo full screen — you can delete it there.',
+  'Durchsicht ändern': 'Edit inspection',
+  'Durchsicht löschen': 'Delete inspection',
+  'Durchsicht geändert.': 'Inspection changed.',
+  'Diese Durchsicht löschen? Die Fotos dazu bleiben erhalten.':
+    'Delete this inspection? Its photos are kept.',
+  'Eintrag': 'Entry',
+  'Ab dem Umzugsdatum rechnet BeeWise mit dem neuen Standort. Wird der Eintrag gelöscht, zählt das Volk wieder durchgehend zum vorherigen.':
+    'From the move date on, BeeWise uses the new site. Delete the entry and the colony counts as having stayed at the previous one throughout.',
+  '{name} · {n} Aufgaben fällig': '{name} · {n} tasks due',
+  '{n} Aufgaben stehen an': '{n} tasks to do',
+  'Je Volk eine eigene Meldung': 'One notification per colony',
+  'Statt einer Sammelmeldung kommt für jedes Volk mit offenen Arbeiten eine eigene – das Telefon legt sie zu einem Stapel zusammen. Höchstens fünf, danach zählt die Sammelmeldung den Rest.':
+    'Instead of one combined notification, every colony with open work gets its own — the phone stacks them. At most five; the summary counts the rest.',
+
+  '{name} · 1 Aufgabe überfällig': '{name} · 1 task overdue',
+  '{name} · 1 Aufgabe fällig': '{name} · 1 task due',
+  'Eine Aufgabe steht an': 'One task to do',
 };
